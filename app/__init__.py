@@ -1,0 +1,2 @@
+"""Gift Guarant application package."""
+
