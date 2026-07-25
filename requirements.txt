@@ -2,7 +2,7 @@ aiogram>=3.30.0
 fastapi
 uvicorn
 supabase
-pydantic=
+pydantic
 pydantic-settings
 python-dotenv
 tonutils
