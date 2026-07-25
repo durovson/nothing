@@ -11,6 +11,8 @@ services:
         value: 0.0.0.0
       - key: APP_PORT
         value: "10000"
+      - key: APP_BASE_URL
+        value: https://garant-i3z6.onrender.com
       - key: RENDER_KEEPALIVE_ENABLED
         value: "true"
       - key: RENDER_KEEPALIVE_INTERVAL_SECONDS
@@ -19,16 +21,24 @@ services:
         value: "10"
       - key: TELEGRAM_USE_POLLING
         value: "true"
+      - key: TELEGRAM_BOT_USERNAME
+        value: grntrobot
+      - key: SUPPORT_USERNAME
+        value: "@ton_geist"
       - key: TON_API_ENDPOINT
         value: https://tonapi.io/v2
       - key: TON_NETWORK
         value: mainnet
+      - key: TON_GUARANT_ADDRESS
+        sync: false
       - key: ESCROW_FEE_RATE
         value: "0.01"
+      - key: AUTO_PAYOUT_AFTER_PAYMENT
+        value: "false"
       - key: SERVICE_FEE_COMMENT
-        value: Reward
+        value: Service fee
       - key: TON_PAYOUT_FEE_RESERVE
-        value: "0.002"
+        value: "0.01"
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: SUPABASE_URL

@@ -62,7 +62,6 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         repositories.deals,
         repositories.users,
         ton,
-        payouts,
         notifications,
     )
     services = Services(

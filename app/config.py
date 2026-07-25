@@ -1,6 +1,7 @@
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     TON_API_ENDPOINT: str = "https://tonapi.io/v2"
     TON_API_KEY: str = ""
     TON_MNEMONIC: str
+    TON_GUARANT_ADDRESS: str
     TON_NETWORK: TonNetwork = TonNetwork.MAINNET
     TON_WORKCHAIN: int = 0
     TON_REQUEST_TIMEOUT_MS: int = Field(default=15_000, ge=1_000)
@@ -47,7 +49,7 @@ class Settings(BaseSettings):
     TON_TRANSACTION_SCAN_LIMIT: int = Field(default=50, ge=1, le=1_000)
     SERVICE_FEE_WALLET: str
     SERVICE_FEE_COMMENT: str = Field(default="Reward", min_length=1, max_length=120)
-    TON_PAYOUT_FEE_RESERVE: Decimal = Field(default=Decimal("0.002"), gt=0)
+    TON_PAYOUT_FEE_RESERVE: Decimal = Field(default=Decimal("0.01"), gt=0)
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
     DEAL_PAYMENT_TIMEOUT_SECONDS: int = Field(default=900, ge=60)
@@ -55,7 +57,7 @@ class Settings(BaseSettings):
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
     ESCROW_FEE_RATE: Decimal = Field(default=Decimal("0.01"), gt=0, lt=1)
     REFERRAL_FEE_SHARE: Decimal = Field(default=Decimal("0.01"), ge=0, le=1)
-    AUTO_PAYOUT_AFTER_PAYMENT: bool = True
+    AUTO_PAYOUT_AFTER_PAYMENT: Literal[False] = False
     DEALS_PAGE_SIZE: int = Field(default=8, ge=1, le=20)
 
     DEFAULT_LANGUAGE: Language = Language.RU

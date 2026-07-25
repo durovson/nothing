@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
 from app.core.enums import DealStatus
-from app.core.exceptions import InsufficientPayoutReserveError, MissingPayoutWalletError
 from app.core.types import (
     DealRepositoryProtocol,
     NotificationGatewayProtocol,
@@ -13,7 +12,6 @@ from app.core.types import (
     UserRepositoryProtocol,
 )
 from app.models.entities import Deal
-from app.services.payouts import PayoutService
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +23,12 @@ class PaymentService:
         deals: DealRepositoryProtocol,
         users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
-        payouts: PayoutService,
         notifications: NotificationGatewayProtocol,
     ):
         self._settings = settings
         self._deals = deals
         self._users = users
         self._ton = ton
-        self._payouts = payouts
         self._notifications = notifications
 
     async def process_pending(self) -> None:
@@ -56,18 +52,6 @@ class PaymentService:
         seller = await self._users.get(paid_deal.creator_id)
         buyer = await self._users.get(paid_deal.buyer_id) if paid_deal.buyer_id else None
         await self._notifications.payment_received(paid_deal, buyer, seller)
-
-        if self._settings.AUTO_PAYOUT_AFTER_PAYMENT:
-            try:
-                await self._payouts.start_payout(paid_deal)
-            except MissingPayoutWalletError:
-                logger.warning("Automatic payout waits for seller wallet, deal=%s", paid_deal.public_id)
-            except InsufficientPayoutReserveError as exc:
-                logger.error(
-                    "Automatic payout blocked before broadcast, deal=%s reason=%s",
-                    paid_deal.public_id,
-                    exc,
-                )
 
     async def _expire_if_needed(self, deal: Deal) -> None:
         started_at = deal.updated_at or deal.created_at

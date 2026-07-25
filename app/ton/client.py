@@ -71,6 +71,8 @@ class TonEscrowClient:
             base_url=settings.TON_API_ENDPOINT.rstrip("/"),
             timeout=settings.TON_REQUEST_TIMEOUT_MS / 1_000,
         )
+        self._guarant_wallet = self._v5_wallet(0)
+        self._validate_guarant_address()
         self._connected = False
 
     @property
@@ -96,6 +98,44 @@ class TonEscrowClient:
         except Exception as exc:
             raise InvalidWalletError("Invalid TON address") from exc
 
+    @property
+    def guarant_address(self) -> str:
+        return self._guarant_wallet.address.to_str(
+            is_bounceable=False,
+            is_test_only=self._settings.TON_NETWORK is TonNetwork.TESTNET,
+        )
+
+    def _validate_guarant_address(self) -> None:
+        try:
+            expected = Address(self._settings.TON_GUARANT_ADDRESS).to_str(
+                is_user_friendly=False
+            )
+        except Exception as exc:
+            raise TonGatewayError("TON_GUARANT_ADDRESS is not a valid TON address") from exc
+        actual = self._guarant_wallet.address.to_str(is_user_friendly=False)
+        if expected != actual:
+            raise TonGatewayError(
+                "TON_GUARANT_ADDRESS does not match TON_MNEMONIC, TON_NETWORK, "
+                "TON_WORKCHAIN and Wallet V5R1 subwallet number 0"
+            )
+
+    def _v5_wallet(self, subwallet_number: int) -> WalletV5R1:
+        workchain = WorkchainID(self._settings.TON_WORKCHAIN)
+        wallet, _, _, _ = WalletV5R1.from_mnemonic(
+            self._client,
+            self._settings.TON_MNEMONIC,
+            workchain=workchain,
+            config=WalletV5Config(
+                subwallet_id=WalletV5SubwalletID(
+                    subwallet_number=subwallet_number,
+                    workchain=workchain,
+                    version=0,
+                    network=_network(self._settings.TON_NETWORK),
+                )
+            ),
+        )
+        return wallet
+
     def _wallet(self, deal: Deal) -> WalletV4R2 | WalletV5R1:
         workchain = WorkchainID(self._settings.TON_WORKCHAIN)
         match deal.wallet_version:
@@ -117,20 +157,7 @@ class TonEscrowClient:
                         "Wallet V5R1 subwallet number is outside uint15: "
                         f"{deal.subwallet_id}"
                     )
-                wallet, _, _, _ = WalletV5R1.from_mnemonic(
-                    self._client,
-                    self._settings.TON_MNEMONIC,
-                    workchain=workchain,
-                    config=WalletV5Config(
-                        subwallet_id=WalletV5SubwalletID(
-                            subwallet_number=deal.subwallet_id,
-                            workchain=workchain,
-                            version=0,
-                            network=_network(self._settings.TON_NETWORK),
-                        )
-                    ),
-                )
-                return wallet
+                return self._v5_wallet(deal.subwallet_id)
 
     async def get_deal_address(self, deal: Deal) -> str:
         return self._wallet(deal).address.to_str(

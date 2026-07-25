@@ -43,6 +43,7 @@ class TextKey(StrEnum):
     DEAL_CARD = "deal_card"
     DEAL_PAID_BUYER = "deal_paid_buyer"
     DEAL_PAID_SELLER = "deal_paid_seller"
+    DEAL_RELEASE_ACCEPTED = "deal_release_accepted"
     DEAL_CONFIRMED = "deal_confirmed"
     DEAL_WAIT_WALLET = "deal_wait_wallet"
     DEAL_PAYOUT_BLOCKED = "deal_payout_blocked"
@@ -125,6 +126,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Покупатель оплатил сделку.\n"
             "Ссылка на транзакцию:\n{transaction_url}\n\n"
             "Передайте товар и дождитесь подтверждения."
+        ),
+        TextKey.DEAL_RELEASE_ACCEPTED: (
+            "Получение подтверждено. Бот начал выплату продавцу; "
+            "окончательное уведомление придёт после подтверждения сети TON."
         ),
         TextKey.DEAL_CONFIRMED: "Сделка завершена, выплата продавцу подтверждена сетью TON.",
         TextKey.DEAL_WAIT_WALLET: "У продавца не привязан кошелек для выплаты.",
@@ -210,6 +215,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "The buyer paid the deal.\n"
             "Transaction:\n{transaction_url}\n\n"
             "Transfer the item and wait for confirmation."
+        ),
+        TextKey.DEAL_RELEASE_ACCEPTED: (
+            "Receipt confirmed. The bot started the seller payout; "
+            "a final notification will arrive after TON network confirmation."
         ),
         TextKey.DEAL_CONFIRMED: "The deal is complete and the TON network confirmed the seller payout.",
         TextKey.DEAL_WAIT_WALLET: "The seller has no payout wallet linked yet.",

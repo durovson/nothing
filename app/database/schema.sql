@@ -2,7 +2,7 @@ begin;
 create sequence if not exists deal_subwallet_id_seq
     as bigint minvalue 100000 maxvalue 4294967295 start with 100000 no cycle;
 create sequence if not exists deal_wallet_v5_subwallet_seq
-    as bigint minvalue 0 maxvalue 32767 start with 0 no cycle;
+    as bigint minvalue 1 maxvalue 32767 start with 1 no cycle;
 
 create table if not exists users (
     telegram_id bigint primary key,
@@ -74,7 +74,7 @@ do $$
 declare
     v_next bigint;
 begin
-    select coalesce(max(subwallet_id) + 1, 0)
+    select greatest(1, coalesce(max(subwallet_id) + 1, 1))
     into v_next
     from deals
     where wallet_version = 'v5r1';
@@ -86,6 +86,10 @@ begin
     end if;
 end;
 $$;
+
+-- Wallet V5 subwallet number 0 is the configured guarant identity wallet.
+-- Existing deal rows keep their immutable address, but no new deal may reuse it.
+alter sequence deal_wallet_v5_subwallet_seq minvalue 1 start with 1;
 
 alter table deals alter column public_id set not null;
 alter table deals alter column subwallet_id drop default;
@@ -136,6 +140,9 @@ set search_path = public
 as $$
 begin
     if new.subwallet_id is not null then
+        if new.wallet_version = 'v5r1' and new.subwallet_id = 0 then
+            raise exception 'Wallet V5 subwallet number 0 is reserved for the guarant identity';
+        end if;
         return new;
     end if;
 

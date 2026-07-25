@@ -128,7 +128,7 @@ async def confirm_deal(
     except DealConfirmationForbiddenError:
         key = TextKey.DEAL_FORBIDDEN
     else:
-        key = TextKey.DEAL_CONFIRMED
+        key = TextKey.DEAL_RELEASE_ACCEPTED
     if callback.message:
         await callback.message.answer(translate(db_user.language, key))
     await callback.answer()
