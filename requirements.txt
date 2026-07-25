@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 aiogram==3.30.0
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
@@ -6,3 +7,13 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 python-dotenv==1.2.2
 tonutils==2.1.0
+=======
+aiogram>=3.30.0
+fastapi
+uvicorn
+supabase
+pydantic
+pydantic-settings
+python-dotenv
+tonutils
+>>>>>>> 718ad63afcbe80f0fa8dc3e4cce76dc55152ccdb
