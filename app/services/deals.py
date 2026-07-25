@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import logging
 import secrets
-from decimal import Decimal
+from decimal import ROUND_UP, Decimal
 
 from app.config import Settings
-from app.core.constants import PUBLIC_DEAL_ID_BYTES
+from app.core.constants import PUBLIC_DEAL_ID_BYTES, TON_DECIMAL_PLACES
 from app.core.enums import Currency, DealStatus, DealType
-from app.core.exceptions import DealNotFoundError, UnsupportedCurrencyError
+from app.core.exceptions import (
+    DealAmountTooSmallError,
+    DealNotFoundError,
+    UnsupportedCurrencyError,
+)
 from app.core.types import DealRepositoryProtocol, TonGatewayProtocol
 from app.models.dto import CreateDealCommand
 from app.models.entities import Deal
@@ -39,6 +43,8 @@ class DealService:
             raise UnsupportedCurrencyError(
                 "USDT_TON is disabled until the jetton payment path is configured"
             )
+        if amount < self.minimum_deal_amount:
+            raise DealAmountTooSmallError(self.minimum_deal_amount)
         command = CreateDealCommand(
             public_id=secrets.token_hex(PUBLIC_DEAL_ID_BYTES),
             creator_id=creator_id,
@@ -94,6 +100,12 @@ class DealService:
 
     def buyer_payment_amount(self, deal: Deal) -> Decimal:
         return payment_amount(deal.amount, self._settings.ESCROW_FEE_RATE)
+
+    @property
+    def minimum_deal_amount(self) -> Decimal:
+        return (
+            self._settings.TON_PAYOUT_FEE_RESERVE / self._settings.ESCROW_FEE_RATE
+        ).quantize(TON_DECIMAL_PLACES, rounding=ROUND_UP)
 
     async def cleanup_retention(self) -> int:
         deleted = await self._deals.purge_unsuccessful(self._settings.FAILED_DEAL_RETENTION_DAYS)

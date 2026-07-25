@@ -238,7 +238,12 @@ class TonEscrowClient:
             if deal.wallet_version is WalletVersion.V5R1
             else WalletV4Params(valid_until=valid_until_unix)
         )
-        external_message = await wallet.build_external_message(builders, params)
+        serialized_builders = (
+            list(reversed(builders))
+            if deal.wallet_version is WalletVersion.V5R1
+            else builders
+        )
+        external_message = await wallet.build_external_message(serialized_builders, params)
         return PreparedPayout(
             normalized_hash=external_message.normalized_hash,
             signed_boc=external_message.as_hex,

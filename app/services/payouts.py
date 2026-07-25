@@ -8,6 +8,7 @@ from app.core.enums import DealStatus, PayoutStatus, TraceStatus
 from app.core.exceptions import (
     DealConfirmationForbiddenError,
     DealNotFoundError,
+    InsufficientPayoutReserveError,
     MissingPayoutWalletError,
 )
 from app.core.types import (
@@ -65,6 +66,13 @@ class PayoutService:
             deal.amount,
             self._settings.ESCROW_FEE_RATE,
         )
+        required_reserve_atomic = payout_amount_atomic(
+            self._settings.TON_PAYOUT_FEE_RESERVE
+        )
+        if reward_nominal_amount_atomic < required_reserve_atomic:
+            raise InsufficientPayoutReserveError(
+                "Service fee does not cover the configured TON payout reserve"
+            )
         seller_comment = f"Payment for deal {deal.public_id}"
         reward_comment = self._settings.SERVICE_FEE_COMMENT
 

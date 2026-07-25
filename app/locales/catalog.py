@@ -28,6 +28,7 @@ class TextKey(StrEnum):
     DEAL_CURRENCY_PROMPT = "deal_currency_prompt"
     DEAL_AMOUNT_PROMPT = "deal_amount_prompt"
     DEAL_AMOUNT_INVALID = "deal_amount_invalid"
+    DEAL_AMOUNT_TOO_SMALL = "deal_amount_too_small"
     DEAL_CREATED = "deal_created"
     DEAL_CANCEL_BUTTON = "deal_cancel_button"
     DEAL_CONFIRM_BUTTON = "deal_confirm_button"
@@ -44,6 +45,7 @@ class TextKey(StrEnum):
     DEAL_PAID_SELLER = "deal_paid_seller"
     DEAL_CONFIRMED = "deal_confirmed"
     DEAL_WAIT_WALLET = "deal_wait_wallet"
+    DEAL_PAYOUT_BLOCKED = "deal_payout_blocked"
     SETTINGS_CAPTION = "settings_caption"
     SETTINGS_REFERRALS = "settings_referrals"
     SETTINGS_LANGUAGE = "settings_language"
@@ -60,7 +62,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.RU: {
         TextKey.MAIN_MENU_CAPTION: (
             "Gift Guarant\n\nБезопасные escrow-сделки в Telegram.\n"
-            "Комиссия сервиса: 3%\nПоддержка: {support_username}"
+            "Комиссия сервиса: 1%\nПоддержка: {support_username}"
         ),
         TextKey.MENU_WALLET: "Мой кошелек",
         TextKey.MENU_CREATE_DEAL: "Создать сделку",
@@ -89,6 +91,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_CURRENCY_PROMPT: "Выберите валюту сделки.",
         TextKey.DEAL_AMOUNT_PROMPT: "Введите сумму сделки числом. Например: 5 или 12.5",
         TextKey.DEAL_AMOUNT_INVALID: "Введите положительное число.",
+        TextKey.DEAL_AMOUNT_TOO_SMALL: (
+            "Минимальная сумма сделки — {minimum} TON. "
+            "Это нужно, чтобы комиссия 1% покрывала сетевые расходы и продавец получил всю сумму."
+        ),
         TextKey.DEAL_CREATED: (
             "Сделка #{deal_id} создана.\n\nТип: {deal_type}\nОписание: {description}\n"
             "Продавец получит: {amount} {currency}\nПокупатель оплатит: {payment_amount} {currency}\n"
@@ -115,9 +121,17 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Комментарий: {deal_id}\nПокупатель: {buyer}"
         ),
         TextKey.DEAL_PAID_BUYER: "Средства поступили в escrow. Ожидайте передачу товара.",
-        TextKey.DEAL_PAID_SELLER: "Покупатель оплатил сделку. Передайте товар и дождитесь подтверждения.",
+        TextKey.DEAL_PAID_SELLER: (
+            "Покупатель оплатил сделку.\n"
+            "Ссылка на транзакцию:\n{transaction_url}\n\n"
+            "Передайте товар и дождитесь подтверждения."
+        ),
         TextKey.DEAL_CONFIRMED: "Сделка завершена, выплата продавцу подтверждена сетью TON.",
         TextKey.DEAL_WAIT_WALLET: "У продавца не привязан кошелек для выплаты.",
+        TextKey.DEAL_PAYOUT_BLOCKED: (
+            "Выплата остановлена до отправки: комиссия сделки не покрывает сетевые расходы. "
+            "Средства остаются на escrow-адресе; обратитесь в поддержку."
+        ),
         TextKey.SETTINGS_CAPTION: "Настройки",
         TextKey.SETTINGS_REFERRALS: "Рефералы",
         TextKey.SETTINGS_LANGUAGE: "Язык",
@@ -134,7 +148,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.EN: {
         TextKey.MAIN_MENU_CAPTION: (
             "Gift Guarant\n\nSafe Telegram escrow deals.\n"
-            "Service fee: 3%\nSupport: {support_username}"
+            "Service fee: 1%\nSupport: {support_username}"
         ),
         TextKey.MENU_WALLET: "My wallet",
         TextKey.MENU_CREATE_DEAL: "Create deal",
@@ -163,6 +177,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_CURRENCY_PROMPT: "Choose the deal currency.",
         TextKey.DEAL_AMOUNT_PROMPT: "Enter the amount as a number. Example: 5 or 12.5",
         TextKey.DEAL_AMOUNT_INVALID: "Please enter a positive number.",
+        TextKey.DEAL_AMOUNT_TOO_SMALL: (
+            "The minimum deal amount is {minimum} TON. "
+            "This ensures the 1% fee covers network costs and the seller receives the full amount."
+        ),
         TextKey.DEAL_CREATED: (
             "Deal #{deal_id} created.\n\nType: {deal_type}\nDescription: {description}\n"
             "Seller receives: {amount} {currency}\nBuyer pays: {payment_amount} {currency}\n"
@@ -188,9 +206,17 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Comment: {deal_id}\nBuyer: {buyer}"
         ),
         TextKey.DEAL_PAID_BUYER: "Funds were received by escrow. Please wait for the item transfer.",
-        TextKey.DEAL_PAID_SELLER: "The buyer paid the deal. Transfer the item and wait for confirmation.",
+        TextKey.DEAL_PAID_SELLER: (
+            "The buyer paid the deal.\n"
+            "Transaction:\n{transaction_url}\n\n"
+            "Transfer the item and wait for confirmation."
+        ),
         TextKey.DEAL_CONFIRMED: "The deal is complete and the TON network confirmed the seller payout.",
         TextKey.DEAL_WAIT_WALLET: "The seller has no payout wallet linked yet.",
+        TextKey.DEAL_PAYOUT_BLOCKED: (
+            "Payout was stopped before broadcast because the deal fee cannot cover network costs. "
+            "Funds remain at the escrow address; contact support."
+        ),
         TextKey.SETTINGS_CAPTION: "Settings",
         TextKey.SETTINGS_REFERRALS: "Referrals",
         TextKey.SETTINGS_LANGUAGE: "Language",
@@ -213,4 +239,3 @@ def translate(locale: Language | str, key: TextKey, **kwargs: Any) -> str:
     except ValueError:
         language = Language.RU
     return TEXTS[language][key].format(**kwargs)
-

@@ -1,9 +1,14 @@
+import asyncio
+import logging
+
 from aiogram import Bot, Dispatcher
 
 from app.config import Settings
 from app.handlers import create_router
 from app.middleware import CurrentUserMiddleware
 from app.services import Services
+
+logger = logging.getLogger(__name__)
 
 
 def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
@@ -23,5 +28,17 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
 
 
 async def run_polling(bot: Bot, dispatcher: Dispatcher) -> None:
-    await dispatcher.start_polling(bot)
-
+    while True:
+        try:
+            await dispatcher.start_polling(
+                bot,
+                handle_signals=False,
+                close_bot_session=False,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Telegram polling stopped with an error; restarting")
+        else:
+            logger.error("Telegram polling stopped unexpectedly; restarting")
+        await asyncio.sleep(5)

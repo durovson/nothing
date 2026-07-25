@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
 from app.core.enums import DealStatus
-from app.core.exceptions import MissingPayoutWalletError
+from app.core.exceptions import InsufficientPayoutReserveError, MissingPayoutWalletError
 from app.core.types import (
     DealRepositoryProtocol,
     NotificationGatewayProtocol,
@@ -62,6 +62,12 @@ class PaymentService:
                 await self._payouts.start_payout(paid_deal)
             except MissingPayoutWalletError:
                 logger.warning("Automatic payout waits for seller wallet, deal=%s", paid_deal.public_id)
+            except InsufficientPayoutReserveError as exc:
+                logger.error(
+                    "Automatic payout blocked before broadcast, deal=%s reason=%s",
+                    paid_deal.public_id,
+                    exc,
+                )
 
     async def _expire_if_needed(self, deal: Deal) -> None:
         started_at = deal.updated_at or deal.created_at
@@ -72,4 +78,3 @@ class PaymentService:
             expired = await self._deals.expire_unpaid(deal.id)
             if expired.status is DealStatus.CANCELLED:
                 logger.info("Payment window expired for deal %s", expired.public_id)
-

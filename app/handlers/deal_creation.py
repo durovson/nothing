@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.core.enums import Currency, DealType, Language
+from app.core.exceptions import DealAmountTooSmallError
 from app.keyboards import (
     CurrencyCallback,
     DealTypeCallback,
@@ -117,6 +118,15 @@ async def handle_amount(
             currency=Currency(data["currency"]),
             amount=amount,
         )
+    except DealAmountTooSmallError as exc:
+        await message.answer(
+            translate(
+                db_user.language,
+                TextKey.DEAL_AMOUNT_TOO_SMALL,
+                minimum=exc.minimum,
+            )
+        )
+        return
     except (ValidationError, KeyError, ValueError):
         await message.answer(translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID))
         return
@@ -139,4 +149,3 @@ async def handle_amount(
         ),
         reply_markup=created_deal_actions(db_user.language, deal.id),
     )
-

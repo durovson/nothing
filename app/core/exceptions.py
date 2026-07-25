@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+
 class ApplicationError(RuntimeError):
     """Base error safe for application-layer handling."""
 
@@ -23,4 +26,14 @@ class MissingPayoutWalletError(ApplicationError):
 
 
 class DealConfirmationForbiddenError(ApplicationError):
+    pass
+
+
+class DealAmountTooSmallError(ApplicationError):
+    def __init__(self, minimum: Decimal):
+        self.minimum = minimum
+        super().__init__(f"Deal amount must be at least {minimum} TON")
+
+
+class InsufficientPayoutReserveError(ApplicationError):
     pass

@@ -14,19 +14,21 @@ services:
       - key: RENDER_KEEPALIVE_ENABLED
         value: "true"
       - key: RENDER_KEEPALIVE_INTERVAL_SECONDS
-        value: "840"
+        value: "600"
       - key: RENDER_KEEPALIVE_TIMEOUT_SECONDS
         value: "10"
       - key: TELEGRAM_USE_POLLING
         value: "true"
       - key: TON_API_ENDPOINT
-        value: https://testnet.tonapi.io/v2
+        value: https://tonapi.io/v2
       - key: TON_NETWORK
-        value: testnet
+        value: mainnet
       - key: ESCROW_FEE_RATE
         value: "0.01"
       - key: SERVICE_FEE_COMMENT
         value: Reward
+      - key: TON_PAYOUT_FEE_RESERVE
+        value: "0.002"
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: SUPABASE_URL

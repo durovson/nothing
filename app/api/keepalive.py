@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
@@ -59,13 +59,13 @@ class RenderKeepAlive:
 
     async def _run(self) -> None:
         while not self._stop_event.is_set():
-            if await self._wait_for_stop():
-                return
             try:
                 status = await asyncio.to_thread(self._ping)
                 logger.info("Render keep-alive ping succeeded: status=%s", status)
-            except (HTTPError, URLError, OSError, TimeoutError, ValueError):
+            except Exception:
                 logger.exception("Render keep-alive ping failed")
+            if await self._wait_for_stop():
+                return
 
     async def _wait_for_stop(self) -> bool:
         try:

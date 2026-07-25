@@ -1,7 +1,6 @@
-from collections.abc import Iterable
 from typing import Any
 
-from ton_core import TextCommentBody
+from ton_core import Address, TextCommentBody
 
 from app.core.enums import TraceStatus
 
@@ -21,14 +20,22 @@ def decode_text_comment(body: Any) -> str | None:
         return None
 
 
-def walk_dicts(value: Any) -> Iterable[dict[str, Any]]:
-    if isinstance(value, dict):
-        yield value
-        for nested in value.values():
-            yield from walk_dicts(nested)
-    elif isinstance(value, list):
-        for nested in value:
-            yield from walk_dicts(nested)
+def _trace_transactions(trace: dict[str, Any]):
+    transaction = trace.get("transaction")
+    if isinstance(transaction, dict):
+        yield transaction
+    for child in trace.get("children", []):
+        if isinstance(child, dict):
+            yield from _trace_transactions(child)
+
+
+def _same_address(left: object, right: str) -> bool:
+    if not isinstance(left, str):
+        return False
+    try:
+        return Address(left) == Address(right)
+    except Exception:
+        return False
 
 
 def classify_trace(trace: dict[str, Any]) -> TraceStatus:
@@ -36,10 +43,24 @@ def classify_trace(trace: dict[str, Any]) -> TraceStatus:
         return TraceStatus.PENDING
 
     failed = False
-    for item in walk_dicts(trace):
-        if item.get("bounced") is True:
+    for transaction in _trace_transactions(trace):
+        incoming = transaction.get("in_msg")
+        if isinstance(incoming, dict) and incoming.get("bounced") is True:
             return TraceStatus.BOUNCED
-        if item.get("aborted") is True or item.get("success") is False:
+        if transaction.get("aborted") is True or transaction.get("success") is False:
+            failed = True
+        compute_phase = transaction.get("compute_phase")
+        if isinstance(compute_phase, dict) and (
+            compute_phase.get("success") is False
+            or compute_phase.get("exit_code") not in (None, 0)
+        ):
+            failed = True
+        action_phase = transaction.get("action_phase")
+        if isinstance(action_phase, dict) and (
+            action_phase.get("success") is False
+            or action_phase.get("result_code") not in (None, 0)
+            or int(action_phase.get("skipped_actions") or 0) > 0
+        ):
             failed = True
 
     if failed:
@@ -88,7 +109,7 @@ def trace_contains_payout(
         value = message.get("value")
         return (
             isinstance(target, dict)
-            and target.get("address") == destination
+            and _same_address(target.get("address"), destination)
             and isinstance(decoded_body, dict)
             and decoded_body.get("text") == comment
             and isinstance(value, int)

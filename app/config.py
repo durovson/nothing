@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     APP_BASE_URL: str = ""
     RENDER_EXTERNAL_URL: str = ""
     RENDER_KEEPALIVE_ENABLED: bool = False
-    RENDER_KEEPALIVE_INTERVAL_SECONDS: int = Field(default=840, ge=300, le=840)
+    RENDER_KEEPALIVE_INTERVAL_SECONDS: int = Field(default=600, ge=300, le=840)
     RENDER_KEEPALIVE_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=30)
 
     TELEGRAM_BOT_TOKEN: str
@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     TON_TRANSACTION_SCAN_LIMIT: int = Field(default=50, ge=1, le=1_000)
     SERVICE_FEE_WALLET: str
     SERVICE_FEE_COMMENT: str = Field(default="Reward", min_length=1, max_length=120)
+    TON_PAYOUT_FEE_RESERVE: Decimal = Field(default=Decimal("0.002"), gt=0)
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
     DEAL_PAYMENT_TIMEOUT_SECONDS: int = Field(default=900, ge=60)

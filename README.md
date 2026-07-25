@@ -81,6 +81,8 @@ handlers / middleware / API / background tasks
 требует от покупателя ровно 101 TON. После подтверждения платежа одна batch-транзакция
 отправляет продавцу 100 TON, а весь оставшийся баланс — на `SERVICE_FEE_WALLET`
 с комментарием `Reward`. Исходящие blockchain fees вычитаются из сервисного остатка.
+При резерве `0.002 TON` и комиссии 1% минимальная сумма сделки равна `0.2 TON`:
+меньшая комиссия не гарантирует выплату продавцу после развёртывания subwallet.
 
 USDT в TON намеренно отключён в интерфейсе и service. Jetton-переводы нельзя
 обрабатывать как native TON: для них нужна отдельная проверка jetton wallet,
@@ -168,7 +170,7 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 | `APP_BASE_URL` | пусто | Публичный HTTPS URL, обязателен в webhook-режиме. |
 | `RENDER_EXTERNAL_URL` | пусто | Публичный URL, автоматически выдаётся Render. Вручную обычно не задаётся. |
 | `RENDER_KEEPALIVE_ENABLED` | `false` | Включает исходящий self-ping публичного `/ping`. Blueprint задаёт `true`. |
-| `RENDER_KEEPALIVE_INTERVAL_SECONDS` | `840` | Интервал self-ping: 840 секунд = 14 минут. |
+| `RENDER_KEEPALIVE_INTERVAL_SECONDS` | `600` | Интервал self-ping: 600 секунд = 10 минут. |
 | `RENDER_KEEPALIVE_TIMEOUT_SECONDS` | `10` | Timeout одного keep-alive запроса. |
 | `TELEGRAM_BOT_USERNAME` | пусто | Username бота без `@`. |
 | `TELEGRAM_USE_POLLING` | `true` | `true` — polling, `false` — webhook. |
@@ -198,6 +200,7 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 | `TON_TRANSACTION_SCAN_LIMIT` | `50` | Число последних транзакций для проверки оплаты. |
 | `SERVICE_FEE_WALLET` | — | TON-адрес получения сервисной комиссии после выплаты продавцу. |
 | `SERVICE_FEE_COMMENT` | `Reward` | Текстовый комментарий перевода сервисной комиссии. |
+| `TON_PAYOUT_FEE_RESERVE` | `0.002` | Минимальная часть комиссии в TON, резервируемая под deploy и исходящие fees. |
 
 ### Сделки и фоновые задачи
 
@@ -281,6 +284,9 @@ SQL-миграция безопасно помечает все уже суще�
    `deals.amount`, затем send mode `128` переводит весь оставшийся баланс на
    `SERVICE_FEE_WALLET` с комментарием `Reward`. Поэтому исходящие blockchain fees
    уменьшают комиссию сервиса, а не выплату продавцу.
+7. При комиссии 1% и `TON_PAYOUT_FEE_RESERVE=0.002` бот принимает сделки от
+   `0.2 TON`. Перед подписью BOC резерв проверяется повторно; небезопасная выплата
+   блокируется без отправки средств.
 
 Платёж засчитывается только при одновременном совпадении destination, точной
 суммы в nanoTON, memo/public ID, credit phase и отсутствии bounce. Первый
@@ -292,6 +298,14 @@ SQL-миграция безопасно помечает все уже суще�
 [internal messages](https://docs.ton.org/foundations/messages/internal) и
   [форматы адресов](https://docs.ton.org/foundations/addresses/formats) и
   [Wallet V5](https://docs.ton.org/contracts/standard/wallets/v5).
+
+TON-транзакция содержит входящее сообщение с адресами отправителя и получателя,
+значением перевода и телом сообщения. Текстовый комментарий — это payload с
+32-битным нулевым opcode и UTF-8 текстом. Поэтому бот может и должен проверять
+адрес сделки, точную сумму и memo одновременно. Проверка только memo небезопасна:
+один и тот же комментарий можно скопировать в перевод на другой адрес или
+использовать при недоплате. После подтверждения продавец получает ссылку
+Tonviewer на сохранённый `paid_tx_hash`, чтобы независимо увидеть платёж.
 
 Выплата считается завершённой только после успешного TonAPI trace, а не сразу
 после broadcast.
@@ -344,7 +358,7 @@ webhook, а endpoint проверяет заголовок Telegram secret token
 
 Бесплатный Render Web Service останавливается после 15 минут без входящего HTTP
 трафика. В спящем процессе не работают Telegram polling и монитор TON-платежей.
-В `render.yaml` включён `RenderKeepAlive`: работающий процесс раз в 14 минут
+В `render.yaml` включён `RenderKeepAlive`: процесс сразу после старта и затем раз в 10 минут
 обращается к автоматически выданному `RENDER_EXTERNAL_URL/ping`. Запрос
 выполняется в отдельном thread через стандартную библиотеку и не блокирует
 Aiogram, FastAPI или TON monitor.
@@ -360,8 +374,8 @@ Interval: 10 minutes
 Expected status: 200
 ```
 
-Пинг раз в 15 минут находится на границе тайм-аута и ненадёжен. Внешний монитор
-использует 10 минут, внутренний — запрошенные 14 минут. Подробнее:
+Пинг раз в 15 минут находится на границе тайм-аута и ненадёжен. Внешний и внутренний
+мониторы используют 10 минут. Подробнее:
 [uptime best practices](https://render.com/docs/uptime-best-practices) и
 [ограничения Free](https://render.com/docs/free).
 

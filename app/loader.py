@@ -42,7 +42,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     database = SupabaseDatabase(app_settings)
     repositories = Repositories.build(database)
     ton = TonEscrowClient(app_settings)
-    notifications = TelegramNotificationGateway(bot)
+    notifications = TelegramNotificationGateway(bot, app_settings.TON_NETWORK)
 
     users = UserService(repositories.users)
     wallets = WalletService(repositories.users, ton)
