@@ -21,3 +21,11 @@ def payout_amount_atomic(amount: Decimal) -> int:
         raise ValueError("Payout amount is too small")
     return atomic
 
+
+def service_fee_amount_atomic(amount: Decimal, fee_rate: Decimal) -> int:
+    total_atomic = payment_amount_atomic(amount, fee_rate)
+    payout_atomic = payout_amount_atomic(amount)
+    fee_atomic = total_atomic - payout_atomic
+    if fee_atomic <= 0:
+        raise ValueError("Service fee is too small")
+    return fee_atomic

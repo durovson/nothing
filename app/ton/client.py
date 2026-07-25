@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import time
@@ -9,23 +10,38 @@ from ton_core import (
     ContractState,
     InternalMsgInfo,
     NetworkGlobalID,
+    SendMode,
     WalletV4Config,
     WalletV4Params,
+    WalletV5Config,
+    WalletV5Params,
+    WalletV5SubwalletID,
     WorkchainID,
 )
 from tonutils.clients import TonapiClient
-from tonutils.contracts import TONTransferBuilder, WalletV4R2
+from tonutils.contracts import TONTransferBuilder, WalletV4R2, WalletV5R1
 from tonutils.exceptions import ProviderResponseError
 
 from app.config import Settings
-from app.core.constants import MAX_PAYOUT_MESSAGES
-from app.core.enums import Currency, TonNetwork, TraceStatus
+from app.core.constants import (
+    WALLET_V4_MAX_PAYOUT_MESSAGES,
+    WALLET_V5_MAX_PAYOUT_MESSAGES,
+    WALLET_V5_MAX_SUBWALLET_NUMBER,
+)
+from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
 from app.core.exceptions import InvalidWalletError, TonGatewayError
 from app.models.dto import PaymentObservation
-from app.models.entities import Deal
+from app.models.entities import Deal, PayoutAttempt
 from app.ton.amounts import payment_amount_atomic
 from app.ton.models import PayoutMessage, PreparedPayout
-from app.ton.parsing import classify_trace, decode_text_comment, transaction_hash
+from app.ton.parsing import (
+    classify_trace,
+    decode_text_comment,
+    trace_contains_payout,
+    transaction_hash,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _network(value: TonNetwork) -> NetworkGlobalID:
@@ -36,8 +52,16 @@ def _network(value: TonNetwork) -> NetworkGlobalID:
             return NetworkGlobalID.TESTNET
 
 
+def _credited_amount_atomic(description: object) -> int | None:
+    """Return the TON amount retained by the account during the credit phase."""
+    credit_phase = getattr(description, "credit_ph", None)
+    credit = getattr(credit_phase, "credit", None)
+    grams = getattr(credit, "grams", None)
+    return grams if isinstance(grams, int) else None
+
+
 class TonEscrowClient:
-    """TON infrastructure adapter based on tonutils WalletV4R2 and TonAPI."""
+    """TON adapter supporting legacy Wallet V4R2 and new Wallet V5R1 deals."""
 
     def __init__(self, settings: Settings):
         self._settings = settings
@@ -72,19 +96,44 @@ class TonEscrowClient:
         except Exception as exc:
             raise InvalidWalletError("Invalid TON address") from exc
 
-    def _wallet(self, subwallet_id: int) -> WalletV4R2:
-        if not 0 <= subwallet_id <= 0xFFFFFFFF:
-            raise TonGatewayError(f"subwallet_id is outside uint32: {subwallet_id}")
-        wallet, _, _, _ = WalletV4R2.from_mnemonic(
-            self._client,
-            self._settings.TON_MNEMONIC,
-            workchain=WorkchainID(self._settings.TON_WORKCHAIN),
-            config=WalletV4Config(subwallet_id=subwallet_id),
-        )
-        return wallet
+    def _wallet(self, deal: Deal) -> WalletV4R2 | WalletV5R1:
+        workchain = WorkchainID(self._settings.TON_WORKCHAIN)
+        match deal.wallet_version:
+            case WalletVersion.V4R2:
+                if not 0 <= deal.subwallet_id <= 0xFFFFFFFF:
+                    raise TonGatewayError(
+                        f"Wallet V4R2 subwallet_id is outside uint32: {deal.subwallet_id}"
+                    )
+                wallet, _, _, _ = WalletV4R2.from_mnemonic(
+                    self._client,
+                    self._settings.TON_MNEMONIC,
+                    workchain=workchain,
+                    config=WalletV4Config(subwallet_id=deal.subwallet_id),
+                )
+                return wallet
+            case WalletVersion.V5R1:
+                if not 0 <= deal.subwallet_id <= WALLET_V5_MAX_SUBWALLET_NUMBER:
+                    raise TonGatewayError(
+                        "Wallet V5R1 subwallet number is outside uint15: "
+                        f"{deal.subwallet_id}"
+                    )
+                wallet, _, _, _ = WalletV5R1.from_mnemonic(
+                    self._client,
+                    self._settings.TON_MNEMONIC,
+                    workchain=workchain,
+                    config=WalletV5Config(
+                        subwallet_id=WalletV5SubwalletID(
+                            subwallet_number=deal.subwallet_id,
+                            workchain=workchain,
+                            version=0,
+                            network=_network(self._settings.TON_NETWORK),
+                        )
+                    ),
+                )
+                return wallet
 
-    async def get_deal_address(self, subwallet_id: int) -> str:
-        return self._wallet(subwallet_id).address.to_str(
+    async def get_deal_address(self, deal: Deal) -> str:
+        return self._wallet(deal).address.to_str(
             is_bounceable=False,
             is_test_only=self._settings.TON_NETWORK is TonNetwork.TESTNET,
         )
@@ -93,24 +142,43 @@ class TonEscrowClient:
         if deal.currency is not Currency.TON:
             raise TonGatewayError("USDT_TON requires a jetton-specific payment monitor")
 
-        wallet = self._wallet(deal.subwallet_id)
+        wallet = self._wallet(deal)
         expected_atomic = payment_amount_atomic(deal.amount, self._settings.ESCROW_FEE_RATE)
         created_timestamp = int(deal.created_at.timestamp()) if deal.created_at else 0
         transactions = await wallet.get_transactions(limit=self._settings.TON_TRANSACTION_SCAN_LIMIT)
 
         for transaction in transactions:
-            if transaction.now < created_timestamp or getattr(transaction.description, "aborted", False):
+            if transaction.now < created_timestamp:
                 continue
             incoming = transaction.in_msg
             info = getattr(incoming, "info", None) if incoming else None
             if not isinstance(info, InternalMsgInfo) or info.bounced:
                 continue
+
+            description = transaction.description
+            credited_atomic = _credited_amount_atomic(description)
+            if (
+                credited_atomic != expected_atomic
+                or getattr(description, "bounce", None) is not None
+                or getattr(description, "destroyed", False)
+            ):
+                continue
+
             memo = decode_text_comment(incoming.body)
             if memo != deal.public_id or info.value_coins != expected_atomic:
                 continue
+
+            tx_hash = transaction_hash(transaction)
+            logger.info(
+                "Matched TON payment deal=%s tx=%s amount_atomic=%s account_aborted=%s",
+                deal.public_id,
+                tx_hash,
+                credited_atomic,
+                getattr(description, "aborted", False),
+            )
             sender = info.src.to_str(is_bounceable=False) if info.src else None
             return PaymentObservation(
-                tx_hash=transaction_hash(transaction),
+                tx_hash=tx_hash,
                 tx_lt=transaction.lt,
                 amount_atomic=info.value_coins,
                 sender=sender,
@@ -121,11 +189,23 @@ class TonEscrowClient:
 
     async def prepare_batch_payout(
         self,
-        subwallet_id: int,
+        deal: Deal,
         messages: Sequence[PayoutMessage],
     ) -> PreparedPayout:
-        if not 1 <= len(messages) <= MAX_PAYOUT_MESSAGES:
-            raise TonGatewayError("WalletV4R2 supports 1 to 4 outgoing messages per transfer")
+        max_messages = (
+            WALLET_V5_MAX_PAYOUT_MESSAGES
+            if deal.wallet_version is WalletVersion.V5R1
+            else WALLET_V4_MAX_PAYOUT_MESSAGES
+        )
+        if not 1 <= len(messages) <= max_messages:
+            raise TonGatewayError(
+                f"{deal.wallet_version.value} supports 1 to {max_messages} outgoing messages"
+            )
+        sweep_positions = [
+            index for index, message in enumerate(messages) if message.sweep_balance
+        ]
+        if sweep_positions and sweep_positions != [len(messages) - 1]:
+            raise TonGatewayError("Balance sweep must be the final and only sweep message")
 
         builders: list[TONTransferBuilder] = []
         for item in messages:
@@ -133,20 +213,32 @@ class TonEscrowClient:
             recipient = await self._client.get_info(destination)
             if recipient.state == ContractState.FROZEN:
                 raise TonGatewayError(f"Recipient {item.destination} is frozen")
+            if item.sweep_balance:
+                send_mode = int(SendMode.CARRY_ALL_REMAINING_BALANCE)
+                amount_atomic = 0
+            else:
+                send_mode = int(SendMode.PAY_GAS_SEPARATELY)
+                amount_atomic = item.amount_atomic
+            if deal.wallet_version is WalletVersion.V5R1:
+                send_mode |= int(SendMode.IGNORE_ERRORS)
             builders.append(
                 TONTransferBuilder(
                     destination=destination,
-                    amount=item.amount_atomic,
+                    amount=amount_atomic,
                     body=item.comment,
+                    send_mode=send_mode,
                     bounce=recipient.state == ContractState.ACTIVE,
                 )
             )
 
         valid_until_unix = int(time()) + self._settings.TON_TRANSFER_TTL_SECONDS
-        external_message = await self._wallet(subwallet_id).build_external_message(
-            builders,
-            WalletV4Params(valid_until=valid_until_unix),
+        wallet = self._wallet(deal)
+        params = (
+            WalletV5Params(valid_until=valid_until_unix)
+            if deal.wallet_version is WalletVersion.V5R1
+            else WalletV4Params(valid_until=valid_until_unix)
         )
+        external_message = await wallet.build_external_message(builders, params)
         return PreparedPayout(
             normalized_hash=external_message.normalized_hash,
             signed_boc=external_message.as_hex,
@@ -156,14 +248,41 @@ class TonEscrowClient:
     async def broadcast(self, signed_boc: str) -> None:
         await self._client.send_message(signed_boc)
 
-    async def get_trace_status(self, normalized_hash: str) -> TraceStatus:
+    async def get_payout_trace_status(self, attempt: PayoutAttempt) -> TraceStatus:
+        if not attempt.external_message_hash:
+            raise TonGatewayError("Payout attempt has no external message hash")
         try:
-            trace = await self._client.provider.send_http_request("GET", f"/traces/{normalized_hash}")
+            trace = await self._client.provider.send_http_request(
+                "GET",
+                f"/traces/{attempt.external_message_hash}",
+            )
         except ProviderResponseError as exc:
             if exc.code == 404:
                 return TraceStatus.NOT_FOUND
             raise
         if not isinstance(trace, dict):
             raise TonGatewayError("TonAPI returned an invalid trace payload")
-        return classify_trace(trace)
+        status = classify_trace(trace)
+        if status is not TraceStatus.CONFIRMED:
+            return status
 
+        seller_destination = Address(attempt.destination).to_str(is_user_friendly=False)
+        reward_destination = (
+            Address(attempt.reward_destination).to_str(is_user_friendly=False)
+            if attempt.reward_destination
+            else None
+        )
+        if not trace_contains_payout(
+            trace,
+            seller_destination=seller_destination,
+            seller_amount_atomic=attempt.amount_atomic,
+            seller_comment=attempt.comment,
+            reward_destination=reward_destination,
+            reward_comment=attempt.reward_comment,
+        ):
+            logger.error(
+                "Confirmed trace does not contain the complete payout batch attempt=%s",
+                attempt.id,
+            )
+            return TraceStatus.FAILED
+        return TraceStatus.CONFIRMED

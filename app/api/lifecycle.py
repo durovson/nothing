@@ -28,6 +28,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
         try:
             await container.ton.start()
             await container.monitor.start()
+            await container.keepalive.start()
             if settings.TELEGRAM_USE_POLLING:
                 await container.bot.delete_webhook(drop_pending_updates=False)
                 polling_task = asyncio.create_task(
@@ -50,9 +51,9 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
                     await polling_task
             if not settings.TELEGRAM_USE_POLLING:
                 await container.bot.delete_webhook(drop_pending_updates=False)
+            await container.keepalive.stop()
             await container.monitor.stop()
             await container.ton.close()
             await container.bot.session.close()
 
     return lifespan
-

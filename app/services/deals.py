@@ -49,7 +49,7 @@ class DealService:
         )
         deal = await self._deals.create(command)
         try:
-            wallet_address = await self._ton.get_deal_address(deal.subwallet_id)
+            wallet_address = await self._ton.get_deal_address(deal)
             return await self._deals.activate(deal.id, wallet_address)
         except Exception as exc:
             logger.exception("Failed to derive escrow wallet for deal %s", deal.public_id)
@@ -100,4 +100,3 @@ class DealService:
         if deleted:
             logger.info("Deleted %s unsuccessful deals past retention", deleted)
         return deleted
-

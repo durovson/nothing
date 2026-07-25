@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: gift-guarant
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: "10000"
+      - key: RENDER_KEEPALIVE_ENABLED
+        value: "true"
+      - key: RENDER_KEEPALIVE_INTERVAL_SECONDS
+        value: "840"
+      - key: RENDER_KEEPALIVE_TIMEOUT_SECONDS
+        value: "10"
+      - key: TELEGRAM_USE_POLLING
+        value: "true"
+      - key: TON_API_ENDPOINT
+        value: https://testnet.tonapi.io/v2
+      - key: TON_NETWORK
+        value: testnet
+      - key: ESCROW_FEE_RATE
+        value: "0.01"
+      - key: SERVICE_FEE_COMMENT
+        value: Reward
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: TON_API_KEY
+        sync: false
+      - key: TON_MNEMONIC
+        sync: false
+      - key: SERVICE_FEE_WALLET
+        sync: false

@@ -19,7 +19,7 @@ from app.core.types import (
 )
 from app.models.entities import Deal, PayoutAttempt
 from app.services.referrals import ReferralService
-from app.ton.amounts import payout_amount_atomic
+from app.ton.amounts import payout_amount_atomic, service_fee_amount_atomic
 from app.ton.models import PayoutMessage
 
 logger = logging.getLogger(__name__)
@@ -58,20 +58,51 @@ class PayoutService:
         if not seller or not seller.wallet_address:
             raise MissingPayoutWalletError(f"Seller wallet is missing for deal {deal.public_id}")
 
+        seller_destination = self._ton.normalize_address(seller.wallet_address)
+        reward_destination = self._ton.normalize_address(self._settings.SERVICE_FEE_WALLET)
+        seller_amount_atomic = payout_amount_atomic(deal.amount)
+        reward_nominal_amount_atomic = service_fee_amount_atomic(
+            deal.amount,
+            self._settings.ESCROW_FEE_RATE,
+        )
+        seller_comment = f"Payment for deal {deal.public_id}"
+        reward_comment = self._settings.SERVICE_FEE_COMMENT
+
         attempt = await self._payouts.claim(
             deal,
-            seller.wallet_address,
-            payout_amount_atomic(deal.amount),
-            f"Payment for deal {deal.public_id}",
+            seller_destination,
+            seller_amount_atomic,
+            seller_comment,
+            reward_destination,
+            reward_nominal_amount_atomic,
+            reward_comment,
         )
         if attempt is None:
             logger.info("Payout already claimed for deal %s", deal.public_id)
             return
 
         try:
+            if (
+                not attempt.reward_destination
+                or not attempt.reward_nominal_amount_atomic
+                or not attempt.reward_comment
+            ):
+                raise ValueError("Claimed payout has incomplete service reward data")
             prepared = await self._ton.prepare_batch_payout(
-                deal.subwallet_id,
-                [PayoutMessage(attempt.destination, attempt.amount_atomic, attempt.comment)],
+                deal,
+                [
+                    PayoutMessage(
+                        attempt.destination,
+                        attempt.amount_atomic,
+                        attempt.comment,
+                    ),
+                    PayoutMessage(
+                        attempt.reward_destination,
+                        attempt.reward_nominal_amount_atomic,
+                        attempt.reward_comment,
+                        sweep_balance=True,
+                    ),
+                ],
             )
             attempt = await self._payouts.save_prepared(
                 attempt.id,
@@ -112,7 +143,7 @@ class PayoutService:
             await self._payouts.mark_failed(attempt.id, "Submitted payout has no message hash")
             return
 
-        trace_status = await self._ton.get_trace_status(attempt.external_message_hash)
+        trace_status = await self._ton.get_payout_trace_status(attempt)
         match trace_status:
             case TraceStatus.CONFIRMED:
                 completed = await self._payouts.mark_confirmed(attempt.id)

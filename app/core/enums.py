@@ -16,6 +16,11 @@ class TonNetwork(StrEnum):
     TESTNET = "testnet"
 
 
+class WalletVersion(StrEnum):
+    V4R2 = "v4r2"
+    V5R1 = "v5r1"
+
+
 class DealType(StrEnum):
     GIFTS = "gifts"
     CHANNEL = "channel"
@@ -50,4 +55,3 @@ class TraceStatus(StrEnum):
     CONFIRMED = "confirmed"
     BOUNCED = "bounced"
     FAILED = "failed"
-

@@ -24,7 +24,7 @@ app/
 |-- loader.py        # composition root: создание и внедрение зависимостей
 |-- bot.py           # фабрика Aiogram Dispatcher
 |-- config.py        # типизированные настройки окружения
-|-- api/             # FastAPI lifecycle, health-check и Telegram webhook
+|-- api/             # FastAPI lifecycle, ping/health-check и Telegram webhook
 |-- core/            # Enum, константы, исключения, Protocol, логирование
 |-- database/        # адаптер Supabase и PostgreSQL schema/RPC
 |-- handlers/        # тонкие Telegram-контроллеры
@@ -67,17 +67,20 @@ handlers / middleware / API / background tasks
 ## Как проходит сделка
 
 1. Продавец создаёт сделку, указывает описание, сумму и кошелёк выплаты.
-2. Бот резервирует уникальный `subwallet_id` и вычисляет отдельный адрес
-   WalletV4R2 для сделки.
+2. Бот атомарно резервирует идентификатор кошелька и вычисляет отдельный
+   WalletV5R1-адрес для новой сделки. Сделки, созданные до миграции, продолжают
+   использовать свои WalletV4R2-адреса.
 3. Покупатель присоединяется и отправляет точную сумму с комиссией и memo сделки.
-4. Фоновый монитор сверяет адрес получателя, сумму в nanoTON, memo, состояние
-   транзакции и отсутствие bounce.
+4. Фоновый монитор сверяет сумму фактического credit phase в nanoTON, memo,
+   отсутствие bounce и сохранение средств на адресе сделки.
 5. PostgreSQL RPC атомарно фиксирует платёж и разрешает только одну выплату.
 6. Подписанный BOC и hash внешнего сообщения сохраняются до отправки.
 7. TonAPI trace подтверждает успешное выполнение либо фиксирует bounce/error.
 
-`deals.amount` — чистая сумма продавцу. При комиссии `0.03` сделка на 870 TON
-требует от покупателя 896.1 TON, после чего продавцу отправляется 870 TON.
+`deals.amount` — чистая сумма продавцу. При комиссии `0.01` сделка на 100 TON
+требует от покупателя ровно 101 TON. После подтверждения платежа одна batch-транзакция
+отправляет продавцу 100 TON, а весь оставшийся баланс — на `SERVICE_FEE_WALLET`
+с комментарием `Reward`. Исходящие blockchain fees вычитаются из сервисного остатка.
 
 USDT в TON намеренно отключён в интерфейсе и service. Jetton-переводы нельзя
 обрабатывать как native TON: для них нужна отдельная проверка jetton wallet,
@@ -107,7 +110,8 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Заполните `.env`, затем примените `app/database/schema.sql` в Supabase.
+Заполните `.env`, затем примените в Supabase по порядку:
+`app/database/schema.sql` и `app/database/routines.sql`.
 
 ### 2. Запустить приложение
 
@@ -122,10 +126,12 @@ python -m app.main
 
 ```bash
 curl http://localhost:8000/healthz
+curl http://localhost:8000/ping
 curl http://localhost:8000/readyz
 ```
 
 - `/healthz` проверяет, что HTTP-процесс работает;
+- `/ping` — лёгкий endpoint для внешнего Render keep-alive monitor;
 - `/readyz` показывает состояние TON-клиента и фонового монитора.
 
 ### Запуск через Docker
@@ -160,6 +166,10 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 | `APP_HOST` | `0.0.0.0` | Интерфейс HTTP-сервера. На Render не менять. |
 | `APP_PORT` | `8000` | Порт Uvicorn; на Render задать `10000`. |
 | `APP_BASE_URL` | пусто | Публичный HTTPS URL, обязателен в webhook-режиме. |
+| `RENDER_EXTERNAL_URL` | пусто | Публичный URL, автоматически выдаётся Render. Вручную обычно не задаётся. |
+| `RENDER_KEEPALIVE_ENABLED` | `false` | Включает исходящий self-ping публичного `/ping`. Blueprint задаёт `true`. |
+| `RENDER_KEEPALIVE_INTERVAL_SECONDS` | `840` | Интервал self-ping: 840 секунд = 14 минут. |
+| `RENDER_KEEPALIVE_TIMEOUT_SECONDS` | `10` | Timeout одного keep-alive запроса. |
 | `TELEGRAM_BOT_USERNAME` | пусто | Username бота без `@`. |
 | `TELEGRAM_USE_POLLING` | `true` | `true` — polling, `false` — webhook. |
 | `TELEGRAM_WEBHOOK_PATH` | `/telegram/webhook` | Путь входящих Telegram Update. |
@@ -186,6 +196,8 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 | `TON_TRANSFER_TTL_SECONDS` | `60` | Срок действия подписанного сообщения выплаты. |
 | `TON_TRACE_GRACE_SECONDS` | `120` | Время ожидания появления trace после отправки. |
 | `TON_TRANSACTION_SCAN_LIMIT` | `50` | Число последних транзакций для проверки оплаты. |
+| `SERVICE_FEE_WALLET` | — | TON-адрес получения сервисной комиссии после выплаты продавцу. |
+| `SERVICE_FEE_COMMENT` | `Reward` | Текстовый комментарий перевода сервисной комиссии. |
 
 ### Сделки и фоновые задачи
 
@@ -195,7 +207,7 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 | `DEAL_PAYMENT_TIMEOUT_SECONDS` | `900` | Время на оплату присоединённой сделки. |
 | `FAILED_DEAL_RETENTION_DAYS` | `30` | Хранение неуспешных сделок, допустимо 1–30 дней. |
 | `RETENTION_CLEANUP_INTERVAL_SECONDS` | `86400` | Интервал запуска очистки. |
-| `ESCROW_FEE_RATE` | `0.03` | Комиссия гаранта: `0.03` = 3%. |
+| `ESCROW_FEE_RATE` | `0.01` | Комиссия гаранта: `0.01` = 1%. |
 | `REFERRAL_FEE_SHARE` | `0.01` | Реферальная доля: `0.01` = 1%. |
 | `AUTO_PAYOUT_AFTER_PAYMENT` | `true` | Автоматически начать выплату после подтверждения оплаты. |
 | `DEALS_PAGE_SIZE` | `8` | Количество сделок на странице. |
@@ -208,10 +220,11 @@ docker run --rm --env-file .env -p 8000:8000 gift-guarant
 
 1. Создайте проект Supabase и откройте `SQL Editor`.
 2. Выполните весь файл `app/database/schema.sql` одним запуском.
-3. В `Project Settings -> API Keys` получите server-side secret key. Если проект
+3. Затем выполните весь файл `app/database/routines.sql` одним запуском.
+4. В `Project Settings -> API Keys` получите server-side secret key. Если проект
    использует старые ключи, допустим legacy `service_role`.
-4. Запишите URL и ключ в `SUPABASE_URL` и `SUPABASE_KEY`.
-5. Запустите приложение и проверьте `/readyz` и логи старта.
+5. Запишите URL и ключ в `SUPABASE_URL` и `SUPABASE_KEY`.
+6. Запустите приложение и проверьте `/readyz` и логи старта.
 
 Схема создаёт:
 
@@ -236,10 +249,22 @@ Git. Для последующих изменений production-схемы хр
 
 ## TON
 
-Бот использует одну мнемонику и уникальный `subwallet_id` для каждой сделки.
-Разные subwallet ID дают независимые WalletV4R2-адреса с отдельными балансами и
-`seqno`, хотя ключевая пара общая. Поэтому таблица `deals` хранит `subwallet_id`
-как уникальное 32-битное значение.
+Бот использует одну мнемонику и отдельный контракт кошелька для каждой сделки.
+Новые сделки создаются на WalletV5R1. Таблица `deals` хранит пару
+`(wallet_version, subwallet_id)`, потому что версия контракта является частью
+адреса и должна использоваться при каждом восстановлении кошелька.
+
+Для обычного клиентского контекста Wallet V5R1 `subwallet_id` в проекте означает
+15-битный `subwallet_number` (`0..32767`). Из него, workchain, версии и global ID
+сети формируется 32-битный `wallet_id`. Mainnet и testnet поэтому дают разные
+адреса даже при одинаковой мнемонике и номере.
+
+SQL-миграция безопасно помечает все уже существующие сделки как `v4r2`, а новые
+строки по умолчанию создаёт как `v5r1`. Старые строки нельзя вручную переводить
+в `v5r1`: это вычислит другой адрес и лишит приложение доступа к средствам
+исходного V4R2-контракта. W5 позволяет создать до 32768 адресов на одну
+мнемонику в клиентском контексте; при исчерпании последовательности создание
+новой сделки завершится ошибкой вместо повторного использования адреса.
 
 Правила безопасной настройки:
 
@@ -252,13 +277,24 @@ Git. Для последующих изменений production-схемы хр
    меняет все вычисляемые адреса сделок.
 5. Не удаляйте записи `payout_attempts`: сохранённый BOC/hash нужен для
    безопасного восстановления после перезапуска между подписью и broadcast.
-6. Оставляйте на адресе сделки запас на blockchain fee. Сумма покупателя
-   включает комиссию сервиса, а продавцу перечисляется только `deals.amount`.
+6. Сумма покупателя равна `deals.amount + 1%`. Продавцу перечисляется ровно
+   `deals.amount`, затем send mode `128` переводит весь оставшийся баланс на
+   `SERVICE_FEE_WALLET` с комментарием `Reward`. Поэтому исходящие blockchain fees
+   уменьшают комиссию сервиса, а не выплату продавцу.
 
 Платёж засчитывается только при одновременном совпадении destination, точной
-суммы в nanoTON, memo/public ID и успешного неброшенного сообщения. Выплата
-считается завершённой только после успешного TonAPI trace, а не сразу после
-broadcast.
+суммы в nanoTON, memo/public ID, credit phase и отсутствии bounce. Первый
+неbounceable перевод на ещё не развёрнутый WalletV4R2/WalletV5R1 переводит адрес из
+`nonexist` в `uninit`: compute phase может быть пропущен, но TON остаются на
+балансе. Поэтому входящий платёж проверяется по фактическому credit phase, а не
+отбрасывается только из-за флага `aborted`. См. официальную документацию:
+[статусы аккаунта](https://docs.ton.org/foundations/status),
+[internal messages](https://docs.ton.org/foundations/messages/internal) и
+  [форматы адресов](https://docs.ton.org/foundations/addresses/formats) и
+  [Wallet V5](https://docs.ton.org/contracts/standard/wallets/v5).
+
+Выплата считается завершённой только после успешного TonAPI trace, а не сразу
+после broadcast.
 
 ## Render Deploy
 
@@ -266,13 +302,14 @@ broadcast.
 CPython 3.14.3.
 
 1. Загрузите проект в приватный Git-репозиторий без `.env`.
-2. В Render выберите `New -> Web Service` и подключите репозиторий.
-3. Укажите `Language: Docker`, нужную branch и корень, где лежит `Dockerfile`.
+2. Создайте Blueprint из `render.yaml` либо выберите `New -> Web Service`.
+3. При ручной настройке укажите `Language: Docker`, нужную branch и корень, где
+   лежит `Dockerfile`.
 4. Выберите **один** экземпляр сервиса. Несколько экземпляров одновременно
    запустят несколько polling/retention циклов.
 5. В `Environment` добавьте переменные из `.env.example` и секреты.
 6. Обязательно задайте `APP_HOST=0.0.0.0` и `APP_PORT=10000`.
-7. В `Health Check Path` укажите `/healthz`.
+7. В `Health Check Path` укажите `/healthz`; Blueprint задаёт его автоматически.
 8. Выполните deploy и проверьте `https://SERVICE.onrender.com/healthz` и
    `/readyz`.
 
@@ -307,9 +344,26 @@ webhook, а endpoint проверяет заголовок Telegram secret token
 
 Бесплатный Render Web Service останавливается после 15 минут без входящего HTTP
 трафика. В спящем процессе не работают Telegram polling и монитор TON-платежей.
-Внешний ping раз в 15 минут находится на границе тайм-аута и не гарантирует
-непрерывную работу; если это временное решение, используйте интервал меньше
-15 минут, например 10–14 минут, и ping `/healthz`.
+В `render.yaml` включён `RenderKeepAlive`: работающий процесс раз в 14 минут
+обращается к автоматически выданному `RENDER_EXTERNAL_URL/ping`. Запрос
+выполняется в отдельном thread через стандартную библиотеку и не блокирует
+Aiogram, FastAPI или TON monitor.
+
+Self-ping не может восстановить уже остановленный процесс и не защищает от
+перезапуска платформы. Поэтому дополнительно настройте внешний монитор:
+
+Настройте внешний монитор на:
+
+```text
+GET https://SERVICE.onrender.com/ping
+Interval: 10 minutes
+Expected status: 200
+```
+
+Пинг раз в 15 минут находится на границе тайм-аута и ненадёжен. Внешний монитор
+использует 10 минут, внутренний — запрошенные 14 минут. Подробнее:
+[uptime best practices](https://render.com/docs/uptime-best-practices) и
+[ограничения Free](https://render.com/docs/free).
 
 Для production с деньгами используйте постоянно работающий paid instance.
 Файловая система Render эфемерна, но бот не хранит бизнес-данные локально —
@@ -323,7 +377,7 @@ webhook, а endpoint проверяет заголовок Telegram secret token
 | `/readyz` показывает `starting` | Доступность TonAPI, `TON_API_KEY`, сеть и логи monitor task. |
 | Telegram отвечает конфликтом polling | Не запущен ли второй процесс с тем же bot token. |
 | Webhook возвращает 403 | Совпадает ли `TELEGRAM_WEBHOOK_SECRET` в Render и Telegram webhook. |
-| Supabase возвращает RLS/permission error | Используется ли server secret/service-role key, применены ли все GRANT из schema.sql. |
+| Supabase возвращает RLS/permission error | Используется ли server secret/service-role key, применены ли `schema.sql` и все GRANT из `routines.sql`. |
 | Оплата не найдена | Точный адрес сделки, сумма, memo, сеть и глубина `TON_TRANSACTION_SCAN_LIMIT`. |
 | Выплата зависла в submitted | TonAPI trace, баланс subwallet и корректность адреса продавца. |
 
@@ -337,3 +391,27 @@ webhook, а endpoint проверяет заголовок Telegram secret token
 - выбран постоянно работающий Render instance;
 - настроены резервные копии Supabase и мониторинг ошибок;
 - mainnet fee и минимальный остаток на оплату gas проверены малой суммой.
+
+## Какие данные нужны для запуска
+
+Секреты не нужно отправлять разработчику или публиковать в Git. Добавьте их
+самостоятельно в Render `Environment`:
+
+| Данные | Переменная | Где получить |
+|---|---|---|
+| Telegram bot token | `TELEGRAM_BOT_TOKEN` | BotFather для `@GiftGuarantBot`. |
+| Telegram username | `TELEGRAM_BOT_USERNAME` | `GiftGuarantBot`, без `@`. |
+| Supabase project URL | `SUPABASE_URL` | Supabase Project Settings. |
+| Supabase server secret | `SUPABASE_KEY` | Secret key или legacy `service_role`, не anon key. |
+| TonAPI key | `TON_API_KEY` | TON Console; нужен для стабильных лимитов polling. |
+| Выделенная TON-мнемоника | `TON_MNEMONIC` | Новый отдельный seed из 24 слов; новые сделки используют WalletV5R1, старые сохраняют WalletV4R2. |
+| Кошелёк комиссии | `SERVICE_FEE_WALLET` | Адрес, на который batch-перевод отправляет остаток с комментарием `Reward`. |
+| Сеть | `TON_NETWORK` | Сначала `testnet`, после полного теста — `mainnet`. |
+| Поддержка | `SUPPORT_USERNAME` | Telegram username поддержки. |
+
+До финального повторения визуала `@GiftGuarantBot` дополнительно нужны скриншоты
+или запись полного пользовательского пути: `/start`, главное меню, создание
+сделки, карточка продавца/покупателя, настройки, профиль, ошибки и успешная
+выплата. Для бизнес-логики ещё нужно подтвердить минимальную/максимальную
+сумму, время оплаты, реферальный процент и необходимость
+автоматического refund при неверной сумме.

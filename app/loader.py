@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from aiogram import Bot, Dispatcher
 
+from app.api.keepalive import RenderKeepAlive
 from app.api.telegram_notifier import TelegramNotificationGateway
 from app.bot import create_dispatcher
 from app.config import Settings, get_settings
@@ -32,6 +33,7 @@ class AppContainer:
     services: Services
     ton: TonEscrowClient
     monitor: DealMonitor
+    keepalive: RenderKeepAlive
 
 
 def build_container(settings: Settings | None = None) -> AppContainer:
@@ -73,6 +75,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     )
     dispatcher = create_dispatcher(app_settings, services)
     monitor = DealMonitor(app_settings, deals, payments, payouts)
+    keepalive = RenderKeepAlive(app_settings)
     return AppContainer(
         settings=app_settings,
         bot=bot,
@@ -82,5 +85,5 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         services=services,
         ton=ton,
         monitor=monitor,
+        keepalive=keepalive,
     )
-

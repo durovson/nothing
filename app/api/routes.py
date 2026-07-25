@@ -12,6 +12,7 @@ def create_api_router(container: AppContainer) -> APIRouter:
     router = APIRouter()
     settings = container.settings
 
+    @router.get("/ping")
     @router.get("/healthz")
     async def healthcheck() -> dict[str, str]:
         return {"status": "ok"}
@@ -22,6 +23,8 @@ def create_api_router(container: AppContainer) -> APIRouter:
             "deal_monitor": container.monitor.is_running,
             "ton_client": container.ton.is_connected,
         }
+        if container.keepalive.is_enabled:
+            checks["render_keepalive"] = container.keepalive.is_running
         status = "ok" if all(checks.values()) else "starting"
         return {
             "status": status,

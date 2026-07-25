@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = Field(default=8_000, ge=1, le=65_535)
     APP_BASE_URL: str = ""
+    RENDER_EXTERNAL_URL: str = ""
+    RENDER_KEEPALIVE_ENABLED: bool = False
+    RENDER_KEEPALIVE_INTERVAL_SECONDS: int = Field(default=840, ge=300, le=840)
+    RENDER_KEEPALIVE_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=30)
 
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_BOT_USERNAME: str = ""
@@ -41,12 +45,14 @@ class Settings(BaseSettings):
     TON_TRANSFER_TTL_SECONDS: int = Field(default=60, ge=30)
     TON_TRACE_GRACE_SECONDS: int = Field(default=120, ge=0)
     TON_TRANSACTION_SCAN_LIMIT: int = Field(default=50, ge=1, le=1_000)
+    SERVICE_FEE_WALLET: str
+    SERVICE_FEE_COMMENT: str = Field(default="Reward", min_length=1, max_length=120)
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
     DEAL_PAYMENT_TIMEOUT_SECONDS: int = Field(default=900, ge=60)
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
-    ESCROW_FEE_RATE: Decimal = Field(default=Decimal("0.03"), ge=0, lt=1)
+    ESCROW_FEE_RATE: Decimal = Field(default=Decimal("0.01"), gt=0, lt=1)
     REFERRAL_FEE_SHARE: Decimal = Field(default=Decimal("0.01"), ge=0, le=1)
     AUTO_PAYOUT_AFTER_PAYMENT: bool = True
     DEALS_PAGE_SIZE: int = Field(default=8, ge=1, le=20)
@@ -62,4 +68,3 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-

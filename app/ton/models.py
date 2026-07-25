@@ -7,6 +7,7 @@ class PayoutMessage:
     destination: str
     amount_atomic: int
     comment: str
+    sweep_balance: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,4 +15,3 @@ class PreparedPayout:
     normalized_hash: str
     signed_boc: str
     valid_until: datetime
-

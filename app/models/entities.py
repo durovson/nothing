@@ -3,7 +3,14 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.core.enums import Currency, DealStatus, DealType, Language, PayoutStatus
+from app.core.enums import (
+    Currency,
+    DealStatus,
+    DealType,
+    Language,
+    PayoutStatus,
+    WalletVersion,
+)
 
 
 class User(BaseModel):
@@ -19,6 +26,7 @@ class Deal(BaseModel):
     id: int
     public_id: str
     subwallet_id: int
+    wallet_version: WalletVersion
     creator_id: int
     buyer_id: int | None = None
     deal_type: DealType
@@ -45,6 +53,9 @@ class PayoutAttempt(BaseModel):
     destination: str
     amount_atomic: int
     comment: str
+    reward_destination: str | None = None
+    reward_nominal_amount_atomic: int | None = None
+    reward_comment: str | None = None
     external_message_hash: str | None = None
     signed_boc: str | None = None
     valid_until: datetime | None = None
@@ -54,4 +65,3 @@ class PayoutAttempt(BaseModel):
     error: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-

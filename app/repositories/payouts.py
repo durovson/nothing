@@ -16,14 +16,20 @@ class PayoutRepository:
         destination: str,
         amount_atomic: int,
         comment: str,
+        reward_destination: str,
+        reward_nominal_amount_atomic: int,
+        reward_comment: str,
     ) -> PayoutAttempt | None:
         response = await self._database.rpc(
-            "claim_deal_payout",
+            "claim_deal_batch_payout",
             {
                 "p_deal_id": deal.id,
                 "p_destination": destination,
                 "p_amount_atomic": amount_atomic,
                 "p_comment": comment,
+                "p_reward_destination": reward_destination,
+                "p_reward_nominal_amount_atomic": reward_nominal_amount_atomic,
+                "p_reward_comment": reward_comment,
             },
         )
         return PayoutAttempt(**response.data[0]) if response.data else None
@@ -80,4 +86,3 @@ class PayoutRepository:
     async def _attempt_rpc(self, name: str, attempt_id: int) -> PayoutAttempt:
         response = await self._database.rpc(name, {"p_attempt_id": attempt_id})
         return PayoutAttempt(**response.data[0])
-

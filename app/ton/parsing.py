@@ -46,5 +46,65 @@ def classify_trace(trace: dict[str, Any]) -> TraceStatus:
         return TraceStatus.FAILED
     if trace.get("is_incomplete") is False:
         return TraceStatus.CONFIRMED
+    root_transaction = trace.get("transaction")
+    if (
+        "is_incomplete" not in trace
+        and isinstance(root_transaction, dict)
+        and root_transaction.get("success") is True
+        and trace.get("emulated") is not True
+    ):
+        return TraceStatus.CONFIRMED
     return TraceStatus.PENDING
 
+
+def trace_contains_payout(
+    trace: dict[str, Any],
+    *,
+    seller_destination: str,
+    seller_amount_atomic: int,
+    seller_comment: str,
+    reward_destination: str | None,
+    reward_comment: str | None,
+) -> bool:
+    messages: list[dict[str, Any]] = []
+    for child in trace.get("children", []):
+        if not isinstance(child, dict):
+            continue
+        transaction = child.get("transaction")
+        if not isinstance(transaction, dict) or transaction.get("success") is not True:
+            continue
+        incoming = transaction.get("in_msg")
+        if isinstance(incoming, dict):
+            messages.append(incoming)
+
+    def matches(
+        message: dict[str, Any],
+        destination: str,
+        comment: str,
+        amount: int | None,
+    ) -> bool:
+        target = message.get("destination")
+        decoded_body = message.get("decoded_body")
+        value = message.get("value")
+        return (
+            isinstance(target, dict)
+            and target.get("address") == destination
+            and isinstance(decoded_body, dict)
+            and decoded_body.get("text") == comment
+            and isinstance(value, int)
+            and (value == amount if amount is not None else value > 0)
+            and message.get("bounced") is not True
+        )
+
+    seller_found = any(
+        matches(message, seller_destination, seller_comment, seller_amount_atomic)
+        for message in messages
+    )
+    if not seller_found:
+        return False
+    if reward_destination is None or reward_comment is None:
+        return True
+    return any(
+        matches(message, reward_destination, reward_comment, None)
+        for message in messages
+    )
