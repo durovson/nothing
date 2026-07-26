@@ -386,16 +386,14 @@ class TonEscrowClient:
             raise
         if not isinstance(trace, dict):
             raise TonGatewayError("TonAPI returned an invalid collection trace")
-        status = classify_trace(trace)
-        if status is not TraceStatus.CONFIRMED:
-            return status
+        if trace.get("is_incomplete") is True:
+            return TraceStatus.PENDING
         destination = Address(attempt.destination).to_str(is_user_friendly=False)
-        return (
-            TraceStatus.CONFIRMED
-            if trace_contains_transfer(
-                trace,
-                destination=destination,
-                comment=attempt.comment,
-            )
-            else TraceStatus.FAILED
-        )
+        if trace_contains_transfer(
+            trace,
+            destination=destination,
+            comment=attempt.comment,
+        ):
+            return TraceStatus.CONFIRMED
+        status = classify_trace(trace)
+        return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status

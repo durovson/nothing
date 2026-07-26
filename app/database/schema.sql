@@ -261,6 +261,7 @@ where d.status = 'paid'
   and not exists (
       select 1 from payout_attempts as p where p.deal_id = d.id
   );
+
 -- Unsuccessful deals are removed by the retention RPC. Dependent financial
 -- rows must be removed in the same atomic transaction.
 alter table deal_payments drop constraint if exists deal_payments_deal_id_fkey;

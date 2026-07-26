@@ -150,6 +150,16 @@ def trace_contains_transfer(
         target = incoming.get("destination")
         decoded_body = incoming.get("decoded_body")
         value = incoming.get("value")
+        credit_phase = transaction.get("credit_phase")
+        compute_phase = transaction.get("compute_phase")
+        uninitialized_credit = (
+            transaction.get("aborted") is True
+            and transaction.get("orig_status") == "uninit"
+            and transaction.get("end_status") == "uninit"
+            and isinstance(compute_phase, dict)
+            and compute_phase.get("skipped") is True
+            and compute_phase.get("skip_reason") == "cskip_no_state"
+        )
         if (
             isinstance(target, dict)
             and _same_address(target.get("address"), destination)
@@ -157,6 +167,10 @@ def trace_contains_transfer(
             and decoded_body.get("text") == comment
             and isinstance(value, int)
             and value > 0
+            and isinstance(credit_phase, dict)
+            and credit_phase.get("credit") == value
+            and transaction.get("bounce_phase") is None
+            and (transaction.get("aborted") is False or uninitialized_credit)
             and incoming.get("bounced") is not True
         ):
             return True
