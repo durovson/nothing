@@ -118,6 +118,34 @@ class DealRepository:
         )
         return Deal(**response.data[0]) if response.data else None
 
+    async def request_release(self, deal_id: int, buyer_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "request_deal_release",
+            {"p_deal_id": deal_id, "p_buyer_id": buyer_id},
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def list_release_requested(self, limit: int = 1) -> list[Deal]:
+        response = await self._database.run(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.RELEASE_REQUESTED.value)
+            .order("id")
+            .limit(limit)
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
+    async def list_collecting(self) -> list[Deal]:
+        response = await self._database.run(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.COLLECTING.value)
+            .order("id")
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
     async def list_for_user(
         self,
         telegram_id: int,
@@ -162,4 +190,3 @@ class DealRepository:
         if isinstance(response.data, list):
             return int(response.data[0]) if response.data else 0
         return int(response.data or 0)
-

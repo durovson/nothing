@@ -4,6 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 from app.core.enums import (
+    CollectionStatus,
     Currency,
     DealStatus,
     DealType,
@@ -41,6 +42,24 @@ class Deal(BaseModel):
     payment_sender: str | None = None
     paid_at: datetime | None = None
     failure_reason: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CollectionAttempt(BaseModel):
+    id: int
+    deal_id: int
+    idempotency_key: str
+    status: CollectionStatus
+    destination: str
+    comment: str
+    external_message_hash: str | None = None
+    signed_boc: str | None = None
+    valid_until: datetime | None = None
+    submitted_at: datetime | None = None
+    confirmed_at: datetime | None = None
+    last_checked_at: datetime | None = None
+    error: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

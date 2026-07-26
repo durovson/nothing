@@ -51,8 +51,17 @@ class PayoutService:
             raise DealNotFoundError(f"Deal {deal_id} not found")
         if deal.buyer_id != buyer_id or deal.status is not DealStatus.PAID:
             raise DealConfirmationForbiddenError("Only the buyer can confirm a paid deal")
-        await self.start_payout(deal)
-        return await self._deals.get(deal.id) or deal
+        requested = await self._deals.request_release(deal.id, buyer_id)
+        if requested is None:
+            raise DealConfirmationForbiddenError("Deal release could not be requested")
+        return requested
+
+    async def process_releases(self) -> None:
+        if await self._payouts.list_open():
+            return
+        requested = await self._deals.list_release_requested(limit=1)
+        if requested:
+            await self.start_payout(requested[0])
 
     async def start_payout(self, deal: Deal) -> None:
         seller = await self._users.get(deal.creator_id)
@@ -66,12 +75,14 @@ class PayoutService:
             deal.amount,
             self._settings.ESCROW_FEE_RATE,
         )
-        required_reserve_atomic = payout_amount_atomic(
-            self._settings.TON_PAYOUT_FEE_RESERVE
+        required_balance_atomic = (
+            seller_amount_atomic
+            + reward_nominal_amount_atomic
+            + payout_amount_atomic(self._settings.TON_GUARANT_PAYOUT_GAS_RESERVE)
         )
-        if reward_nominal_amount_atomic < required_reserve_atomic:
+        if await self._ton.get_guarant_balance_atomic() < required_balance_atomic:
             raise InsufficientPayoutReserveError(
-                "Service fee does not cover the configured TON payout reserve"
+                "Guarant balance does not cover seller, service fee and payout gas"
             )
         seller_comment = f"Payment for deal {deal.public_id}"
         reward_comment = self._settings.SERVICE_FEE_COMMENT
@@ -96,8 +107,7 @@ class PayoutService:
                 or not attempt.reward_comment
             ):
                 raise ValueError("Claimed payout has incomplete service reward data")
-            prepared = await self._ton.prepare_batch_payout(
-                deal,
+            prepared = await self._ton.prepare_guarant_payout(
                 [
                     PayoutMessage(
                         attempt.destination,
@@ -108,7 +118,6 @@ class PayoutService:
                         attempt.reward_destination,
                         attempt.reward_nominal_amount_atomic,
                         attempt.reward_comment,
-                        sweep_balance=True,
                     ),
                 ],
             )
@@ -137,6 +146,31 @@ class PayoutService:
                 logger.exception("Payout reconciliation failed for attempt %s", attempt.id)
 
     async def reconcile(self, attempt: PayoutAttempt) -> None:
+        if attempt.status is PayoutStatus.CREATING:
+            if (
+                not attempt.reward_destination
+                or not attempt.reward_nominal_amount_atomic
+                or not attempt.reward_comment
+            ):
+                await self._payouts.mark_failed(attempt.id, "Incomplete payout data")
+                return
+            prepared = await self._ton.prepare_guarant_payout(
+                [
+                    PayoutMessage(attempt.destination, attempt.amount_atomic, attempt.comment),
+                    PayoutMessage(
+                        attempt.reward_destination,
+                        attempt.reward_nominal_amount_atomic,
+                        attempt.reward_comment,
+                    ),
+                ]
+            )
+            attempt = await self._payouts.save_prepared(
+                attempt.id,
+                prepared.normalized_hash,
+                prepared.signed_boc,
+                prepared.valid_until,
+            )
+
         if attempt.status is PayoutStatus.PREPARED:
             if not attempt.signed_boc:
                 await self._payouts.mark_failed(attempt.id, "Prepared payout has no signed BOC")

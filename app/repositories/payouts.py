@@ -77,7 +77,14 @@ class PayoutRepository:
         response = await self._database.run(
             lambda: self._database.client.table("payout_attempts")
             .select("*")
-            .in_("status", [PayoutStatus.PREPARED.value, PayoutStatus.SUBMITTED.value])
+            .in_(
+                "status",
+                [
+                    PayoutStatus.CREATING.value,
+                    PayoutStatus.PREPARED.value,
+                    PayoutStatus.SUBMITTED.value,
+                ],
+            )
             .order("id")
             .execute()
         )

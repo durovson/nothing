@@ -7,11 +7,10 @@ from app.config import Settings
 from app.core.enums import DealStatus
 from app.core.types import (
     DealRepositoryProtocol,
-    NotificationGatewayProtocol,
     TonGatewayProtocol,
-    UserRepositoryProtocol,
 )
 from app.models.entities import Deal
+from app.services.collections import CollectionService
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +20,13 @@ class PaymentService:
         self,
         settings: Settings,
         deals: DealRepositoryProtocol,
-        users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
-        notifications: NotificationGatewayProtocol,
+        collections: CollectionService,
     ):
         self._settings = settings
         self._deals = deals
-        self._users = users
         self._ton = ton
-        self._notifications = notifications
+        self._collections = collections
 
     async def process_pending(self) -> None:
         for deal in await self._deals.list_pending():
@@ -49,9 +46,7 @@ class PaymentService:
             logger.info("Payment %s was already claimed", payment.tx_hash)
             return
 
-        seller = await self._users.get(paid_deal.creator_id)
-        buyer = await self._users.get(paid_deal.buyer_id) if paid_deal.buyer_id else None
-        await self._notifications.payment_received(paid_deal, buyer, seller)
+        await self._collections.start_collection(paid_deal)
 
     async def _expire_if_needed(self, deal: Deal) -> None:
         started_at = deal.updated_at or deal.created_at

@@ -1,5 +1,7 @@
 begin;
 
+drop function if exists claim_deal_payout(bigint, text, numeric, text);
+
 create or replace function claim_deal_buyer(p_public_id text, p_buyer_id bigint)
 returns setof deals
 language plpgsql
@@ -118,7 +120,7 @@ begin
     end if;
 
     update deals
-    set status = 'paid', paid_tx_hash = p_tx_hash, paid_tx_lt = p_tx_lt,
+    set status = 'collecting', paid_tx_hash = p_tx_hash, paid_tx_lt = p_tx_lt,
         paid_amount_atomic = p_amount_atomic, payment_sender = p_sender,
         paid_at = p_observed_at, updated_at = timezone('utc', now())
     where id = p_deal_id
@@ -127,39 +129,116 @@ begin
 end;
 $$;
 
-create or replace function claim_deal_payout(
+create or replace function claim_deal_collection(
     p_deal_id bigint,
     p_destination text,
-    p_amount_atomic numeric,
     p_comment text
-) returns setof payout_attempts
-language plpgsql
-security definer
-set search_path = public
+) returns setof collection_attempts
+language plpgsql security definer set search_path = public
 as $$
-declare
-    v_deal deals%rowtype;
-    v_attempt payout_attempts%rowtype;
+declare v_deal deals%rowtype; v_attempt collection_attempts%rowtype;
 begin
     select * into v_deal from deals where id = p_deal_id for update;
-    if not found or v_deal.status <> 'paid' then
-        return;
-    end if;
-    if exists (select 1 from payout_attempts where deal_id = p_deal_id) then
-        return;
-    end if;
-
-    insert into payout_attempts(
-        deal_id, idempotency_key, status, destination, amount_atomic, comment
-    ) values (
-        p_deal_id, 'deal:' || p_deal_id::text || ':seller', 'creating',
-        p_destination, p_amount_atomic, p_comment
-    ) returning * into v_attempt;
-
-    update deals
-    set status = 'payout_processing', updated_at = timezone('utc', now())
-    where id = p_deal_id;
+    if not found or v_deal.status <> 'collecting' then return; end if;
+    if exists (select 1 from collection_attempts where deal_id = p_deal_id) then return; end if;
+    insert into collection_attempts(deal_id, idempotency_key, status, destination, comment)
+    values (p_deal_id, 'deal:' || p_deal_id::text || ':collection', 'creating', p_destination, p_comment)
+    returning * into v_attempt;
     return next v_attempt;
+end;
+$$;
+
+create or replace function save_prepared_collection(
+    p_attempt_id bigint, p_external_message_hash text, p_signed_boc text,
+    p_valid_until timestamptz
+) returns setof collection_attempts
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update collection_attempts
+    set status='prepared', external_message_hash=p_external_message_hash,
+        signed_boc=p_signed_boc, valid_until=p_valid_until,
+        updated_at=timezone('utc', now())
+    where id=p_attempt_id and status='creating' returning *;
+end;
+$$;
+
+create or replace function mark_collection_submitted(p_attempt_id bigint)
+returns setof collection_attempts
+language plpgsql security definer set search_path = public
+as $$
+declare v_attempt collection_attempts%rowtype;
+begin
+    select * into v_attempt from collection_attempts where id=p_attempt_id for update;
+    if not found then return; end if;
+    if v_attempt.status='prepared' then
+        update collection_attempts set status='submitted',
+            submitted_at=coalesce(submitted_at, timezone('utc', now())),
+            updated_at=timezone('utc', now())
+        where id=p_attempt_id returning * into v_attempt;
+        update deals set status='collection_submitted', updated_at=timezone('utc', now())
+        where id=v_attempt.deal_id and status='collecting';
+    elsif v_attempt.status not in ('submitted','confirmed') then return;
+    end if;
+    return next v_attempt;
+end;
+$$;
+
+create or replace function mark_collection_confirmed(p_attempt_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+declare v_deal_id bigint;
+begin
+    update collection_attempts set status='confirmed', confirmed_at=timezone('utc', now()),
+        last_checked_at=timezone('utc', now()), updated_at=timezone('utc', now())
+    where id=p_attempt_id and status='submitted' returning deal_id into v_deal_id;
+    if v_deal_id is null then return; end if;
+    return query update deals set status='paid', failure_reason=null,
+        updated_at=timezone('utc', now())
+    where id=v_deal_id and status='collection_submitted' returning *;
+end;
+$$;
+
+create or replace function mark_collection_bounced(p_attempt_id bigint, p_error text)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+declare v_deal_id bigint;
+begin
+    update collection_attempts set status='bounced', error=p_error,
+        last_checked_at=timezone('utc', now()), updated_at=timezone('utc', now())
+    where id=p_attempt_id and status in ('prepared','submitted') returning deal_id into v_deal_id;
+    if v_deal_id is null then return; end if;
+    return query update deals set status='collection_failed', failure_reason=p_error,
+        updated_at=timezone('utc', now())
+    where id=v_deal_id and status in ('collecting','collection_submitted') returning *;
+end;
+$$;
+
+create or replace function mark_collection_failed(p_attempt_id bigint, p_error text)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+declare v_deal_id bigint;
+begin
+    update collection_attempts set status='failed', error=p_error,
+        last_checked_at=timezone('utc', now()), updated_at=timezone('utc', now())
+    where id=p_attempt_id and status in ('creating','prepared','submitted') returning deal_id into v_deal_id;
+    if v_deal_id is null then return; end if;
+    return query update deals set status='collection_failed', failure_reason=p_error,
+        updated_at=timezone('utc', now())
+    where id=v_deal_id and status in ('collecting','collection_submitted') returning *;
+end;
+$$;
+
+create or replace function request_deal_release(p_deal_id bigint, p_buyer_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals set status='release_requested', updated_at=timezone('utc', now())
+    where id=p_deal_id and buyer_id=p_buyer_id and status='paid' returning *;
 end;
 $$;
 
@@ -195,7 +274,7 @@ begin
     end if;
 
     select * into v_deal from deals where id = p_deal_id for update;
-    if not found or v_deal.status <> 'paid' then
+    if not found or v_deal.status <> 'release_requested' then
         return;
     end if;
     if exists (select 1 from payout_attempts where deal_id = p_deal_id) then
@@ -371,49 +450,15 @@ begin
     end if;
 
     delete from deals
-    where status in ('cancelled', 'creation_failed', 'payout_failed', 'payout_bounced')
+    where status in (
+        'cancelled', 'creation_failed', 'collection_failed',
+        'payout_failed', 'payout_bounced'
+    )
       and updated_at < timezone('utc', now()) - make_interval(days => p_retention_days);
 
     get diagnostics v_deleted = row_count;
     return v_deleted;
 end;
 $$;
-
-alter table users enable row level security;
-alter table deals enable row level security;
-alter table deal_payments enable row level security;
-alter table payout_attempts enable row level security;
-alter table referrals enable row level security;
-
-revoke all on function claim_deal_payment(bigint, text, numeric, numeric, text, timestamptz) from public, anon, authenticated;
-revoke all on function claim_deal_buyer(text, bigint) from public, anon, authenticated;
-revoke all on function assign_user_referrer(bigint, bigint) from public, anon, authenticated;
-revoke all on function credit_referral_reward(bigint, bigint, text, numeric) from public, anon, authenticated;
-revoke all on function claim_deal_payout(bigint, text, numeric, text) from public, anon, authenticated;
-revoke all on function claim_deal_batch_payout(bigint, text, numeric, text, text, numeric, text)
-    from public, anon, authenticated;
-revoke all on function save_prepared_payout(bigint, text, text, timestamptz) from public, anon, authenticated;
-revoke all on function mark_payout_submitted(bigint) from public, anon, authenticated;
-revoke all on function mark_payout_confirmed(bigint) from public, anon, authenticated;
-revoke all on function mark_payout_bounced(bigint, text) from public, anon, authenticated;
-revoke all on function mark_payout_failed(bigint, text) from public, anon, authenticated;
-revoke all on function purge_expired_unsuccessful_deals(integer) from public, anon, authenticated;
-revoke all on function assign_deal_wallet_identity() from public, anon, authenticated;
-
-grant execute on function claim_deal_payment(bigint, text, numeric, numeric, text, timestamptz) to service_role;
-grant execute on function claim_deal_buyer(text, bigint) to service_role;
-grant execute on function assign_user_referrer(bigint, bigint) to service_role;
-grant execute on function credit_referral_reward(bigint, bigint, text, numeric) to service_role;
-revoke execute on function claim_deal_payout(bigint, text, numeric, text) from service_role;
-grant execute on function claim_deal_batch_payout(bigint, text, numeric, text, text, numeric, text)
-    to service_role;
-grant execute on function save_prepared_payout(bigint, text, text, timestamptz) to service_role;
-grant execute on function mark_payout_submitted(bigint) to service_role;
-grant execute on function mark_payout_confirmed(bigint) to service_role;
-grant execute on function mark_payout_bounced(bigint, text) to service_role;
-grant execute on function mark_payout_failed(bigint, text) to service_role;
-grant execute on function purge_expired_unsuccessful_deals(integer) to service_role;
-grant usage, select on sequence deal_subwallet_id_seq to service_role;
-grant usage, select on sequence deal_wallet_v5_subwallet_seq to service_role;
 
 commit;

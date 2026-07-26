@@ -30,7 +30,11 @@ class DealType(StrEnum):
 class DealStatus(StrEnum):
     CREATING = "creating"
     PENDING = "pending"
+    COLLECTING = "collecting"
+    COLLECTION_SUBMITTED = "collection_submitted"
+    COLLECTION_FAILED = "collection_failed"
     PAID = "paid"
+    RELEASE_REQUESTED = "release_requested"
     PAYOUT_PROCESSING = "payout_processing"
     PAYOUT_SUBMITTED = "payout_submitted"
     PAYOUT_FAILED = "payout_failed"
@@ -41,6 +45,15 @@ class DealStatus(StrEnum):
 
 
 class PayoutStatus(StrEnum):
+    CREATING = "creating"
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+
+class CollectionStatus(StrEnum):
     CREATING = "creating"
     PREPARED = "prepared"
     SUBMITTED = "submitted"

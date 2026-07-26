@@ -11,6 +11,7 @@ from app.config import Settings, get_settings
 from app.database import SupabaseDatabase
 from app.repositories import Repositories
 from app.services import (
+    CollectionService,
     DealService,
     PaymentService,
     PayoutService,
@@ -57,12 +58,19 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         ton,
         notifications,
     )
-    payments = PaymentService(
+    collections = CollectionService(
         app_settings,
         repositories.deals,
+        repositories.collections,
         repositories.users,
         ton,
         notifications,
+    )
+    payments = PaymentService(
+        app_settings,
+        repositories.deals,
+        ton,
+        collections,
     )
     services = Services(
         users=users,
@@ -71,9 +79,10 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         deals=deals,
         payments=payments,
         payouts=payouts,
+        collections=collections,
     )
     dispatcher = create_dispatcher(app_settings, services)
-    monitor = DealMonitor(app_settings, deals, payments, payouts)
+    monitor = DealMonitor(app_settings, deals, payments, collections, payouts)
     keepalive = RenderKeepAlive(app_settings)
     return AppContainer(
         settings=app_settings,

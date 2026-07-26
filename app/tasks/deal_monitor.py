@@ -5,6 +5,7 @@ import logging
 
 from app.config import Settings
 from app.services.deals import DealService
+from app.services.collections import CollectionService
 from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
 
@@ -19,11 +20,13 @@ class DealMonitor:
         settings: Settings,
         deals: DealService,
         payments: PaymentService,
+        collections: CollectionService,
         payouts: PayoutService,
     ):
         self._settings = settings
         self._deals = deals
         self._payments = payments
+        self._collections = collections
         self._payouts = payouts
         self._stop_event = asyncio.Event()
         self._tasks: set[asyncio.Task[None]] = set()
@@ -38,6 +41,7 @@ class DealMonitor:
         self._stop_event.clear()
         self._tasks = {
             asyncio.create_task(self._payment_loop(), name="payment-monitor"),
+            asyncio.create_task(self._collection_loop(), name="collection-reconciler"),
             asyncio.create_task(self._payout_loop(), name="payout-reconciler"),
             asyncio.create_task(self._retention_loop(), name="retention-cleanup"),
         }
@@ -62,8 +66,17 @@ class DealMonitor:
         while not self._stop_event.is_set():
             try:
                 await self._payouts.reconcile_open()
+                await self._payouts.process_releases()
             except Exception:
                 logger.exception("Payout reconciliation iteration failed")
+            await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
+
+    async def _collection_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                await self._collections.reconcile_open()
+            except Exception:
+                logger.exception("Collection reconciliation iteration failed")
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
 
     async def _retention_loop(self) -> None:
@@ -79,4 +92,3 @@ class DealMonitor:
             await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
         except TimeoutError:
             pass
-

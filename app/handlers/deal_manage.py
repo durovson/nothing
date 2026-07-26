@@ -3,8 +3,7 @@ from aiogram import F, Router, types
 from app.core.enums import DealStatus, Language
 from app.core.exceptions import (
     DealConfirmationForbiddenError,
-    InsufficientPayoutReserveError,
-    MissingPayoutWalletError,
+    DealNotFoundError,
 )
 from app.keyboards import DealCallback, PageCallback, deal_actions, deals_list
 from app.keyboards.callbacks import DealAction, PageAction
@@ -121,11 +120,7 @@ async def confirm_deal(
 ) -> None:
     try:
         await payout_service.confirm_receipt(callback_data.deal_id, db_user.telegram_id)
-    except MissingPayoutWalletError:
-        key = TextKey.DEAL_WAIT_WALLET
-    except InsufficientPayoutReserveError:
-        key = TextKey.DEAL_PAYOUT_BLOCKED
-    except DealConfirmationForbiddenError:
+    except (DealConfirmationForbiddenError, DealNotFoundError):
         key = TextKey.DEAL_FORBIDDEN
     else:
         key = TextKey.DEAL_RELEASE_ACCEPTED

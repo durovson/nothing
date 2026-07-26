@@ -85,6 +85,7 @@ def trace_contains_payout(
     seller_amount_atomic: int,
     seller_comment: str,
     reward_destination: str | None,
+    reward_amount_atomic: int | None,
     reward_comment: str | None,
 ) -> bool:
     messages: list[dict[str, Any]] = []
@@ -126,6 +127,37 @@ def trace_contains_payout(
     if reward_destination is None or reward_comment is None:
         return True
     return any(
-        matches(message, reward_destination, reward_comment, None)
+        matches(message, reward_destination, reward_comment, reward_amount_atomic)
         for message in messages
     )
+
+
+def trace_contains_transfer(
+    trace: dict[str, Any],
+    *,
+    destination: str,
+    comment: str,
+) -> bool:
+    for child in trace.get("children", []):
+        if not isinstance(child, dict):
+            continue
+        transaction = child.get("transaction")
+        if not isinstance(transaction, dict) or transaction.get("success") is not True:
+            continue
+        incoming = transaction.get("in_msg")
+        if not isinstance(incoming, dict):
+            continue
+        target = incoming.get("destination")
+        decoded_body = incoming.get("decoded_body")
+        value = incoming.get("value")
+        if (
+            isinstance(target, dict)
+            and _same_address(target.get("address"), destination)
+            and isinstance(decoded_body, dict)
+            and decoded_body.get("text") == comment
+            and isinstance(value, int)
+            and value > 0
+            and incoming.get("bounced") is not True
+        ):
+            return True
+    return False

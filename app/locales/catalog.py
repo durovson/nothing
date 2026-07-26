@@ -94,7 +94,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_AMOUNT_INVALID: "Введите положительное число.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "Минимальная сумма сделки — {minimum} TON. "
-            "Это нужно, чтобы комиссия 1% покрывала сетевые расходы и продавец получил всю сумму."
+            "Комиссия сервиса и gas добавляются к счёту покупателя отдельно."
         ),
         TextKey.DEAL_CREATED: (
             "Сделка #{deal_id} создана.\n\nТип: {deal_type}\nОписание: {description}\n"
@@ -121,21 +121,21 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Сумма: {amount} {currency}\nEscrow-адрес: {wallet_address}\n"
             "Комментарий: {deal_id}\nПокупатель: {buyer}"
         ),
-        TextKey.DEAL_PAID_BUYER: "Средства поступили в escrow. Ожидайте передачу товара.",
+        TextKey.DEAL_PAID_BUYER: "Средства поступили на кошелёк гаранта. Ожидайте передачу товара.",
         TextKey.DEAL_PAID_SELLER: (
             "Покупатель оплатил сделку.\n"
             "Ссылка на транзакцию:\n{transaction_url}\n\n"
             "Передайте товар и дождитесь подтверждения."
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
-            "Получение подтверждено. Бот начал выплату продавцу; "
+            "Получение подтверждено. Выплата продавцу поставлена в очередь; "
             "окончательное уведомление придёт после подтверждения сети TON."
         ),
         TextKey.DEAL_CONFIRMED: "Сделка завершена, выплата продавцу подтверждена сетью TON.",
         TextKey.DEAL_WAIT_WALLET: "У продавца не привязан кошелек для выплаты.",
         TextKey.DEAL_PAYOUT_BLOCKED: (
-            "Выплата остановлена до отправки: комиссия сделки не покрывает сетевые расходы. "
-            "Средства остаются на escrow-адресе; обратитесь в поддержку."
+            "Выплата остановлена до отправки: на кошельке гаранта недостаточно gas. "
+            "Средства остаются у гаранта; обратитесь в поддержку."
         ),
         TextKey.SETTINGS_CAPTION: "Настройки",
         TextKey.SETTINGS_REFERRALS: "Рефералы",
@@ -184,7 +184,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_AMOUNT_INVALID: "Please enter a positive number.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "The minimum deal amount is {minimum} TON. "
-            "This ensures the 1% fee covers network costs and the seller receives the full amount."
+            "The service fee and gas are added to the buyer invoice separately."
         ),
         TextKey.DEAL_CREATED: (
             "Deal #{deal_id} created.\n\nType: {deal_type}\nDescription: {description}\n"
@@ -210,21 +210,21 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Amount: {amount} {currency}\nEscrow address: {wallet_address}\n"
             "Comment: {deal_id}\nBuyer: {buyer}"
         ),
-        TextKey.DEAL_PAID_BUYER: "Funds were received by escrow. Please wait for the item transfer.",
+        TextKey.DEAL_PAID_BUYER: "Funds reached the guarant wallet. Please wait for the item transfer.",
         TextKey.DEAL_PAID_SELLER: (
             "The buyer paid the deal.\n"
             "Transaction:\n{transaction_url}\n\n"
             "Transfer the item and wait for confirmation."
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
-            "Receipt confirmed. The bot started the seller payout; "
+            "Receipt confirmed. The seller payout was queued; "
             "a final notification will arrive after TON network confirmation."
         ),
         TextKey.DEAL_CONFIRMED: "The deal is complete and the TON network confirmed the seller payout.",
         TextKey.DEAL_WAIT_WALLET: "The seller has no payout wallet linked yet.",
         TextKey.DEAL_PAYOUT_BLOCKED: (
-            "Payout was stopped before broadcast because the deal fee cannot cover network costs. "
-            "Funds remain at the escrow address; contact support."
+            "Payout was stopped before broadcast because the guarant wallet lacks gas. "
+            "Funds remain with the guarant; contact support."
         ),
         TextKey.SETTINGS_CAPTION: "Settings",
         TextKey.SETTINGS_REFERRALS: "Referrals",

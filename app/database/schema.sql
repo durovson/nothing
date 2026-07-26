@@ -128,8 +128,10 @@ alter table deals add constraint deals_paid_amount_check
 alter table deals drop constraint if exists deals_status_check;
 alter table deals add constraint deals_status_check check (
     status in (
-        'creating', 'pending', 'paid', 'payout_processing', 'payout_submitted',
-        'payout_failed', 'payout_bounced', 'completed', 'cancelled', 'creation_failed'
+        'creating', 'pending', 'collecting', 'collection_submitted',
+        'collection_failed', 'paid', 'release_requested', 'payout_processing',
+        'payout_submitted', 'payout_failed', 'payout_bounced', 'completed',
+        'cancelled', 'creation_failed'
     )
 );
 
@@ -175,6 +177,30 @@ create table if not exists deal_payments (
     unique (deal_id, tx_lt)
 );
 create unique index if not exists deal_payments_deal_uidx on deal_payments(deal_id);
+
+create table if not exists collection_attempts (
+    id bigint generated always as identity primary key,
+    deal_id bigint not null references deals(id) on delete restrict,
+    idempotency_key text not null unique,
+    status text not null check (status in ('creating', 'prepared', 'submitted', 'confirmed', 'bounced', 'failed')),
+    destination text not null,
+    comment text not null,
+    external_message_hash text unique,
+    signed_boc text,
+    valid_until timestamptz,
+    submitted_at timestamptz,
+    confirmed_at timestamptz,
+    last_checked_at timestamptz,
+    error text,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    unique (deal_id)
+);
+alter table collection_attempts drop constraint if exists collection_attempts_error_length_check;
+alter table collection_attempts add constraint collection_attempts_error_length_check
+    check (error is null or char_length(error) <= 1000);
+create index if not exists collection_attempts_status_idx on collection_attempts(status);
+
 create table if not exists payout_attempts (
     id bigint generated always as identity primary key,
     deal_id bigint not null references deals(id) on delete restrict,
@@ -219,10 +245,29 @@ alter table payout_attempts add constraint payout_attempts_reward_check check (
         and char_length(btrim(reward_comment)) between 1 and 120
     )
 );
+
+-- A legacy `paid` row without a collection record cannot prove that custody
+-- reached the central guarant wallet. Block automatic release so an operator
+-- can reconcile it on-chain instead of risking a payout from unrelated funds.
+update deals as d
+set
+    status = 'collection_failed',
+    failure_reason = 'Legacy paid deal requires manual custody reconciliation',
+    updated_at = timezone('utc', now())
+where d.status = 'paid'
+  and not exists (
+      select 1 from collection_attempts as c where c.deal_id = d.id
+  )
+  and not exists (
+      select 1 from payout_attempts as p where p.deal_id = d.id
+  );
 -- Unsuccessful deals are removed by the retention RPC. Dependent financial
 -- rows must be removed in the same atomic transaction.
 alter table deal_payments drop constraint if exists deal_payments_deal_id_fkey;
 alter table deal_payments add constraint deal_payments_deal_id_fkey
+    foreign key (deal_id) references deals(id) on delete cascade;
+alter table collection_attempts drop constraint if exists collection_attempts_deal_id_fkey;
+alter table collection_attempts add constraint collection_attempts_deal_id_fkey
     foreign key (deal_id) references deals(id) on delete cascade;
 alter table payout_attempts drop constraint if exists payout_attempts_deal_id_fkey;
 alter table payout_attempts add constraint payout_attempts_deal_id_fkey
@@ -249,7 +294,11 @@ create index if not exists deals_creator_idx on deals(creator_id);
 create index if not exists deals_buyer_idx on deals(buyer_id);
 create index if not exists payout_attempts_status_idx on payout_attempts(status);
 create index if not exists referrals_referrer_idx on referrals(referrer_id);
-create index if not exists deals_unsuccessful_retention_idx on deals(updated_at)
-where status in ('cancelled', 'creation_failed', 'payout_failed', 'payout_bounced');
+drop index if exists deals_unsuccessful_retention_idx;
+create index deals_unsuccessful_retention_idx on deals(updated_at)
+where status in (
+    'cancelled', 'creation_failed', 'collection_failed',
+    'payout_failed', 'payout_bounced'
+);
 
 commit;

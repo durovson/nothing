@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.services.deals import DealService
+from app.services.collections import CollectionService
 from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
 from app.services.referrals import ReferralService
@@ -18,10 +19,12 @@ class Services:
     deals: DealService
     payments: PaymentService
     payouts: PayoutService
+    collections: CollectionService
 
 
 __all__ = [
     "DealService",
+    "CollectionService",
     "PaymentService",
     "PayoutService",
     "ReferralService",
@@ -29,4 +32,3 @@ __all__ = [
     "UserService",
     "WalletService",
 ]
-

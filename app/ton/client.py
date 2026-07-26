@@ -31,13 +31,14 @@ from app.core.constants import (
 from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
 from app.core.exceptions import InvalidWalletError, TonGatewayError
 from app.models.dto import PaymentObservation
-from app.models.entities import Deal, PayoutAttempt
+from app.models.entities import CollectionAttempt, Deal, PayoutAttempt
 from app.ton.amounts import payment_amount_atomic
 from app.ton.models import PayoutMessage, PreparedPayout
 from app.ton.parsing import (
     classify_trace,
     decode_text_comment,
     trace_contains_payout,
+    trace_contains_transfer,
     transaction_hash,
 )
 
@@ -170,7 +171,11 @@ class TonEscrowClient:
             raise TonGatewayError("USDT_TON requires a jetton-specific payment monitor")
 
         wallet = self._wallet(deal)
-        expected_atomic = payment_amount_atomic(deal.amount, self._settings.ESCROW_FEE_RATE)
+        expected_atomic = payment_amount_atomic(
+            deal.amount,
+            self._settings.ESCROW_FEE_RATE,
+            self._settings.TON_PAYOUT_FEE_RESERVE,
+        )
         created_timestamp = int(deal.created_at.timestamp()) if deal.created_at else 0
         transactions = await wallet.get_transactions(limit=self._settings.TON_TRANSACTION_SCAN_LIMIT)
 
@@ -265,17 +270,61 @@ class TonEscrowClient:
             if deal.wallet_version is WalletVersion.V5R1
             else WalletV4Params(valid_until=valid_until_unix)
         )
-        serialized_builders = (
-            list(reversed(builders))
-            if deal.wallet_version is WalletVersion.V5R1
-            else builders
-        )
-        external_message = await wallet.build_external_message(serialized_builders, params)
+        external_message = await wallet.build_external_message(builders, params)
         return PreparedPayout(
             normalized_hash=external_message.normalized_hash,
             signed_boc=external_message.as_hex,
             valid_until=datetime.fromtimestamp(valid_until_unix, tz=UTC),
         )
+
+    async def prepare_collection(self, deal: Deal, comment: str) -> PreparedPayout:
+        return await self.prepare_batch_payout(
+            deal,
+            [
+                PayoutMessage(
+                    destination=self.guarant_address,
+                    amount_atomic=0,
+                    comment=comment,
+                    sweep_balance=True,
+                )
+            ],
+        )
+
+    async def prepare_guarant_payout(
+        self,
+        messages: Sequence[PayoutMessage],
+    ) -> PreparedPayout:
+        if not messages or any(message.sweep_balance for message in messages):
+            raise TonGatewayError("Guarant payout requires explicit non-sweep amounts")
+        builders: list[TONTransferBuilder] = []
+        for item in messages:
+            destination = Address(item.destination)
+            recipient = await self._client.get_info(destination)
+            if recipient.state == ContractState.FROZEN:
+                raise TonGatewayError(f"Recipient {item.destination} is frozen")
+            builders.append(
+                TONTransferBuilder(
+                    destination=destination,
+                    amount=item.amount_atomic,
+                    body=item.comment,
+                    send_mode=int(SendMode.PAY_GAS_SEPARATELY | SendMode.IGNORE_ERRORS),
+                    bounce=recipient.state == ContractState.ACTIVE,
+                )
+            )
+        valid_until_unix = int(time()) + self._settings.TON_TRANSFER_TTL_SECONDS
+        external_message = await self._guarant_wallet.build_external_message(
+            builders,
+            WalletV5Params(valid_until=valid_until_unix),
+        )
+        return PreparedPayout(
+            normalized_hash=external_message.normalized_hash,
+            signed_boc=external_message.as_hex,
+            valid_until=datetime.fromtimestamp(valid_until_unix, tz=UTC),
+        )
+
+    async def get_guarant_balance_atomic(self) -> int:
+        info = await self._client.get_info(self._guarant_wallet.address)
+        return int(info.balance)
 
     async def broadcast(self, signed_boc: str) -> None:
         await self._client.send_message(signed_boc)
@@ -310,6 +359,7 @@ class TonEscrowClient:
             seller_amount_atomic=attempt.amount_atomic,
             seller_comment=attempt.comment,
             reward_destination=reward_destination,
+            reward_amount_atomic=attempt.reward_nominal_amount_atomic,
             reward_comment=attempt.reward_comment,
         ):
             logger.error(
@@ -318,3 +368,34 @@ class TonEscrowClient:
             )
             return TraceStatus.FAILED
         return TraceStatus.CONFIRMED
+
+    async def get_collection_trace_status(
+        self,
+        attempt: CollectionAttempt,
+    ) -> TraceStatus:
+        if not attempt.external_message_hash:
+            raise TonGatewayError("Collection attempt has no external message hash")
+        try:
+            trace = await self._client.provider.send_http_request(
+                "GET",
+                f"/traces/{attempt.external_message_hash}",
+            )
+        except ProviderResponseError as exc:
+            if exc.code == 404:
+                return TraceStatus.NOT_FOUND
+            raise
+        if not isinstance(trace, dict):
+            raise TonGatewayError("TonAPI returned an invalid collection trace")
+        status = classify_trace(trace)
+        if status is not TraceStatus.CONFIRMED:
+            return status
+        destination = Address(attempt.destination).to_str(is_user_friendly=False)
+        return (
+            TraceStatus.CONFIRMED
+            if trace_contains_transfer(
+                trace,
+                destination=destination,
+                comment=attempt.comment,
+            )
+            else TraceStatus.FAILED
+        )
