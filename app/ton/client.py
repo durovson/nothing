@@ -201,7 +201,7 @@ class TonEscrowClient:
                 continue
 
             memo = decode_text_comment(incoming.body)
-            if memo not in (None, deal.public_id) or info.value_coins != expected_atomic:
+            if memo != deal.public_id or info.value_coins != expected_atomic:
                 continue
 
             tx_hash = transaction_hash(transaction)

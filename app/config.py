@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     APP_PORT: int = Field(default=8_000, ge=1, le=65_535)
     APP_BASE_URL: str = ""
     RENDER_EXTERNAL_URL: str = ""
+    RENDER_KEEPALIVE_ENABLED: bool = True
+    RENDER_KEEPALIVE_INTERVAL_SECONDS: int = Field(default=840, ge=60)
+    RENDER_KEEPALIVE_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=60)
 
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_BOT_USERNAME: str = ""
@@ -56,7 +59,7 @@ class Settings(BaseSettings):
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
     DEAL_PAYMENT_TIMEOUT_SECONDS: int = Field(default=3_600, ge=60)
-    MIN_DEAL_AMOUNT: Decimal = Field(default=Decimal("0.2"), gt=0)
+    MIN_DEAL_AMOUNT: Decimal = Field(default=Decimal("1"), ge=Decimal("1"))
     MIN_USDT_DEAL_AMOUNT: Decimal = Field(default=Decimal("1"), ge=Decimal("1"))
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)

@@ -132,7 +132,7 @@ Supabase SELECT requests are serialized through one shared client and retried up
 
 ## Render deploy
 
-Deploy one Docker Web Service using `render.yaml`, with health check `/healthz`. The built-in keep-alive calls `APP_BASE_URL/ping` every 840 seconds. A sleeping free instance cannot wake itself; use an external uptime monitor or an always-on Render plan.
+Deploy one Docker Web Service using `render.yaml`, with health check `/healthz`. When `RENDER_KEEPALIVE_ENABLED=true`, the built-in keep-alive calls `RENDER_EXTERNAL_URL/ping` (or `APP_BASE_URL/ping`) every `RENDER_KEEPALIVE_INTERVAL_SECONDS`. A sleeping free instance cannot wake itself; use an external uptime monitor or an always-on Render plan for reliable 24/7 operation.
 
 Minimal Render variables:
 

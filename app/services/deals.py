@@ -126,7 +126,6 @@ class DealService:
             params["jetton"] = self._settings.USDT_MASTER_ADDRESS
         return f"https://app.tonkeeper.com/transfer/{deal.wallet_address}?{urlencode(params)}"
 
-    @property
     def minimum_deal_amount(self, currency: Currency) -> Decimal:
         configured = (
             self._settings.MIN_DEAL_AMOUNT
