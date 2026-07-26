@@ -74,7 +74,7 @@ class PayoutRepository:
         return Deal(**response.data[0])
 
     async def list_open(self) -> list[PayoutAttempt]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("payout_attempts")
             .select("*")
             .in_(

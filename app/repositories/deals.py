@@ -78,7 +78,7 @@ class DealRepository:
         return current
 
     async def get(self, deal_id: int) -> Deal | None:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("id", deal_id)
@@ -88,7 +88,7 @@ class DealRepository:
         return Deal(**response.data[0]) if response.data else None
 
     async def get_by_public_id(self, public_id: str) -> Deal | None:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("public_id", public_id)
@@ -134,7 +134,7 @@ class DealRepository:
         return Deal(**response.data[0]) if response.data else None
 
     async def list_release_requested(self, limit: int = 1) -> list[Deal]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.RELEASE_REQUESTED.value)
@@ -145,7 +145,7 @@ class DealRepository:
         return [Deal(**item) for item in response.data]
 
     async def list_collecting(self) -> list[Deal]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.COLLECTING.value)
@@ -183,7 +183,7 @@ class DealRepository:
         return await self._deal_rpc("request_expired_inspection_release", deal_id)
 
     async def list_refund_requested(self, limit: int = 1) -> list[Deal]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.REFUND_REQUESTED.value)
@@ -194,7 +194,7 @@ class DealRepository:
         return [Deal(**item) for item in response.data]
 
     async def list_refund_awaiting_wallet(self) -> list[Deal]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.REFUND_AWAITING_WALLET.value)
@@ -208,7 +208,7 @@ class DealRepository:
 
     async def _list_expired(self, status: DealStatus, column: str) -> list[Deal]:
         now = datetime.now(UTC).isoformat()
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", status.value)
@@ -229,7 +229,7 @@ class DealRepository:
         page_size: int,
     ) -> tuple[list[Deal], bool]:
         offset = page * page_size
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .or_(f"creator_id.eq.{telegram_id},buyer_id.eq.{telegram_id}")
@@ -241,7 +241,7 @@ class DealRepository:
         return rows[:page_size], len(rows) > page_size
 
     async def list_pending(self) -> list[Deal]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.PENDING.value)

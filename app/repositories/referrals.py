@@ -17,7 +17,7 @@ class ReferralRepository:
         return bool(response.data)
 
     async def get_stats(self, referrer_id: int) -> ReferralStats:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("referrals")
             .select("*")
             .eq("referrer_id", referrer_id)

@@ -36,7 +36,7 @@ class UserRepository:
         return User(**response.data[0])
 
     async def get(self, telegram_id: int) -> User | None:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("users")
             .select("*")
             .eq("telegram_id", telegram_id)
@@ -59,7 +59,7 @@ class UserRepository:
         return User(**response.data[0])
 
     async def list_ids(self, offset: int, limit: int) -> list[int]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("users")
             .select("telegram_id").order("telegram_id").range(offset, offset + limit - 1).execute()
         )

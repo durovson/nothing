@@ -128,6 +128,8 @@ python -m app.main
 
 Health endpoints: `/ping`, `/healthz`, `/readyz`.
 
+Supabase SELECT requests are serialized through one shared client and retried up to three times after transient `httpx/httpcore` transport failures. Mutating requests and financial RPCs are never blindly replayed; their idempotent background workflow reconciles them on the next iteration.
+
 ## Render deploy
 
 Deploy one Docker Web Service using `render.yaml`, with health check `/healthz`. The built-in keep-alive calls `APP_BASE_URL/ping` every 840 seconds. A sleeping free instance cannot wake itself; use an external uptime monitor or an always-on Render plan.

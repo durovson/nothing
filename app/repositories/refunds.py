@@ -68,7 +68,7 @@ class RefundRepository:
         return await self._error_rpc("mark_refund_failed", attempt_id, error)
 
     async def list_open(self) -> list[RefundAttempt]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("refund_attempts")
             .select("*")
             .in_(

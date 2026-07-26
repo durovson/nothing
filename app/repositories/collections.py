@@ -72,7 +72,7 @@ class CollectionRepository:
         return await self._mark_error("mark_collection_failed", attempt_id, error)
 
     async def list_open(self) -> list[CollectionAttempt]:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("collection_attempts")
             .select("*")
             .in_(

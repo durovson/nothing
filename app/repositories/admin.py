@@ -16,7 +16,7 @@ class AdminRepository:
         return rows[:page_size], len(rows) > page_size
 
     async def get_dispute(self, ticket_id: int) -> DisputeTicket | None:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("dispute_tickets")
             .select("*").eq("id", ticket_id).limit(1).execute()
         )
@@ -35,7 +35,7 @@ class AdminRepository:
         return Deal(**response.data[0]) if response.data else None
 
     async def get_settings(self) -> BotSettings:
-        response = await self._database.run(
+        response = await self._database.read(
             lambda: self._database.client.table("bot_settings").select("*").eq("id", 1).single().execute()
         )
         return BotSettings(**response.data)
