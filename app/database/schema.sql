@@ -24,7 +24,7 @@ create table if not exists deals (
     buyer_id bigint references users(telegram_id) on delete set null,
     deal_type text not null check (deal_type in ('gifts', 'channel', 'account')),
     description text not null,
-    currency text not null check (currency in ('TON', 'USDT_TON')),
+    currency text not null check (currency in ('TON', 'USDT')),
     amount numeric(36, 9) not null check (amount > 0),
     status text not null default 'creating',
     wallet_address text,
@@ -32,6 +32,7 @@ create table if not exists deals (
     paid_tx_lt numeric(20, 0),
     paid_amount_atomic numeric(30, 0),
     payment_sender text,
+    payment_memo_missing boolean not null default false,
     paid_at timestamptz,
     failure_reason text,
     created_at timestamptz not null default timezone('utc', now()),
@@ -46,8 +47,15 @@ alter table deals add column if not exists paid_tx_hash text;
 alter table deals add column if not exists paid_tx_lt numeric(20, 0);
 alter table deals add column if not exists paid_amount_atomic numeric(30, 0);
 alter table deals add column if not exists payment_sender text;
+alter table deals add column if not exists payment_memo_missing boolean not null default false;
 alter table deals add column if not exists paid_at timestamptz;
 alter table deals add column if not exists failure_reason text;
+alter table deals add column if not exists custody_confirmed_at timestamptz;
+alter table deals add column if not exists delivery_deadline_at timestamptz;
+alter table deals add column if not exists delivered_at timestamptz;
+alter table deals add column if not exists inspection_deadline_at timestamptz;
+alter table deals add column if not exists resolution text;
+alter table deals add column if not exists resolution_reason text;
 alter table deals add column if not exists updated_at timestamptz not null default timezone('utc', now());
 
 update deals
@@ -125,12 +133,17 @@ alter table deals add constraint deals_failure_reason_length_check
 alter table deals drop constraint if exists deals_paid_amount_check;
 alter table deals add constraint deals_paid_amount_check
     check (paid_amount_atomic is null or paid_amount_atomic > 0);
+alter table deals drop constraint if exists deals_currency_check;
+alter table deals add constraint deals_currency_check check (currency in ('TON', 'USDT')) not valid;
 alter table deals drop constraint if exists deals_status_check;
 alter table deals add constraint deals_status_check check (
     status in (
         'creating', 'pending', 'collecting', 'collection_submitted',
-        'collection_failed', 'paid', 'release_requested', 'payout_processing',
+        'collection_failed', 'paid', 'delivery_pending', 'delivered', 'disputed',
+        'release_requested', 'payout_processing',
         'payout_submitted', 'payout_failed', 'payout_bounced', 'completed',
+        'refund_awaiting_wallet', 'refund_requested', 'refund_processing',
+        'refund_submitted', 'refund_failed', 'refund_bounced', 'refunded',
         'cancelled', 'creation_failed'
     )
 );
@@ -212,6 +225,7 @@ create table if not exists payout_attempts (
     reward_destination text,
     reward_nominal_amount_atomic numeric(30, 0),
     reward_comment text,
+    currency text not null default 'TON',
     external_message_hash text unique,
     signed_boc text,
     valid_until timestamptz,
@@ -226,6 +240,9 @@ create table if not exists payout_attempts (
 alter table payout_attempts add column if not exists reward_destination text;
 alter table payout_attempts add column if not exists reward_nominal_amount_atomic numeric(30, 0);
 alter table payout_attempts add column if not exists reward_comment text;
+alter table payout_attempts add column if not exists currency text not null default 'TON';
+alter table payout_attempts drop constraint if exists payout_attempts_currency_check;
+alter table payout_attempts add constraint payout_attempts_currency_check check (currency in ('TON', 'USDT'));
 create unique index if not exists payout_attempts_deal_uidx on payout_attempts(deal_id);
 alter table payout_attempts drop constraint if exists payout_attempts_error_length_check;
 alter table payout_attempts add constraint payout_attempts_error_length_check
@@ -246,6 +263,73 @@ alter table payout_attempts add constraint payout_attempts_reward_check check (
     )
 );
 
+create table if not exists refund_attempts (
+    id bigint generated always as identity primary key,
+    deal_id bigint not null references deals(id) on delete restrict,
+    idempotency_key text not null unique,
+    status text not null check (status in ('creating', 'prepared', 'submitted', 'confirmed', 'bounced', 'failed')),
+    destination text not null,
+    amount_atomic numeric(30, 0) not null check (amount_atomic > 0),
+    comment text not null,
+    reason text not null,
+    currency text not null default 'TON',
+    reward_destination text,
+    reward_nominal_amount_atomic numeric(30, 0),
+    reward_comment text,
+    external_message_hash text unique,
+    signed_boc text,
+    valid_until timestamptz,
+    submitted_at timestamptz,
+    confirmed_at timestamptz,
+    last_checked_at timestamptz,
+    error text,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    unique (deal_id)
+);
+alter table refund_attempts add column if not exists currency text not null default 'TON';
+alter table refund_attempts add column if not exists reward_destination text;
+alter table refund_attempts add column if not exists reward_nominal_amount_atomic numeric(30, 0);
+alter table refund_attempts add column if not exists reward_comment text;
+alter table refund_attempts drop constraint if exists refund_attempts_currency_check;
+alter table refund_attempts add constraint refund_attempts_currency_check check (currency in ('TON', 'USDT'));
+alter table refund_attempts drop constraint if exists refund_attempts_reward_check;
+alter table refund_attempts add constraint refund_attempts_reward_check check (
+    (reward_destination is null and reward_nominal_amount_atomic is null and reward_comment is null)
+    or (reward_destination is not null and reward_nominal_amount_atomic > 0
+        and char_length(btrim(reward_comment)) between 1 and 120)
+);
+alter table refund_attempts drop constraint if exists refund_attempts_text_check;
+alter table refund_attempts add constraint refund_attempts_text_check check (
+    char_length(btrim(comment)) between 1 and 120
+    and char_length(btrim(reason)) between 1 and 1000
+    and (error is null or char_length(error) <= 1000)
+);
+
+create table if not exists dispute_tickets (
+    id bigint generated always as identity primary key,
+    deal_id bigint not null references deals(id) on delete cascade,
+    opened_by bigint not null references users(telegram_id) on delete restrict,
+    status text not null default 'open'
+        check (status in ('open', 'resolved_release', 'resolved_refund', 'closed')),
+    description text not null check (char_length(btrim(description)) between 10 and 1000),
+    resolution text,
+    resolution_reason text,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+create unique index if not exists dispute_tickets_open_deal_uidx
+    on dispute_tickets(deal_id) where status = 'open';
+
+create table if not exists bot_settings (
+    id smallint primary key check (id = 1),
+    maintenance_enabled boolean not null default false,
+    maintenance_message text not null default 'Технический перерыв. Попробуйте позже.',
+    updated_at timestamptz not null default timezone('utc', now()),
+    check (char_length(btrim(maintenance_message)) between 3 and 1000)
+);
+insert into bot_settings(id) values (1) on conflict (id) do nothing;
+
 -- A legacy `paid` row without a collection record cannot prove that custody
 -- reached the central guarant wallet. Block automatic release so an operator
 -- can reconcile it on-chain instead of risking a payout from unrelated funds.
@@ -262,6 +346,20 @@ where d.status = 'paid'
       select 1 from payout_attempts as p where p.deal_id = d.id
   );
 
+update deals as d
+set
+    status = 'delivery_pending',
+    custody_confirmed_at = coalesce(d.custody_confirmed_at, c.confirmed_at, d.updated_at),
+    delivery_deadline_at = coalesce(
+        d.delivery_deadline_at,
+        timezone('utc', now()) + interval '24 hours'
+    ),
+    updated_at = timezone('utc', now())
+from collection_attempts as c
+where d.status = 'paid'
+  and c.deal_id = d.id
+  and c.status = 'confirmed';
+
 -- Unsuccessful deals are removed by the retention RPC. Dependent financial
 -- rows must be removed in the same atomic transaction.
 alter table deal_payments drop constraint if exists deal_payments_deal_id_fkey;
@@ -273,16 +371,20 @@ alter table collection_attempts add constraint collection_attempts_deal_id_fkey
 alter table payout_attempts drop constraint if exists payout_attempts_deal_id_fkey;
 alter table payout_attempts add constraint payout_attempts_deal_id_fkey
     foreign key (deal_id) references deals(id) on delete cascade;
+alter table refund_attempts drop constraint if exists refund_attempts_deal_id_fkey;
+alter table refund_attempts add constraint refund_attempts_deal_id_fkey
+    foreign key (deal_id) references deals(id) on delete cascade;
 
 create table if not exists referrals (
     id bigint generated always as identity primary key,
     referrer_id bigint not null references users(telegram_id) on delete cascade,
     referred_id bigint not null references users(telegram_id) on delete cascade,
     earned_ton numeric(36, 9) not null default 0,
-    earned_usdt numeric(36, 9) not null default 0,
+    earned_usdt numeric(36, 6) not null default 0,
     created_at timestamptz not null default timezone('utc', now()),
     unique (referrer_id, referred_id)
 );
+alter table referrals add column if not exists earned_usdt numeric(36, 6) not null default 0;
 
 alter table referrals drop constraint if exists referrals_distinct_users_check;
 alter table referrals add constraint referrals_distinct_users_check
@@ -294,12 +396,17 @@ create index if not exists deals_status_idx on deals(status);
 create index if not exists deals_creator_idx on deals(creator_id);
 create index if not exists deals_buyer_idx on deals(buyer_id);
 create index if not exists payout_attempts_status_idx on payout_attempts(status);
+create index if not exists refund_attempts_status_idx on refund_attempts(status);
+create index if not exists deals_delivery_deadline_idx
+    on deals(delivery_deadline_at) where status = 'delivery_pending';
+create index if not exists deals_inspection_deadline_idx
+    on deals(inspection_deadline_at) where status = 'delivered';
 create index if not exists referrals_referrer_idx on referrals(referrer_id);
 drop index if exists deals_unsuccessful_retention_idx;
 create index deals_unsuccessful_retention_idx on deals(updated_at)
 where status in (
     'cancelled', 'creation_failed', 'collection_failed',
-    'payout_failed', 'payout_bounced'
+    'payout_failed', 'payout_bounced', 'refund_failed', 'refund_bounced'
 );
 
 commit;

@@ -8,6 +8,7 @@ from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.referrals import ReferralService
 from app.services.users import UserService
+from app.utils import format_amount
 
 router = Router(name="settings")
 SETTINGS_MENU_TEXTS = {translate(language, TextKey.MENU_SETTINGS) for language in Language}
@@ -91,8 +92,8 @@ async def referral_info(
                 TextKey.REFERRAL_CAPTION,
                 link=link,
                 count=stats.count,
-                earned_ton=stats.earned_ton,
+                earned_ton=format_amount(stats.earned_ton),
+                earned_usdt=format_amount(stats.earned_usdt),
             )
         )
     await callback.answer()
-

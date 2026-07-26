@@ -31,8 +31,9 @@ from app.core.constants import (
 from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
 from app.core.exceptions import InvalidWalletError, TonGatewayError
 from app.models.dto import PaymentObservation
-from app.models.entities import CollectionAttempt, Deal, PayoutAttempt
-from app.ton.amounts import payment_amount_atomic
+from app.models.entities import CollectionAttempt, Deal, PayoutAttempt, RefundAttempt
+from app.ton.amounts import asset_payment_amount_atomic
+from app.ton.jettons import JettonEscrowGateway
 from app.ton.models import PayoutMessage, PreparedPayout
 from app.ton.parsing import (
     classify_trace,
@@ -73,6 +74,7 @@ class TonEscrowClient:
             timeout=settings.TON_REQUEST_TIMEOUT_MS / 1_000,
         )
         self._guarant_wallet = self._v5_wallet(0)
+        self._jettons = JettonEscrowGateway(self._client, settings, self._guarant_wallet)
         self._validate_guarant_address()
         self._connected = False
 
@@ -161,18 +163,20 @@ class TonEscrowClient:
                 return self._v5_wallet(deal.subwallet_id)
 
     async def get_deal_address(self, deal: Deal) -> str:
+        if deal.currency is Currency.USDT:
+            return self.guarant_address
         return self._wallet(deal).address.to_str(
             is_bounceable=False,
             is_test_only=self._settings.TON_NETWORK is TonNetwork.TESTNET,
         )
 
     async def find_incoming_payment(self, deal: Deal) -> PaymentObservation | None:
-        if deal.currency is not Currency.TON:
-            raise TonGatewayError("USDT_TON requires a jetton-specific payment monitor")
-
+        if deal.currency is Currency.USDT:
+            return await self._jettons.find_incoming_payment(deal)
         wallet = self._wallet(deal)
-        expected_atomic = payment_amount_atomic(
+        expected_atomic = asset_payment_amount_atomic(
             deal.amount,
+            deal.currency,
             self._settings.ESCROW_FEE_RATE,
             self._settings.TON_PAYOUT_FEE_RESERVE,
         )
@@ -197,7 +201,7 @@ class TonEscrowClient:
                 continue
 
             memo = decode_text_comment(incoming.body)
-            if memo != deal.public_id or info.value_coins != expected_atomic:
+            if memo not in (None, deal.public_id) or info.value_coins != expected_atomic:
                 continue
 
             tx_hash = transaction_hash(transaction)
@@ -296,21 +300,25 @@ class TonEscrowClient:
     ) -> PreparedPayout:
         if not messages or any(message.sweep_balance for message in messages):
             raise TonGatewayError("Guarant payout requires explicit non-sweep amounts")
-        builders: list[TONTransferBuilder] = []
+        currencies = {item.currency for item in messages}
+        if len(currencies) != 1:
+            raise TonGatewayError("A payout batch cannot mix TON and Jetton messages")
+        builders = []
         for item in messages:
             destination = Address(item.destination)
             recipient = await self._client.get_info(destination)
             if recipient.state == ContractState.FROZEN:
                 raise TonGatewayError(f"Recipient {item.destination} is frozen")
-            builders.append(
-                TONTransferBuilder(
+            if item.currency is Currency.USDT:
+                builders.append(self._jettons.transfer_builder(item))
+            else:
+                builders.append(TONTransferBuilder(
                     destination=destination,
                     amount=item.amount_atomic,
                     body=item.comment,
                     send_mode=int(SendMode.PAY_GAS_SEPARATELY | SendMode.IGNORE_ERRORS),
                     bounce=recipient.state == ContractState.ACTIVE,
-                )
-            )
+                ))
         valid_until_unix = int(time()) + self._settings.TON_TRANSFER_TTL_SECONDS
         external_message = await self._guarant_wallet.build_external_message(
             builders,
@@ -325,6 +333,11 @@ class TonEscrowClient:
     async def get_guarant_balance_atomic(self) -> int:
         info = await self._client.get_info(self._guarant_wallet.address)
         return int(info.balance)
+
+    async def get_guarant_asset_balance_atomic(self, currency: Currency) -> int:
+        if currency is Currency.TON:
+            return await self.get_guarant_balance_atomic()
+        return await self._jettons.balance_atomic()
 
     async def broadcast(self, signed_boc: str) -> None:
         await self._client.send_message(signed_boc)
@@ -343,17 +356,18 @@ class TonEscrowClient:
             raise
         if not isinstance(trace, dict):
             raise TonGatewayError("TonAPI returned an invalid trace payload")
-        status = classify_trace(trace)
-        if status is not TraceStatus.CONFIRMED:
-            return status
-
         seller_destination = Address(attempt.destination).to_str(is_user_friendly=False)
         reward_destination = (
             Address(attempt.reward_destination).to_str(is_user_friendly=False)
             if attempt.reward_destination
             else None
         )
-        if not trace_contains_payout(
+        if trace.get("is_incomplete") is True:
+            return TraceStatus.PENDING
+        if attempt.currency is Currency.USDT:
+            matched = await self._jettons.payout_trace_matches(trace, attempt)
+        else:
+            matched = trace_contains_payout(
             trace,
             seller_destination=seller_destination,
             seller_amount_atomic=attempt.amount_atomic,
@@ -361,13 +375,17 @@ class TonEscrowClient:
             reward_destination=reward_destination,
             reward_amount_atomic=attempt.reward_nominal_amount_atomic,
             reward_comment=attempt.reward_comment,
-        ):
+            )
+        if matched:
+            return TraceStatus.CONFIRMED
+        status = classify_trace(trace)
+        if status is TraceStatus.CONFIRMED:
             logger.error(
                 "Confirmed trace does not contain the complete payout batch attempt=%s",
                 attempt.id,
             )
             return TraceStatus.FAILED
-        return TraceStatus.CONFIRMED
+        return status
 
     async def get_collection_trace_status(
         self,
@@ -394,6 +412,40 @@ class TonEscrowClient:
             destination=destination,
             comment=attempt.comment,
         ):
+            return TraceStatus.CONFIRMED
+        status = classify_trace(trace)
+        return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
+
+    async def get_refund_trace_status(self, attempt: RefundAttempt) -> TraceStatus:
+        if not attempt.external_message_hash:
+            raise TonGatewayError("Refund attempt has no external message hash")
+        try:
+            trace = await self._client.provider.send_http_request(
+                "GET",
+                f"/traces/{attempt.external_message_hash}",
+            )
+        except ProviderResponseError as exc:
+            if exc.code == 404:
+                return TraceStatus.NOT_FOUND
+            raise
+        if not isinstance(trace, dict):
+            raise TonGatewayError("TonAPI returned an invalid refund trace")
+        destination = Address(attempt.destination).to_str(is_user_friendly=False)
+        if trace.get("is_incomplete") is True:
+            return TraceStatus.PENDING
+        if attempt.currency is Currency.USDT:
+            matched = await self._jettons.refund_trace_matches(trace, attempt)
+        else:
+            matched = trace_contains_payout(
+            trace,
+            seller_destination=destination,
+            seller_amount_atomic=attempt.amount_atomic,
+            seller_comment=attempt.comment,
+            reward_destination=(Address(attempt.reward_destination).to_str(is_user_friendly=False) if attempt.reward_destination else None),
+            reward_amount_atomic=attempt.reward_nominal_amount_atomic,
+            reward_comment=attempt.reward_comment,
+            )
+        if matched:
             return TraceStatus.CONFIRMED
         status = classify_trace(trace)
         return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status

@@ -15,12 +15,13 @@ from app.core.types import (
     DealRepositoryProtocol,
     NotificationGatewayProtocol,
     PayoutRepositoryProtocol,
+    RefundRepositoryProtocol,
     TonGatewayProtocol,
     UserRepositoryProtocol,
 )
 from app.models.entities import Deal, PayoutAttempt
 from app.services.referrals import ReferralService
-from app.ton.amounts import payout_amount_atomic, service_fee_amount_atomic
+from app.ton.amounts import asset_amount_atomic, asset_service_fee_atomic, payout_amount_atomic
 from app.ton.models import PayoutMessage
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class PayoutService:
         settings: Settings,
         deals: DealRepositoryProtocol,
         payouts: PayoutRepositoryProtocol,
+        refunds: RefundRepositoryProtocol,
         users: UserRepositoryProtocol,
         referrals: ReferralService,
         ton: TonGatewayProtocol,
@@ -40,6 +42,7 @@ class PayoutService:
         self._settings = settings
         self._deals = deals
         self._payouts = payouts
+        self._refunds = refunds
         self._users = users
         self._referrals = referrals
         self._ton = ton
@@ -49,7 +52,7 @@ class PayoutService:
         deal = await self._deals.get(deal_id)
         if not deal:
             raise DealNotFoundError(f"Deal {deal_id} not found")
-        if deal.buyer_id != buyer_id or deal.status is not DealStatus.PAID:
+        if deal.buyer_id != buyer_id or deal.status is not DealStatus.DELIVERED:
             raise DealConfirmationForbiddenError("Only the buyer can confirm a paid deal")
         requested = await self._deals.request_release(deal.id, buyer_id)
         if requested is None:
@@ -57,7 +60,7 @@ class PayoutService:
         return requested
 
     async def process_releases(self) -> None:
-        if await self._payouts.list_open():
+        if await self._payouts.list_open() or await self._refunds.list_open():
             return
         requested = await self._deals.list_release_requested(limit=1)
         if requested:
@@ -70,20 +73,23 @@ class PayoutService:
 
         seller_destination = self._ton.normalize_address(seller.wallet_address)
         reward_destination = self._ton.normalize_address(self._settings.SERVICE_FEE_WALLET)
-        seller_amount_atomic = payout_amount_atomic(deal.amount)
-        reward_nominal_amount_atomic = service_fee_amount_atomic(
+        seller_amount_atomic = asset_amount_atomic(deal.amount, deal.currency)
+        reward_nominal_amount_atomic = asset_service_fee_atomic(
             deal.amount,
+            deal.currency,
             self._settings.ESCROW_FEE_RATE,
         )
-        required_balance_atomic = (
-            seller_amount_atomic
-            + reward_nominal_amount_atomic
-            + payout_amount_atomic(self._settings.TON_GUARANT_PAYOUT_GAS_RESERVE)
-        )
-        if await self._ton.get_guarant_balance_atomic() < required_balance_atomic:
+        if await self._ton.get_guarant_asset_balance_atomic(deal.currency) < (
+            seller_amount_atomic + reward_nominal_amount_atomic
+        ):
             raise InsufficientPayoutReserveError(
-                "Guarant balance does not cover seller, service fee and payout gas"
+                "Guarant asset balance does not cover seller and service fee"
             )
+        gas_required = payout_amount_atomic(self._settings.TON_GUARANT_PAYOUT_GAS_RESERVE)
+        if deal.currency.value == "USDT":
+            gas_required += 2 * payout_amount_atomic(self._settings.USDT_JETTON_TRANSFER_TON)
+        if await self._ton.get_guarant_balance_atomic() < gas_required:
+            raise InsufficientPayoutReserveError("Guarant TON balance does not cover payout gas")
         seller_comment = f"Payment for deal {deal.public_id}"
         reward_comment = self._settings.SERVICE_FEE_COMMENT
 
@@ -113,11 +119,13 @@ class PayoutService:
                         attempt.destination,
                         attempt.amount_atomic,
                         attempt.comment,
+                        currency=deal.currency,
                     ),
                     PayoutMessage(
                         attempt.reward_destination,
                         attempt.reward_nominal_amount_atomic,
                         attempt.reward_comment,
+                        currency=deal.currency,
                     ),
                 ],
             )
@@ -156,11 +164,12 @@ class PayoutService:
                 return
             prepared = await self._ton.prepare_guarant_payout(
                 [
-                    PayoutMessage(attempt.destination, attempt.amount_atomic, attempt.comment),
+                    PayoutMessage(attempt.destination, attempt.amount_atomic, attempt.comment, currency=attempt.currency),
                     PayoutMessage(
                         attempt.reward_destination,
                         attempt.reward_nominal_amount_atomic,
                         attempt.reward_comment,
+                        currency=attempt.currency,
                     ),
                 ]
             )

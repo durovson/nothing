@@ -6,8 +6,10 @@ import logging
 from app.config import Settings
 from app.services.deals import DealService
 from app.services.collections import CollectionService
+from app.services.lifecycle import DealLifecycleService
 from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
+from app.services.refunds import RefundService
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +23,16 @@ class DealMonitor:
         deals: DealService,
         payments: PaymentService,
         collections: CollectionService,
+        lifecycle: DealLifecycleService,
+        refunds: RefundService,
         payouts: PayoutService,
     ):
         self._settings = settings
         self._deals = deals
         self._payments = payments
         self._collections = collections
+        self._lifecycle = lifecycle
+        self._refunds = refunds
         self._payouts = payouts
         self._stop_event = asyncio.Event()
         self._tasks: set[asyncio.Task[None]] = set()
@@ -42,6 +48,7 @@ class DealMonitor:
         self._tasks = {
             asyncio.create_task(self._payment_loop(), name="payment-monitor"),
             asyncio.create_task(self._collection_loop(), name="collection-reconciler"),
+            asyncio.create_task(self._lifecycle_loop(), name="deal-lifecycle"),
             asyncio.create_task(self._payout_loop(), name="payout-reconciler"),
             asyncio.create_task(self._retention_loop(), name="retention-cleanup"),
         }
@@ -65,10 +72,20 @@ class DealMonitor:
     async def _payout_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
+                await self._refunds.reconcile_open()
+                await self._refunds.process_requested()
                 await self._payouts.reconcile_open()
                 await self._payouts.process_releases()
             except Exception:
                 logger.exception("Payout reconciliation iteration failed")
+            await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
+
+    async def _lifecycle_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                await self._lifecycle.process_deadlines()
+            except Exception:
+                logger.exception("Deal lifecycle iteration failed")
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
 
     async def _collection_loop(self) -> None:

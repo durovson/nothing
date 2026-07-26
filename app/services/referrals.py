@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from app.config import Settings
-from app.core.constants import TON_DECIMAL_PLACES
+from app.ton.amounts import asset_quantum
 from app.core.types import ReferralRepositoryProtocol
 from app.models.dto import ReferralStats
 from app.models.entities import Deal, User
@@ -24,7 +24,7 @@ class ReferralService:
         if not seller or not buyer or not seller.referrer_id:
             return
         service_fee = deal.amount * self._settings.ESCROW_FEE_RATE
-        reward = (service_fee * self._settings.REFERRAL_FEE_SHARE).quantize(TON_DECIMAL_PLACES)
+        reward = (service_fee * self._settings.REFERRAL_FEE_SHARE).quantize(asset_quantum(deal.currency))
         if reward > Decimal("0"):
             await self._referrals.add_reward(
                 seller.referrer_id,
@@ -32,4 +32,3 @@ class ReferralService:
                 deal.currency,
                 reward,
             )
-

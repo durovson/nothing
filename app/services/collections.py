@@ -4,7 +4,8 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
-from app.core.enums import CollectionStatus, TraceStatus
+from app.core.constants import SELLER_DELIVERY_TIMEOUT_SECONDS
+from app.core.enums import CollectionStatus, Currency, TraceStatus
 from app.core.types import (
     CollectionRepositoryProtocol,
     DealRepositoryProtocol,
@@ -35,6 +36,16 @@ class CollectionService:
         self._notifications = notifications
 
     async def start_collection(self, deal: Deal) -> None:
+        if deal.currency is Currency.USDT:
+            direct = await self._deals.mark_direct_custody(
+                deal.id,
+                datetime.now(UTC) + timedelta(seconds=SELLER_DELIVERY_TIMEOUT_SECONDS),
+            )
+            if direct:
+                seller = await self._users.get(direct.creator_id)
+                buyer = await self._users.get(direct.buyer_id) if direct.buyer_id else None
+                await self._notifications.payment_received(direct, buyer, seller)
+            return
         comment = f"Escrow for deal {deal.public_id}"
         attempt = await self._collections.claim(
             deal,
@@ -101,7 +112,10 @@ class CollectionService:
         status = await self._ton.get_collection_trace_status(attempt)
         match status:
             case TraceStatus.CONFIRMED:
-                deal = await self._collections.mark_confirmed(attempt.id)
+                deal = await self._collections.mark_confirmed(
+                    attempt.id,
+                    datetime.now(UTC) + timedelta(seconds=SELLER_DELIVERY_TIMEOUT_SECONDS),
+                )
                 if deal:
                     seller = await self._users.get(deal.creator_id)
                     buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None

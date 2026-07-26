@@ -13,10 +13,6 @@ class InvalidWalletError(ApplicationError):
     pass
 
 
-class UnsupportedCurrencyError(ApplicationError):
-    pass
-
-
 class TonGatewayError(ApplicationError):
     pass
 
@@ -25,14 +21,23 @@ class MissingPayoutWalletError(ApplicationError):
     pass
 
 
+class MissingLinkedWalletError(ApplicationError):
+    pass
+
+
 class DealConfirmationForbiddenError(ApplicationError):
     pass
 
 
+class DealActionForbiddenError(ApplicationError):
+    pass
+
+
 class DealAmountTooSmallError(ApplicationError):
-    def __init__(self, minimum: Decimal):
+    def __init__(self, minimum: Decimal, currency: object = "TON"):
         self.minimum = minimum
-        super().__init__(f"Deal amount must be at least {minimum} TON")
+        self.currency = currency
+        super().__init__(f"Deal amount must be at least {minimum} {currency}")
 
 
 class InsufficientPayoutReserveError(ApplicationError):

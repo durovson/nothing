@@ -1,6 +1,8 @@
 begin;
 
 drop function if exists claim_deal_payout(bigint, text, numeric, text);
+drop function if exists mark_collection_confirmed(bigint);
+drop function if exists claim_deal_payment(bigint, text, numeric, numeric, text, timestamptz);
 
 create or replace function claim_deal_buyer(p_public_id text, p_buyer_id bigint)
 returns setof deals
@@ -74,19 +76,19 @@ begin
     if p_amount is null or p_amount <= 0 then
         raise exception 'referral reward must be positive';
     end if;
-    if p_currency = 'TON' then
-        insert into referrals(referrer_id, referred_id, earned_ton)
-        values (p_referrer_id, p_referred_id, p_amount)
-        on conflict (referrer_id, referred_id)
-        do update set earned_ton = referrals.earned_ton + excluded.earned_ton;
-    elsif p_currency = 'USDT_TON' then
-        insert into referrals(referrer_id, referred_id, earned_usdt)
-        values (p_referrer_id, p_referred_id, p_amount)
-        on conflict (referrer_id, referred_id)
-        do update set earned_usdt = referrals.earned_usdt + excluded.earned_usdt;
-    else
+    if p_currency not in ('TON', 'USDT') then
         raise exception 'unsupported referral currency: %', p_currency;
     end if;
+    insert into referrals(referrer_id, referred_id, earned_ton, earned_usdt)
+    values (
+        p_referrer_id, p_referred_id,
+        case when p_currency = 'TON' then p_amount else 0 end,
+        case when p_currency = 'USDT' then p_amount else 0 end
+    )
+    on conflict (referrer_id, referred_id)
+    do update set
+        earned_ton = referrals.earned_ton + excluded.earned_ton,
+        earned_usdt = referrals.earned_usdt + excluded.earned_usdt;
 end;
 $$;
 
@@ -96,6 +98,7 @@ create or replace function claim_deal_payment(
     p_tx_lt numeric,
     p_amount_atomic numeric,
     p_sender text,
+    p_memo_missing boolean,
     p_observed_at timestamptz
 ) returns setof deals
 language plpgsql
@@ -122,6 +125,7 @@ begin
     update deals
     set status = 'collecting', paid_tx_hash = p_tx_hash, paid_tx_lt = p_tx_lt,
         paid_amount_atomic = p_amount_atomic, payment_sender = p_sender,
+        payment_memo_missing = p_memo_missing,
         paid_at = p_observed_at, updated_at = timezone('utc', now())
     where id = p_deal_id
     returning * into v_deal;
@@ -145,6 +149,23 @@ begin
     values (p_deal_id, 'deal:' || p_deal_id::text || ':collection', 'creating', p_destination, p_comment)
     returning * into v_attempt;
     return next v_attempt;
+end;
+$$;
+
+create or replace function mark_direct_custody_confirmed(
+    p_deal_id bigint,
+    p_delivery_deadline_at timestamptz
+) returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals
+    set status = 'delivery_pending', failure_reason = null,
+        custody_confirmed_at = timezone('utc', now()),
+        delivery_deadline_at = p_delivery_deadline_at,
+        updated_at = timezone('utc', now())
+    where id = p_deal_id and status = 'collecting' and currency = 'USDT'
+    returning *;
 end;
 $$;
 
@@ -184,7 +205,10 @@ begin
 end;
 $$;
 
-create or replace function mark_collection_confirmed(p_attempt_id bigint)
+create or replace function mark_collection_confirmed(
+    p_attempt_id bigint,
+    p_delivery_deadline_at timestamptz
+)
 returns setof deals
 language plpgsql security definer set search_path = public
 as $$
@@ -194,7 +218,9 @@ begin
         last_checked_at=timezone('utc', now()), updated_at=timezone('utc', now())
     where id=p_attempt_id and status='submitted' returning deal_id into v_deal_id;
     if v_deal_id is null then return; end if;
-    return query update deals set status='paid', failure_reason=null,
+    return query update deals set status='delivery_pending', failure_reason=null,
+        custody_confirmed_at=timezone('utc', now()),
+        delivery_deadline_at=p_delivery_deadline_at,
         updated_at=timezone('utc', now())
     where id=v_deal_id and status='collection_submitted' returning *;
 end;
@@ -238,7 +264,9 @@ language plpgsql security definer set search_path = public
 as $$
 begin
     return query update deals set status='release_requested', updated_at=timezone('utc', now())
-    where id=p_deal_id and buyer_id=p_buyer_id and status='paid' returning *;
+    where id=p_deal_id and buyer_id=p_buyer_id and status='delivered'
+      and inspection_deadline_at > timezone('utc', now())
+    returning *;
 end;
 $$;
 
@@ -290,7 +318,8 @@ begin
         comment,
         reward_destination,
         reward_nominal_amount_atomic,
-        reward_comment
+        reward_comment,
+        currency
     ) values (
         p_deal_id,
         'deal:' || p_deal_id::text || ':batch',
@@ -300,7 +329,8 @@ begin
         p_comment,
         p_reward_destination,
         p_reward_nominal_amount_atomic,
-        p_reward_comment
+        p_reward_comment,
+        v_deal.currency
     ) returning * into v_attempt;
 
     update deals
@@ -452,7 +482,7 @@ begin
     delete from deals
     where status in (
         'cancelled', 'creation_failed', 'collection_failed',
-        'payout_failed', 'payout_bounced'
+        'payout_failed', 'payout_bounced', 'refund_failed', 'refund_bounced'
     )
       and updated_at < timezone('utc', now()) - make_interval(days => p_retention_days);
 

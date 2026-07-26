@@ -7,42 +7,24 @@ services:
     dockerContext: .
     healthCheckPath: /healthz
     envVars:
-      - key: APP_HOST
-        value: 0.0.0.0
       - key: APP_PORT
         value: "10000"
       - key: APP_BASE_URL
         value: https://garant-i3z6.onrender.com
-      - key: RENDER_KEEPALIVE_ENABLED
-        value: "true"
-      - key: RENDER_KEEPALIVE_INTERVAL_SECONDS
-        value: "840"
-      - key: RENDER_KEEPALIVE_TIMEOUT_SECONDS
-        value: "10"
       - key: TELEGRAM_USE_POLLING
         value: "true"
       - key: TELEGRAM_BOT_USERNAME
         value: grntrobot
       - key: SUPPORT_USERNAME
-        value: "@ton_geist"
-      - key: TON_API_ENDPOINT
-        value: https://tonapi.io/v2
-      - key: TON_NETWORK
-        value: mainnet
+        value: "@not_jammm"
+      - key: ADMIN_IDS
+        value: "786080766"
+      - key: USDT_MASTER_ADDRESS
+        value: EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs
+      - key: MIN_USDT_DEAL_AMOUNT
+        value: "1"
       - key: TON_GUARANT_ADDRESS
         sync: false
-      - key: ESCROW_FEE_RATE
-        value: "0.01"
-      - key: AUTO_PAYOUT_AFTER_PAYMENT
-        value: "false"
-      - key: SERVICE_FEE_COMMENT
-        value: Service fee
-      - key: TON_PAYOUT_FEE_RESERVE
-        value: "0.01"
-      - key: TON_GUARANT_PAYOUT_GAS_RESERVE
-        value: "0.003"
-      - key: MIN_DEAL_AMOUNT
-        value: "0.2"
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: SUPABASE_URL

@@ -40,6 +40,37 @@ class TelegramNotificationGateway:
             if user:
                 await self._send(user, TextKey.DEAL_CONFIRMED)
 
+    async def refund_confirmed(
+        self,
+        deal: Deal,
+        buyer: User | None,
+        seller: User | None,
+    ) -> None:
+        for user in (buyer, seller):
+            if user:
+                await self._send(user, TextKey.DEAL_REFUNDED)
+
+    async def delivery_marked(
+        self,
+        deal: Deal,
+        buyer: User | None,
+        seller: User | None,
+    ) -> None:
+        if buyer:
+            await self._send(buyer, TextKey.DEAL_DELIVERY_NOTICE)
+        if seller:
+            await self._send(seller, TextKey.DEAL_DELIVERED)
+
+    async def dispute_opened(
+        self,
+        deal: Deal,
+        buyer: User | None,
+        seller: User | None,
+    ) -> None:
+        for user in (buyer, seller):
+            if user:
+                await self._send(user, TextKey.DEAL_DISPUTE_CREATED)
+
     def _transaction_url(self, deal: Deal) -> str:
         if not deal.paid_tx_hash:
             logger.error("Paid deal %s has no transaction hash", deal.public_id)

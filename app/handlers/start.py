@@ -2,12 +2,14 @@ from aiogram import F, Router, types
 from aiogram.filters import CommandObject, CommandStart
 
 from app.config import Settings
-from app.keyboards import MenuCallback, main_menu
+from app.core.exceptions import MissingLinkedWalletError
+from app.keyboards import MenuCallback, main_menu, payment_keyboard
 from app.keyboards.callbacks import MenuAction
 from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
 from app.services.referrals import ReferralService
+from app.utils import currency_label, format_amount
 
 router = Router(name="start")
 
@@ -30,7 +32,11 @@ async def start_with_args(
         await referral_service.assign_referrer(db_user.telegram_id, referrer_id)
 
     if len(argument) == 10 and argument.isalnum():
-        deal = await deal_service.join_deal(argument, db_user.telegram_id)
+        try:
+            deal = await deal_service.join_deal(argument, db_user.telegram_id)
+        except MissingLinkedWalletError:
+            await message.answer(translate(db_user.language, TextKey.DEAL_BUYER_WALLET_REQUIRED))
+            return
         if not deal:
             await message.answer(
                 translate(db_user.language, TextKey.DEAL_NOT_FOUND),
@@ -44,10 +50,14 @@ async def start_with_args(
                 deal_id=deal.public_id,
                 deal_type=deal.deal_type.value,
                 description=deal.description,
-                amount=deal_service.buyer_payment_amount(deal),
-                currency=deal.currency.value,
+                amount=format_amount(deal_service.buyer_payment_amount(deal)),
+                currency=currency_label(deal.currency),
                 wallet_address=deal.wallet_address or "-",
             ),
+            reply_markup=payment_keyboard(deal_service.tonkeeper_payment_link(deal)),
+        )
+        await message.answer(
+            translate(db_user.language, TextKey.MAIN_MENU_CAPTION, support_username=settings.SUPPORT_USERNAME),
             reply_markup=main_menu(db_user.language),
         )
         return
@@ -80,4 +90,3 @@ async def show_main_menu(message: types.Message, user: User, settings: Settings)
         ),
         reply_markup=main_menu(user.language),
     )
-

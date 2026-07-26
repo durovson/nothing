@@ -113,8 +113,16 @@ class DealRepository:
                 "p_tx_lt": payment.tx_lt,
                 "p_amount_atomic": payment.amount_atomic,
                 "p_sender": payment.sender,
+                "p_memo_missing": payment.memo is None,
                 "p_observed_at": payment.observed_at.isoformat(),
             },
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def mark_direct_custody(self, deal_id: int, delivery_deadline: datetime) -> Deal | None:
+        response = await self._database.rpc(
+            "mark_direct_custody_confirmed",
+            {"p_deal_id": deal_id, "p_delivery_deadline_at": delivery_deadline.isoformat()},
         )
         return Deal(**response.data[0]) if response.data else None
 
@@ -145,6 +153,74 @@ class DealRepository:
             .execute()
         )
         return [Deal(**item) for item in response.data]
+
+    async def mark_delivered(
+        self,
+        deal_id: int,
+        seller_id: int,
+        deadline: datetime,
+    ) -> Deal | None:
+        response = await self._database.rpc(
+            "mark_deal_delivered",
+            {
+                "p_deal_id": deal_id,
+                "p_seller_id": seller_id,
+                "p_inspection_deadline_at": deadline.isoformat(),
+            },
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def list_delivery_expired(self) -> list[Deal]:
+        return await self._list_expired(DealStatus.DELIVERY_PENDING, "delivery_deadline_at")
+
+    async def list_inspection_expired(self) -> list[Deal]:
+        return await self._list_expired(DealStatus.DELIVERED, "inspection_deadline_at")
+
+    async def request_expired_refund(self, deal_id: int) -> Deal | None:
+        return await self._deal_rpc("request_expired_delivery_refund", deal_id)
+
+    async def request_auto_release(self, deal_id: int) -> Deal | None:
+        return await self._deal_rpc("request_expired_inspection_release", deal_id)
+
+    async def list_refund_requested(self, limit: int = 1) -> list[Deal]:
+        response = await self._database.run(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.REFUND_REQUESTED.value)
+            .order("id")
+            .limit(limit)
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
+    async def list_refund_awaiting_wallet(self) -> list[Deal]:
+        response = await self._database.run(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.REFUND_AWAITING_WALLET.value)
+            .order("id")
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
+    async def activate_refund_after_wallet(self, deal_id: int) -> Deal | None:
+        return await self._deal_rpc("activate_refund_after_wallet", deal_id)
+
+    async def _list_expired(self, status: DealStatus, column: str) -> list[Deal]:
+        now = datetime.now(UTC).isoformat()
+        response = await self._database.run(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", status.value)
+            .lte(column, now)
+            .order(column)
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
+    async def _deal_rpc(self, name: str, deal_id: int) -> Deal | None:
+        response = await self._database.rpc(name, {"p_deal_id": deal_id})
+        return Deal(**response.data[0]) if response.data else None
 
     async def list_for_user(
         self,

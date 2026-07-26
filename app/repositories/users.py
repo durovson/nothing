@@ -58,3 +58,9 @@ class UserRepository:
         )
         return User(**response.data[0])
 
+    async def list_ids(self, offset: int, limit: int) -> list[int]:
+        response = await self._database.run(
+            lambda: self._database.client.table("users")
+            .select("telegram_id").order("telegram_id").range(offset, offset + limit - 1).execute()
+        )
+        return [int(item["telegram_id"]) for item in response.data]

@@ -13,12 +13,15 @@ from app.repositories import Repositories
 from app.services import (
     CollectionService,
     DealService,
+    DealLifecycleService,
     PaymentService,
     PayoutService,
     ReferralService,
+    RefundService,
     Services,
     UserService,
     WalletService,
+    AdminService,
 )
 from app.tasks import DealMonitor
 from app.ton import TonEscrowClient
@@ -48,11 +51,12 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     users = UserService(repositories.users)
     wallets = WalletService(repositories.users, ton)
     referrals = ReferralService(app_settings, repositories.referrals)
-    deals = DealService(app_settings, repositories.deals, ton)
+    deals = DealService(app_settings, repositories.deals, repositories.users, ton)
     payouts = PayoutService(
         app_settings,
         repositories.deals,
         repositories.payouts,
+        repositories.refunds,
         repositories.users,
         referrals,
         ton,
@@ -66,12 +70,28 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         ton,
         notifications,
     )
+    lifecycle = DealLifecycleService(
+        repositories.deals,
+        repositories.disputes,
+        repositories.users,
+        notifications,
+    )
+    refunds = RefundService(
+        app_settings,
+        repositories.deals,
+        repositories.refunds,
+        repositories.payouts,
+        repositories.users,
+        ton,
+        notifications,
+    )
     payments = PaymentService(
         app_settings,
         repositories.deals,
         ton,
         collections,
     )
+    admin = AdminService(app_settings, repositories.admin, repositories.deals, repositories.users)
     services = Services(
         users=users,
         wallets=wallets,
@@ -80,9 +100,20 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         payments=payments,
         payouts=payouts,
         collections=collections,
+        lifecycle=lifecycle,
+        refunds=refunds,
+        admin=admin,
     )
     dispatcher = create_dispatcher(app_settings, services)
-    monitor = DealMonitor(app_settings, deals, payments, collections, payouts)
+    monitor = DealMonitor(
+        app_settings,
+        deals,
+        payments,
+        collections,
+        lifecycle,
+        refunds,
+        payouts,
+    )
     keepalive = RenderKeepAlive(app_settings)
     return AppContainer(
         settings=app_settings,

@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.core.enums import Currency, DealType, Language
-from app.core.exceptions import DealAmountTooSmallError
+from app.core.exceptions import DealAmountTooSmallError, MissingLinkedWalletError
 from app.keyboards import (
     CurrencyCallback,
     DealTypeCallback,
@@ -18,6 +18,7 @@ from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
 from app.states import DealCreationStates
+from app.utils import currency_label, format_amount
 
 router = Router(name="deal-creation")
 CREATE_DEAL_TEXTS = {translate(language, TextKey.MENU_CREATE_DEAL) for language in Language}
@@ -30,6 +31,9 @@ async def start_deal_creation(
     state: FSMContext,
 ) -> None:
     await state.clear()
+    if not db_user.wallet_address:
+        await message.answer(translate(db_user.language, TextKey.DEAL_WAIT_WALLET))
+        return
     await state.set_state(DealCreationStates.waiting_for_type)
     await message.answer(
         translate(db_user.language, TextKey.DEAL_CREATE_INTRO),
@@ -123,9 +127,14 @@ async def handle_amount(
             translate(
                 db_user.language,
                 TextKey.DEAL_AMOUNT_TOO_SMALL,
-                minimum=exc.minimum,
+                minimum=format_amount(exc.minimum),
+                currency=currency_label(exc.currency),
             )
         )
+        return
+    except MissingLinkedWalletError:
+        await state.clear()
+        await message.answer(translate(db_user.language, TextKey.DEAL_WAIT_WALLET))
         return
     except (ValidationError, KeyError, ValueError):
         await message.answer(translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID))
@@ -141,9 +150,9 @@ async def handle_amount(
             deal_id=deal.public_id,
             deal_type=deal.deal_type.value,
             description=deal.description,
-            amount=deal.amount,
-            payment_amount=deal_service.buyer_payment_amount(deal),
-            currency=deal.currency.value,
+            amount=format_amount(deal.amount),
+            payment_amount=format_amount(deal_service.buyer_payment_amount(deal)),
+            currency=currency_label(deal.currency),
             wallet_address=deal.wallet_address or "-",
             deep_link=deep_link,
         ),

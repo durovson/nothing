@@ -51,10 +51,17 @@ class CollectionRepository:
         )
         return CollectionAttempt(**response.data[0])
 
-    async def mark_confirmed(self, attempt_id: int) -> Deal | None:
+    async def mark_confirmed(
+        self,
+        attempt_id: int,
+        delivery_deadline: datetime,
+    ) -> Deal | None:
         response = await self._database.rpc(
             "mark_collection_confirmed",
-            {"p_attempt_id": attempt_id},
+            {
+                "p_attempt_id": attempt_id,
+                "p_delivery_deadline_at": delivery_deadline.isoformat(),
+            },
         )
         return Deal(**response.data[0]) if response.data else None
 

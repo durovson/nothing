@@ -3,19 +3,20 @@ from __future__ import annotations
 import logging
 import secrets
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from app.config import Settings
-from app.core.constants import PUBLIC_DEAL_ID_BYTES, TON_DECIMAL_PLACES
+from app.core.constants import PUBLIC_DEAL_ID_BYTES
 from app.core.enums import Currency, DealStatus, DealType
 from app.core.exceptions import (
     DealAmountTooSmallError,
     DealNotFoundError,
-    UnsupportedCurrencyError,
+    MissingLinkedWalletError,
 )
-from app.core.types import DealRepositoryProtocol, TonGatewayProtocol
+from app.core.types import DealRepositoryProtocol, TonGatewayProtocol, UserRepositoryProtocol
 from app.models.dto import CreateDealCommand
 from app.models.entities import Deal
-from app.ton.amounts import payment_amount
+from app.ton.amounts import asset_payment_amount, asset_payment_amount_atomic, asset_quantum
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,12 @@ class DealService:
         self,
         settings: Settings,
         deals: DealRepositoryProtocol,
+        users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
     ):
         self._settings = settings
         self._deals = deals
+        self._users = users
         self._ton = ton
 
     async def create_deal(
@@ -39,12 +42,12 @@ class DealService:
         currency: Currency,
         amount: Decimal,
     ) -> Deal:
-        if currency is not Currency.TON:
-            raise UnsupportedCurrencyError(
-                "USDT_TON is disabled until the jetton payment path is configured"
-            )
-        if amount < self.minimum_deal_amount:
-            raise DealAmountTooSmallError(self.minimum_deal_amount)
+        creator = await self._users.get(creator_id)
+        if not creator or not creator.wallet_address:
+            raise MissingLinkedWalletError("Seller must link a wallet before creating a deal")
+        minimum = self.minimum_deal_amount(currency)
+        if amount < minimum:
+            raise DealAmountTooSmallError(minimum, currency)
         command = CreateDealCommand(
             public_id=secrets.token_hex(PUBLIC_DEAL_ID_BYTES),
             creator_id=creator_id,
@@ -63,6 +66,9 @@ class DealService:
             raise
 
     async def join_deal(self, public_id: str, buyer_id: int) -> Deal | None:
+        buyer = await self._users.get(buyer_id)
+        if not buyer or not buyer.wallet_address:
+            raise MissingLinkedWalletError("Buyer must link a wallet before joining a deal")
         deal = await self._deals.get_by_public_id(public_id)
         if not deal or deal.creator_id == buyer_id:
             return None
@@ -99,15 +105,35 @@ class DealService:
         )
 
     def buyer_payment_amount(self, deal: Deal) -> Decimal:
-        return payment_amount(
+        return asset_payment_amount(
             deal.amount,
+            deal.currency,
             self._settings.ESCROW_FEE_RATE,
             self._settings.TON_PAYOUT_FEE_RESERVE,
         )
 
+    def tonkeeper_payment_link(self, deal: Deal) -> str:
+        if not deal.wallet_address:
+            raise ValueError("Deal payment address is missing")
+        params: dict[str, str] = {
+            "amount": str(asset_payment_amount_atomic(
+                deal.amount, deal.currency, self._settings.ESCROW_FEE_RATE,
+                self._settings.TON_PAYOUT_FEE_RESERVE,
+            )),
+            "text": deal.public_id,
+        }
+        if deal.currency is Currency.USDT:
+            params["jetton"] = self._settings.USDT_MASTER_ADDRESS
+        return f"https://app.tonkeeper.com/transfer/{deal.wallet_address}?{urlencode(params)}"
+
     @property
-    def minimum_deal_amount(self) -> Decimal:
-        return self._settings.MIN_DEAL_AMOUNT.quantize(TON_DECIMAL_PLACES)
+    def minimum_deal_amount(self, currency: Currency) -> Decimal:
+        configured = (
+            self._settings.MIN_DEAL_AMOUNT
+            if currency is Currency.TON
+            else self._settings.MIN_USDT_DEAL_AMOUNT
+        )
+        return configured.quantize(asset_quantum(currency))
 
     async def cleanup_retention(self) -> int:
         deleted = await self._deals.purge_unsuccessful(self._settings.FAILED_DEAL_RETENTION_DAYS)

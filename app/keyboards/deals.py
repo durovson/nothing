@@ -13,6 +13,7 @@ from app.keyboards.callbacks import (
 )
 from app.locales import TextKey, translate
 from app.models.entities import Deal
+from app.utils import currency_label
 
 
 def deal_type_keyboard(locale: Language) -> InlineKeyboardMarkup:
@@ -29,8 +30,17 @@ def deal_type_keyboard(locale: Language) -> InlineKeyboardMarkup:
 
 def currency_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=Currency.TON.value, callback_data=CurrencyCallback(currency=Currency.TON).pack())]]
+        inline_keyboard=[[
+            InlineKeyboardButton(text=currency_label(currency), callback_data=CurrencyCallback(currency=currency).pack())
+            for currency in Currency
+        ]]
     )
+
+
+def payment_keyboard(payment_url: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Оплатить в Tonkeeper", url=payment_url)]
+    ])
 
 
 def created_deal_actions(locale: Language, deal_id: int) -> InlineKeyboardMarkup:
@@ -62,9 +72,15 @@ def deal_actions(locale: Language, deal: Deal, viewer_id: int) -> InlineKeyboard
     rows: list[list[InlineKeyboardButton]] = []
     if deal.creator_id == viewer_id and deal.status is DealStatus.PENDING:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CANCEL_BUTTON), callback_data=DealCallback(action=DealAction.CANCEL, deal_id=deal.id).pack())])
-    if deal.buyer_id == viewer_id and deal.status is DealStatus.PAID:
+    if deal.creator_id == viewer_id and deal.status is DealStatus.DELIVERY_PENDING:
+        rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DELIVER_BUTTON), callback_data=DealCallback(action=DealAction.DELIVER, deal_id=deal.id).pack())])
+    if deal.buyer_id == viewer_id and deal.status is DealStatus.DELIVERED:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CONFIRM_BUTTON), callback_data=DealCallback(action=DealAction.CONFIRM, deal_id=deal.id).pack())])
+    if viewer_id in {deal.creator_id, deal.buyer_id} and deal.status in {
+        DealStatus.DELIVERY_PENDING,
+        DealStatus.DELIVERED,
+    }:
+        rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DISPUTE_BUTTON), callback_data=DealCallback(action=DealAction.DISPUTE, deal_id=deal.id).pack())])
     rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_REFRESH_BUTTON), callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal.id).pack())])
     rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)
-

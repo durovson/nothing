@@ -8,7 +8,22 @@ class Language(StrEnum):
 
 class Currency(StrEnum):
     TON = "TON"
-    USDT_TON = "USDT_TON"
+    USDT = "USDT"
+
+
+class AdminDisputeAction(StrEnum):
+    OPEN = "open"
+    RELEASE = "release"
+    REFUND = "refund"
+
+
+class AdminAction(StrEnum):
+    DISPUTES = "disputes"
+    BROADCAST = "broadcast"
+    MAINTENANCE = "maintenance"
+    MAINTENANCE_ON = "maintenance_on"
+    MAINTENANCE_OFF = "maintenance_off"
+    BACK = "back"
 
 
 class TonNetwork(StrEnum):
@@ -34,11 +49,21 @@ class DealStatus(StrEnum):
     COLLECTION_SUBMITTED = "collection_submitted"
     COLLECTION_FAILED = "collection_failed"
     PAID = "paid"
+    DELIVERY_PENDING = "delivery_pending"
+    DELIVERED = "delivered"
+    DISPUTED = "disputed"
     RELEASE_REQUESTED = "release_requested"
     PAYOUT_PROCESSING = "payout_processing"
     PAYOUT_SUBMITTED = "payout_submitted"
     PAYOUT_FAILED = "payout_failed"
     PAYOUT_BOUNCED = "payout_bounced"
+    REFUND_AWAITING_WALLET = "refund_awaiting_wallet"
+    REFUND_REQUESTED = "refund_requested"
+    REFUND_PROCESSING = "refund_processing"
+    REFUND_SUBMITTED = "refund_submitted"
+    REFUND_FAILED = "refund_failed"
+    REFUND_BOUNCED = "refund_bounced"
+    REFUNDED = "refunded"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     CREATION_FAILED = "creation_failed"
@@ -60,6 +85,22 @@ class CollectionStatus(StrEnum):
     CONFIRMED = "confirmed"
     BOUNCED = "bounced"
     FAILED = "failed"
+
+
+class RefundStatus(StrEnum):
+    CREATING = "creating"
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+
+class DisputeStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED_RELEASE = "resolved_release"
+    RESOLVED_REFUND = "resolved_refund"
+    CLOSED = "closed"
 
 
 class TraceStatus(StrEnum):

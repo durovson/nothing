@@ -20,7 +20,7 @@ class PaymentObservation(BaseModel):
     tx_lt: int
     amount_atomic: int
     sender: str | None = None
-    memo: str
+    memo: str | None = None
     observed_at: datetime
 
 
@@ -28,4 +28,3 @@ class ReferralStats(BaseModel):
     count: int = 0
     earned_ton: Decimal = Decimal("0")
     earned_usdt: Decimal = Decimal("0")
-

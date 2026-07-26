@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from app.config import Settings
+from app.core.constants import KEEPALIVE_INTERVAL_SECONDS, KEEPALIVE_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,10 @@ class RenderKeepAlive:
     """Periodically calls the public Render endpoint without blocking the event loop."""
 
     def __init__(self, settings: Settings):
-        self._enabled = settings.RENDER_KEEPALIVE_ENABLED
-        self._interval = settings.RENDER_KEEPALIVE_INTERVAL_SECONDS
-        self._timeout = settings.RENDER_KEEPALIVE_TIMEOUT_SECONDS
         self._base_url = (settings.RENDER_EXTERNAL_URL or settings.APP_BASE_URL).rstrip("/")
+        self._enabled = bool(self._base_url)
+        self._interval = KEEPALIVE_INTERVAL_SECONDS
+        self._timeout = KEEPALIVE_TIMEOUT_SECONDS
         self._stop_event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
 

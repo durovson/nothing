@@ -11,3 +11,12 @@ class DealCreationStates(StatesGroup):
     waiting_for_currency = State()
     waiting_for_amount = State()
 
+
+class DisputeStates(StatesGroup):
+    waiting_for_description = State()
+
+
+class AdminStates(StatesGroup):
+    waiting_for_resolution_reason = State()
+    waiting_for_broadcast = State()
+    waiting_for_maintenance_message = State()

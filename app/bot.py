@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 
 from app.config import Settings
 from app.handlers import create_router
-from app.middleware import CurrentUserMiddleware
+from app.middleware import CurrentUserMiddleware, MaintenanceMiddleware
 from app.services import Services
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher = Dispatcher()
+    dispatcher.update.outer_middleware(MaintenanceMiddleware(services.admin))
     dispatcher.update.middleware(
         CurrentUserMiddleware(services.users, settings.DEFAULT_LANGUAGE)
     )
@@ -23,6 +24,8 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher["deal_service"] = services.deals
     dispatcher["payment_service"] = services.payments
     dispatcher["payout_service"] = services.payouts
+    dispatcher["lifecycle_service"] = services.lifecycle
+    dispatcher["admin_service"] = services.admin
     dispatcher.include_router(create_router())
     return dispatcher
 

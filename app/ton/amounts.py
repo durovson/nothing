@@ -2,29 +2,8 @@ from decimal import Decimal
 
 from ton_core import to_nano
 
-from app.core.constants import TON_DECIMAL_PLACES
-
-
-def payment_amount(
-    amount: Decimal,
-    fee_rate: Decimal,
-    network_fee_reserve: Decimal,
-) -> Decimal:
-    if not Decimal("0") <= fee_rate < Decimal("1"):
-        raise ValueError("ESCROW_FEE_RATE must be in [0, 1)")
-    if network_fee_reserve <= 0:
-        raise ValueError("TON_PAYOUT_FEE_RESERVE must be positive")
-    return (
-        amount * (Decimal("1") + fee_rate) + network_fee_reserve
-    ).quantize(TON_DECIMAL_PLACES)
-
-
-def payment_amount_atomic(
-    amount: Decimal,
-    fee_rate: Decimal,
-    network_fee_reserve: Decimal,
-) -> int:
-    return to_nano(payment_amount(amount, fee_rate, network_fee_reserve))
+from app.core.constants import TON_DECIMAL_PLACES, USDT_DECIMALS, USDT_DECIMAL_PLACES
+from app.core.enums import Currency
 
 
 def payout_amount_atomic(amount: Decimal) -> int:
@@ -34,8 +13,27 @@ def payout_amount_atomic(amount: Decimal) -> int:
     return atomic
 
 
-def service_fee_amount_atomic(amount: Decimal, fee_rate: Decimal) -> int:
-    fee_atomic = to_nano((amount * fee_rate).quantize(TON_DECIMAL_PLACES))
-    if fee_atomic <= 0:
-        raise ValueError("Service fee is too small")
-    return fee_atomic
+def asset_quantum(currency: Currency) -> Decimal:
+    return TON_DECIMAL_PLACES if currency is Currency.TON else USDT_DECIMAL_PLACES
+
+
+def asset_amount_atomic(amount: Decimal, currency: Currency) -> int:
+    if currency is Currency.TON:
+        return payout_amount_atomic(amount)
+    atomic = int((amount.quantize(USDT_DECIMAL_PLACES)) * (10**USDT_DECIMALS))
+    if atomic <= 0:
+        raise ValueError("Jetton amount is too small")
+    return atomic
+
+
+def asset_payment_amount(amount: Decimal, currency: Currency, fee_rate: Decimal, ton_reserve: Decimal) -> Decimal:
+    reserve = ton_reserve if currency is Currency.TON else Decimal("0")
+    return (amount * (Decimal("1") + fee_rate) + reserve).quantize(asset_quantum(currency))
+
+
+def asset_payment_amount_atomic(amount: Decimal, currency: Currency, fee_rate: Decimal, ton_reserve: Decimal) -> int:
+    return asset_amount_atomic(asset_payment_amount(amount, currency, fee_rate, ton_reserve), currency)
+
+
+def asset_service_fee_atomic(amount: Decimal, currency: Currency, fee_rate: Decimal) -> int:
+    return asset_amount_atomic((amount * fee_rate).quantize(asset_quantum(currency)), currency)

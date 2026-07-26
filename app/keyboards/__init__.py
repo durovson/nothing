@@ -8,7 +8,7 @@ from app.keyboards.callbacks import (
     SettingsCallback,
     WalletCallback,
 )
-from app.keyboards.deals import created_deal_actions, currency_keyboard, deal_actions, deal_type_keyboard, deals_list
+from app.keyboards.deals import created_deal_actions, currency_keyboard, deal_actions, deal_type_keyboard, deals_list, payment_keyboard
 from app.keyboards.menu import main_menu
 from app.keyboards.settings import language_keyboard, settings_keyboard
 from app.keyboards.wallet import wallet_actions
@@ -27,9 +27,9 @@ __all__ = [
     "deal_actions",
     "deal_type_keyboard",
     "deals_list",
+    "payment_keyboard",
     "language_keyboard",
     "main_menu",
     "settings_keyboard",
     "wallet_actions",
 ]
-
