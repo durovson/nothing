@@ -11,6 +11,7 @@ from app.core.enums import (
     Language,
     PayoutStatus,
     RefundStatus,
+    ReferralWithdrawalStatus,
     DisputeStatus,
     WalletVersion,
 )
@@ -109,6 +110,26 @@ class RefundAttempt(BaseModel):
     reward_destination: str | None = None
     reward_nominal_amount_atomic: int | None = None
     reward_comment: str | None = None
+    external_message_hash: str | None = None
+    signed_boc: str | None = None
+    valid_until: datetime | None = None
+    submitted_at: datetime | None = None
+    confirmed_at: datetime | None = None
+    last_checked_at: datetime | None = None
+    error: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ReferralWithdrawal(BaseModel):
+    id: int
+    user_id: int
+    currency: Currency
+    amount: Decimal
+    amount_atomic: int
+    destination: str
+    comment: str
+    status: ReferralWithdrawalStatus
     external_message_hash: str | None = None
     signed_boc: str | None = None
     valid_until: datetime | None = None

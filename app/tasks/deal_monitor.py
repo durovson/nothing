@@ -10,6 +10,7 @@ from app.services.lifecycle import DealLifecycleService
 from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
 from app.services.refunds import RefundService
+from app.services.referrals import ReferralService
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class DealMonitor:
         lifecycle: DealLifecycleService,
         refunds: RefundService,
         payouts: PayoutService,
+        referrals: ReferralService,
     ):
         self._settings = settings
         self._deals = deals
@@ -34,6 +36,7 @@ class DealMonitor:
         self._lifecycle = lifecycle
         self._refunds = refunds
         self._payouts = payouts
+        self._referrals = referrals
         self._stop_event = asyncio.Event()
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -76,6 +79,7 @@ class DealMonitor:
                 await self._refunds.process_requested()
                 await self._payouts.reconcile_open()
                 await self._payouts.process_releases()
+                await self._referrals.reconcile_open()
             except Exception:
                 logger.exception("Payout reconciliation iteration failed")
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)

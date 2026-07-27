@@ -8,15 +8,15 @@ from app.core.exceptions import (
     DealConfirmationForbiddenError,
     DealNotFoundError,
 )
-from app.keyboards import DealCallback, PageCallback, deal_actions, deals_list
-from app.keyboards.callbacks import DealAction, PageAction
+from app.keyboards import DealCallback, MenuCallback, PageCallback, deal_actions, deals_list
+from app.keyboards.callbacks import DealAction, MenuAction, PageAction
 from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
-from app.utils import currency_label, format_amount
+from app.utils import currency_label, format_amount, render_menu
 
 router = Router(name="deal-management")
 MY_DEALS_TEXTS = {translate(language, TextKey.MENU_MY_DEALS) for language in Language}
@@ -38,6 +38,17 @@ async def my_deals(
     )
 
 
+@router.callback_query(MenuCallback.filter(F.action == MenuAction.DEALS))
+async def my_deals_callback(
+    callback: types.CallbackQuery, db_user: User, deal_service: DealService
+) -> None:
+    items, has_next = await deal_service.list_user_deals(db_user.telegram_id)
+    if callback.message:
+        caption = translate(db_user.language, TextKey.DEAL_LIST_CAPTION) if items else translate(db_user.language, TextKey.DEAL_LIST_EMPTY)
+        await render_menu(callback.message, caption, deals_list(db_user.language, items, 0, has_next))
+    await callback.answer()
+
+
 @router.callback_query(PageCallback.filter(F.action == PageAction.CURRENT))
 async def current_page(callback: types.CallbackQuery) -> None:
     await callback.answer()
@@ -56,9 +67,9 @@ async def open_page(
         page -= 1
         items, has_next = await deal_service.list_user_deals(db_user.telegram_id, page)
     if callback.message:
-        await callback.message.answer(
+        await render_menu(callback.message,
             translate(db_user.language, TextKey.DEAL_LIST_CAPTION),
-            reply_markup=deals_list(db_user.language, items, page, has_next),
+            deals_list(db_user.language, items, page, has_next),
         )
     await callback.answer()
 
@@ -85,7 +96,7 @@ async def open_deal(
     if deal.buyer_id == db_user.telegram_id and db_user.username:
         buyer = f"@{db_user.username}"
     if callback.message:
-        await callback.message.answer(
+        await render_menu(callback.message,
             translate(
                 db_user.language,
                 TextKey.DEAL_CARD,
@@ -104,7 +115,7 @@ async def open_deal(
                     deal.inspection_deadline_at.isoformat() if deal.inspection_deadline_at else "-"
                 ),
             ),
-            reply_markup=deal_actions(db_user.language, deal, db_user.telegram_id),
+            deal_actions(db_user.language, deal, db_user.telegram_id),
         )
     await callback.answer()
 

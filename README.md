@@ -32,6 +32,32 @@ app/
 
 Handlers do not access Supabase or TON. Services receive dependencies from `app/loader.py`. Repositories contain persistence only.
 
+## Telegram navigation
+
+The user interface is one branded media card with typed inline buttons. Main menu, wallet,
+deal creation, deal list, settings and referrals edit that same card instead of adding a new
+message. Telegram input prompts and asynchronous deal/payment notifications remain separate.
+The common image is bundled in `app/assets/menu.png`, so Render does not depend on an external CDN.
+
+## Referral program
+
+The referral policy is compiled into `app/core/constants.py`: the referral pool is 10% of the
+service fee. With a 1000 TON deal, the 1% fee is 10 TON, the referral pool is 1 TON, and the
+service receives 9 TON. When one or both participants have a referrer, that one pool is shared between the
+qualifying referral links. Each allocation is idempotent per `(deal, referrer, referred user)` and
+is written to an immutable ledger before the available balance changes. The pool stays on the
+guarant wallet; only the remaining part of the service fee is sent to the service wallet.
+
+Balances are held by the guarant wallet and stored by currency in Supabase. A user with a linked
+wallet can withdraw the complete available GRAM or USDT balance from the referral screen. The
+database reserves the balance before signing, the background reconciler survives restarts, and a
+failed/bounced transfer restores the balance exactly once. The transaction comment is
+`Referral Reward`. Users are warned that exchange, custodial, or third-party addresses may require
+extra metadata and are used at their own risk.
+
+The 10% share, withdrawal minimums and transaction comment are code policy and cannot be
+overridden through Render Environment Variables.
+
 ## Money model
 
 `D` is the seller’s price.

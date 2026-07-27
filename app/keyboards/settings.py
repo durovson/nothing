@@ -7,7 +7,10 @@ from app.keyboards.callbacks import (
     MenuCallback,
     SettingsAction,
     SettingsCallback,
+    ReferralAction,
+    ReferralCallback,
 )
+from app.core.enums import Currency
 from app.locales import TextKey, translate
 
 
@@ -33,3 +36,14 @@ def language_keyboard(locale: Language) -> InlineKeyboardMarkup:
         ]
     )
 
+
+def referral_keyboard(locale: Language, ton_available: bool, usdt_available: bool) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if ton_available:
+        label = "💎 Вывести GRAM" if locale is Language.RU else "💎 Withdraw GRAM"
+        rows.append([InlineKeyboardButton(text=label, callback_data=ReferralCallback(action=ReferralAction.WITHDRAW, currency=Currency.TON).pack())])
+    if usdt_available:
+        label = "💵 Вывести USDT" if locale is Language.RU else "💵 Withdraw USDT"
+        rows.append([InlineKeyboardButton(text=label, callback_data=ReferralCallback(action=ReferralAction.WITHDRAW, currency=Currency.USDT).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=SettingsCallback(action=SettingsAction.BACK).pack())])
+    return InlineKeyboardMarkup(inline_keyboard=rows)

@@ -134,6 +134,10 @@ begin
     select * into v_deal from deals where id = p_deal_id for update;
     if not found or v_deal.status <> 'refund_requested' then return; end if;
     if exists (select 1 from refund_attempts where deal_id = p_deal_id) then return; end if;
+    if exists (
+        select 1 from referral_withdrawals
+        where status in ('creating', 'prepared', 'submitted')
+    ) then return; end if;
     insert into refund_attempts(
         deal_id, idempotency_key, status, destination, amount_atomic, comment, reason,
         reward_destination, reward_nominal_amount_atomic, reward_comment, currency

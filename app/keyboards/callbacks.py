@@ -7,6 +7,10 @@ from app.core.enums import AdminAction, AdminDisputeAction, Currency, DealType, 
 
 class MenuAction(StrEnum):
     BACK = "back"
+    WALLET = "wallet"
+    CREATE_DEAL = "create"
+    DEALS = "deals"
+    SETTINGS = "settings"
 
 
 class WalletAction(StrEnum):
@@ -32,6 +36,10 @@ class SettingsAction(StrEnum):
     REFERRALS = "referrals"
     LANGUAGE = "language"
     SUPPORT = "support"
+
+
+class ReferralAction(StrEnum):
+    WITHDRAW = "withdraw"
 
 
 class MenuCallback(CallbackData, prefix="menu"):
@@ -62,6 +70,11 @@ class PageCallback(CallbackData, prefix="page"):
 
 class SettingsCallback(CallbackData, prefix="settings"):
     action: SettingsAction
+
+
+class ReferralCallback(CallbackData, prefix="referral"):
+    action: ReferralAction
+    currency: Currency
 
 
 class LanguageCallback(CallbackData, prefix="language"):

@@ -1,21 +1,20 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.core.enums import Language
 from app.locales import TextKey, translate
+from app.keyboards.callbacks import MenuAction, MenuCallback
 
 
-def main_menu(locale: Language) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
+def main_menu(locale: Language) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
-                KeyboardButton(text=translate(locale, TextKey.MENU_WALLET)),
-                KeyboardButton(text=translate(locale, TextKey.MENU_CREATE_DEAL)),
+                InlineKeyboardButton(text=f"💰 {translate(locale, TextKey.MENU_WALLET)}", callback_data=MenuCallback(action=MenuAction.WALLET).pack()),
             ],
+            [InlineKeyboardButton(text=f"💼 {translate(locale, TextKey.MENU_CREATE_DEAL)}", callback_data=MenuCallback(action=MenuAction.CREATE_DEAL).pack())],
             [
-                KeyboardButton(text=translate(locale, TextKey.MENU_MY_DEALS)),
-                KeyboardButton(text=translate(locale, TextKey.MENU_SETTINGS)),
+                InlineKeyboardButton(text=f"📋 {translate(locale, TextKey.MENU_MY_DEALS)}", callback_data=MenuCallback(action=MenuAction.DEALS).pack()),
+                InlineKeyboardButton(text=f"⚙️ {translate(locale, TextKey.MENU_SETTINGS)}", callback_data=MenuCallback(action=MenuAction.SETTINGS).pack()),
             ],
-        ],
-        resize_keyboard=True,
+        ]
     )
-

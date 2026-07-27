@@ -96,6 +96,15 @@ class RefundStatus(StrEnum):
     FAILED = "failed"
 
 
+class ReferralWithdrawalStatus(StrEnum):
+    CREATING = "creating"
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+
 class DisputeStatus(StrEnum):
     OPEN = "open"
     RESOLVED_RELEASE = "resolved_release"

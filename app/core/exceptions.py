@@ -42,3 +42,7 @@ class DealAmountTooSmallError(ApplicationError):
 
 class InsufficientPayoutReserveError(ApplicationError):
     pass
+
+
+class ReferralWithdrawalError(ApplicationError):
+    pass

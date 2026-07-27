@@ -16,9 +16,9 @@ class PayoutRepository:
         destination: str,
         amount_atomic: int,
         comment: str,
-        reward_destination: str,
-        reward_nominal_amount_atomic: int,
-        reward_comment: str,
+        reward_destination: str | None,
+        reward_nominal_amount_atomic: int | None,
+        reward_comment: str | None,
     ) -> PayoutAttempt | None:
         response = await self._database.rpc(
             "claim_deal_batch_payout",

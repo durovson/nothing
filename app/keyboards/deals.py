@@ -24,17 +24,24 @@ def deal_type_keyboard(locale: Language) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_CHANNEL), callback_data=DealTypeCallback(deal_type=DealType.CHANNEL).pack()),
             ],
             [InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_ACCOUNT), callback_data=DealTypeCallback(deal_type=DealType.ACCOUNT).pack())],
+            [InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
         ]
     )
 
 
-def currency_keyboard() -> InlineKeyboardMarkup:
+def currency_keyboard(locale: Language = Language.RU) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[
             InlineKeyboardButton(text=currency_label(currency), callback_data=CurrencyCallback(currency=currency).pack())
             for currency in Currency
-        ]]
+        ], [InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())]]
     )
+
+
+def back_keyboard(locale: Language) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())
+    ]])
 
 
 def payment_keyboard(payment_url: str) -> InlineKeyboardMarkup:

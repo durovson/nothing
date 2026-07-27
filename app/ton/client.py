@@ -31,7 +31,7 @@ from app.core.constants import (
 from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
 from app.core.exceptions import InvalidWalletError, TonGatewayError
 from app.models.dto import PaymentObservation
-from app.models.entities import CollectionAttempt, Deal, PayoutAttempt, RefundAttempt
+from app.models.entities import CollectionAttempt, Deal, PayoutAttempt, ReferralWithdrawal, RefundAttempt
 from app.ton.amounts import asset_payment_amount_atomic
 from app.ton.jettons import JettonEscrowGateway
 from app.ton.models import PayoutMessage, PreparedPayout
@@ -444,6 +444,43 @@ class TonEscrowClient:
             reward_destination=(Address(attempt.reward_destination).to_str(is_user_friendly=False) if attempt.reward_destination else None),
             reward_amount_atomic=attempt.reward_nominal_amount_atomic,
             reward_comment=attempt.reward_comment,
+            )
+        if matched:
+            return TraceStatus.CONFIRMED
+        status = classify_trace(trace)
+        return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
+
+    async def get_referral_withdrawal_trace_status(
+        self, withdrawal: ReferralWithdrawal
+    ) -> TraceStatus:
+        if not withdrawal.external_message_hash:
+            raise TonGatewayError("Referral withdrawal has no external message hash")
+        try:
+            trace = await self._client.provider.send_http_request(
+                "GET", f"/traces/{withdrawal.external_message_hash}"
+            )
+        except ProviderResponseError as exc:
+            if exc.code == 404:
+                return TraceStatus.NOT_FOUND
+            raise
+        if not isinstance(trace, dict):
+            raise TonGatewayError("TonAPI returned an invalid referral withdrawal trace")
+        if trace.get("is_incomplete") is True:
+            return TraceStatus.PENDING
+        destination = Address(withdrawal.destination).to_str(is_user_friendly=False)
+        if withdrawal.currency is Currency.USDT:
+            matched = await self._jettons.transfer_trace_matches(
+                trace, withdrawal.destination, withdrawal.amount_atomic, withdrawal.comment
+            )
+        else:
+            matched = trace_contains_payout(
+                trace,
+                seller_destination=destination,
+                seller_amount_atomic=withdrawal.amount_atomic,
+                seller_comment=withdrawal.comment,
+                reward_destination=None,
+                reward_amount_atomic=None,
+                reward_comment=None,
             )
         if matched:
             return TraceStatus.CONFIRMED

@@ -8,6 +8,9 @@ alter table payout_attempts enable row level security;
 alter table refund_attempts enable row level security;
 alter table dispute_tickets enable row level security;
 alter table referrals enable row level security;
+alter table referral_rewards enable row level security;
+alter table referral_balances enable row level security;
+alter table referral_withdrawals enable row level security;
 alter table bot_settings enable row level security;
 
 revoke all on function claim_deal_payment(bigint, text, numeric, numeric, text, boolean, timestamptz) from public, anon, authenticated;
@@ -21,7 +24,12 @@ revoke all on function mark_collection_failed(bigint, text) from public, anon, a
 revoke all on function request_deal_release(bigint, bigint) from public, anon, authenticated;
 revoke all on function claim_deal_buyer(text, bigint) from public, anon, authenticated;
 revoke all on function assign_user_referrer(bigint, bigint) from public, anon, authenticated;
-revoke all on function credit_referral_reward(bigint, bigint, text, numeric) from public, anon, authenticated;
+revoke all on function credit_referral_reward(bigint, bigint, bigint, text, numeric) from public, anon, authenticated;
+revoke all on function claim_referral_withdrawal(bigint, text, text, text) from public, anon, authenticated;
+revoke all on function save_prepared_referral_withdrawal(bigint, text, text, timestamptz) from public, anon, authenticated;
+revoke all on function mark_referral_withdrawal_submitted(bigint) from public, anon, authenticated;
+revoke all on function mark_referral_withdrawal_confirmed(bigint) from public, anon, authenticated;
+revoke all on function fail_referral_withdrawal(bigint, text, boolean) from public, anon, authenticated;
 revoke all on function claim_deal_batch_payout(bigint, text, numeric, text, text, numeric, text)
     from public, anon, authenticated;
 revoke all on function save_prepared_payout(bigint, text, text, timestamptz) from public, anon, authenticated;
@@ -57,7 +65,12 @@ grant execute on function mark_collection_failed(bigint, text) to service_role;
 grant execute on function request_deal_release(bigint, bigint) to service_role;
 grant execute on function claim_deal_buyer(text, bigint) to service_role;
 grant execute on function assign_user_referrer(bigint, bigint) to service_role;
-grant execute on function credit_referral_reward(bigint, bigint, text, numeric) to service_role;
+grant execute on function credit_referral_reward(bigint, bigint, bigint, text, numeric) to service_role;
+grant execute on function claim_referral_withdrawal(bigint, text, text, text) to service_role;
+grant execute on function save_prepared_referral_withdrawal(bigint, text, text, timestamptz) to service_role;
+grant execute on function mark_referral_withdrawal_submitted(bigint) to service_role;
+grant execute on function mark_referral_withdrawal_confirmed(bigint) to service_role;
+grant execute on function fail_referral_withdrawal(bigint, text, boolean) to service_role;
 grant execute on function claim_deal_batch_payout(bigint, text, numeric, text, text, numeric, text)
     to service_role;
 grant execute on function save_prepared_payout(bigint, text, text, timestamptz) to service_role;

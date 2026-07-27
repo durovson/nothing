@@ -64,7 +64,6 @@ class Settings(BaseSettings):
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
     ESCROW_FEE_RATE: Decimal = Field(default=Decimal("0.01"), gt=0, lt=1)
-    REFERRAL_FEE_SHARE: Decimal = Field(default=Decimal("0.01"), ge=0, le=1)
     DEALS_PAGE_SIZE: int = Field(default=8, ge=1, le=20)
 
     DEFAULT_LANGUAGE: Language = Language.RU

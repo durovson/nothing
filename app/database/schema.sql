@@ -402,6 +402,58 @@ create index if not exists deals_delivery_deadline_idx
 create index if not exists deals_inspection_deadline_idx
     on deals(inspection_deadline_at) where status = 'delivered';
 create index if not exists referrals_referrer_idx on referrals(referrer_id);
+
+create table if not exists referral_rewards (
+    id bigint generated always as identity primary key,
+    deal_id bigint not null references deals(id) on delete restrict,
+    referrer_id bigint not null references users(telegram_id) on delete restrict,
+    referred_id bigint not null references users(telegram_id) on delete restrict,
+    currency text not null check (currency in ('TON', 'USDT')),
+    amount numeric(36, 9) not null check (amount > 0),
+    created_at timestamptz not null default timezone('utc', now()),
+    unique (deal_id, referrer_id, referred_id)
+);
+
+create table if not exists referral_balances (
+    user_id bigint not null references users(telegram_id) on delete cascade,
+    currency text not null check (currency in ('TON', 'USDT')),
+    balance numeric(36, 9) not null default 0 check (balance >= 0),
+    updated_at timestamptz not null default timezone('utc', now()),
+    primary key (user_id, currency)
+);
+
+create table if not exists referral_withdrawals (
+    id bigint generated always as identity primary key,
+    user_id bigint not null references users(telegram_id) on delete restrict,
+    currency text not null check (currency in ('TON', 'USDT')),
+    amount numeric(36, 9) not null check (amount > 0),
+    amount_atomic numeric(36, 0) not null check (amount_atomic > 0),
+    destination text not null,
+    comment text not null,
+    status text not null default 'creating' check (
+        status in ('creating', 'prepared', 'submitted', 'confirmed', 'bounced', 'failed')
+    ),
+    external_message_hash text,
+    signed_boc text,
+    valid_until timestamptz,
+    submitted_at timestamptz,
+    confirmed_at timestamptz,
+    last_checked_at timestamptz,
+    error text,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+create unique index if not exists referral_withdrawals_one_open_idx
+    on referral_withdrawals(user_id, currency)
+    where status in ('creating', 'prepared', 'submitted');
+create index if not exists referral_withdrawals_status_idx on referral_withdrawals(status);
+
+insert into referral_balances(user_id, currency, balance)
+select referrer_id, 'TON', sum(earned_ton) from referrals group by referrer_id
+on conflict (user_id, currency) do nothing;
+insert into referral_balances(user_id, currency, balance)
+select referrer_id, 'USDT', sum(earned_usdt) from referrals group by referrer_id
+on conflict (user_id, currency) do nothing;
 drop index if exists deals_unsuccessful_retention_idx;
 create index deals_unsuccessful_retention_idx on deals(updated_at)
 where status in (

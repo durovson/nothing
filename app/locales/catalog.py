@@ -181,7 +181,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANGUAGE_SAVED: "Язык переключен: {language}.",
         TextKey.SUPPORT_TEXT: "По вопросам и спорам напишите {support_username}.",
         TextKey.REFERRAL_CAPTION: (
-            "Ваша реферальная ссылка:\n{link}\n\nПриглашено: {count}\nЗаработано GRAM: {earned_ton}\nЗаработано USDT: {earned_usdt}"
+            "Реферальная система\n\nНаграда: {rate}% от комиссии сервиса с завершённых сделок приглашённых\n"
+            "Приглашено: {count}\nБаланс GRAM: {earned_ton}\nБаланс USDT: {earned_usdt}\n\n"
+            "Ваша ссылка:\n{link}\n\n"
+            "Вывод выполняется на привязанный адрес. Для биржевых, кастодиальных и чужих "
+            "кошельков могут требоваться дополнительные данные; риск потери средств несёт пользователь."
         ),
         TextKey.BACK_BUTTON: "Назад",
         TextKey.LANG_RU: "Русский",
@@ -296,7 +300,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANGUAGE_SAVED: "Language switched: {language}.",
         TextKey.SUPPORT_TEXT: "For support or disputes, contact {support_username}.",
         TextKey.REFERRAL_CAPTION: (
-            "Your referral link:\n{link}\n\nInvited: {count}\nEarned GRAM: {earned_ton}\nEarned USDT: {earned_usdt}"
+            "Referral program\n\nReward: {rate}% of the service fee from completed referred deals\n"
+            "Invited: {count}\nGRAM balance: {earned_ton}\nUSDT balance: {earned_usdt}\n\n"
+            "Your link:\n{link}\n\n"
+            "Withdrawals go to the linked address. Exchanges, custodial services and third-party "
+            "wallets may require extra metadata and are used at your own risk."
         ),
         TextKey.BACK_BUTTON: "Back",
         TextKey.LANG_RU: "Русский",

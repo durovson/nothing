@@ -1,5 +1,6 @@
 from aiogram import F, Router, types
 from aiogram.filters import CommandObject, CommandStart
+from aiogram.fsm.context import FSMContext
 
 from app.config import Settings
 from app.core.exceptions import MissingLinkedWalletError
@@ -9,7 +10,7 @@ from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
 from app.services.referrals import ReferralService
-from app.utils import currency_label, format_amount
+from app.utils import currency_label, format_amount, render_menu
 
 router = Router(name="start")
 
@@ -22,7 +23,9 @@ async def start_with_args(
     deal_service: DealService,
     referral_service: ReferralService,
     settings: Settings,
+    state: FSMContext,
 ) -> None:
+    await state.clear()
     argument = (command.args or "").strip()
     if argument.startswith("ref_"):
         try:
@@ -56,17 +59,17 @@ async def start_with_args(
             ),
             reply_markup=payment_keyboard(deal_service.tonkeeper_payment_link(deal)),
         )
-        await message.answer(
-            translate(db_user.language, TextKey.MAIN_MENU_CAPTION, support_username=settings.SUPPORT_USERNAME),
-            reply_markup=main_menu(db_user.language),
-        )
+        await show_main_menu(message, db_user, settings)
         return
 
     await show_main_menu(message, db_user, settings)
 
 
 @router.message(CommandStart())
-async def command_start(message: types.Message, db_user: User, settings: Settings) -> None:
+async def command_start(
+    message: types.Message, db_user: User, settings: Settings, state: FSMContext
+) -> None:
+    await state.clear()
     await show_main_menu(message, db_user, settings)
 
 
@@ -75,18 +78,21 @@ async def menu_back(
     callback: types.CallbackQuery,
     db_user: User,
     settings: Settings,
+    state: FSMContext,
 ) -> None:
+    await state.clear()
     if callback.message:
         await show_main_menu(callback.message, db_user, settings)
     await callback.answer()
 
 
 async def show_main_menu(message: types.Message, user: User, settings: Settings) -> None:
-    await message.answer(
+    await render_menu(
+        message,
         translate(
             user.language,
             TextKey.MAIN_MENU_CAPTION,
             support_username=settings.SUPPORT_USERNAME,
         ),
-        reply_markup=main_menu(user.language),
+        main_menu(user.language),
     )

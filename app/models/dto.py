@@ -26,5 +26,13 @@ class PaymentObservation(BaseModel):
 
 class ReferralStats(BaseModel):
     count: int = 0
-    earned_ton: Decimal = Decimal("0")
-    earned_usdt: Decimal = Decimal("0")
+    balance_ton: Decimal = Decimal("0")
+    balance_usdt: Decimal = Decimal("0")
+
+    @property
+    def earned_ton(self) -> Decimal:
+        return self.balance_ton
+
+    @property
+    def earned_usdt(self) -> Decimal:
+        return self.balance_usdt

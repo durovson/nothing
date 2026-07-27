@@ -50,7 +50,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
 
     users = UserService(repositories.users)
     wallets = WalletService(repositories.users, ton)
-    referrals = ReferralService(app_settings, repositories.referrals)
+    referrals = ReferralService(app_settings, repositories.referrals, ton)
     deals = DealService(app_settings, repositories.deals, repositories.users, ton)
     payouts = PayoutService(
         app_settings,
@@ -113,6 +113,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         lifecycle,
         refunds,
         payouts,
+        referrals,
     )
     keepalive = RenderKeepAlive(app_settings)
     return AppContainer(

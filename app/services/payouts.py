@@ -72,13 +72,22 @@ class PayoutService:
             raise MissingPayoutWalletError(f"Seller wallet is missing for deal {deal.public_id}")
 
         seller_destination = self._ton.normalize_address(seller.wallet_address)
-        reward_destination = self._ton.normalize_address(self._settings.SERVICE_FEE_WALLET)
+        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
         seller_amount_atomic = asset_amount_atomic(deal.amount, deal.currency)
-        reward_nominal_amount_atomic = asset_service_fee_atomic(
+        service_fee_atomic = asset_service_fee_atomic(
             deal.amount,
             deal.currency,
             self._settings.ESCROW_FEE_RATE,
         )
+        referral_reserved_atomic = asset_amount_atomic(
+            self._referrals.reward_total(seller, buyer, deal), deal.currency
+        )
+        reward_nominal_amount_atomic = service_fee_atomic - referral_reserved_atomic
+        reward_destination = (
+            self._ton.normalize_address(self._settings.SERVICE_FEE_WALLET)
+            if reward_nominal_amount_atomic > 0 else None
+        )
+        reward_comment = self._settings.SERVICE_FEE_COMMENT if reward_destination else None
         if await self._ton.get_guarant_asset_balance_atomic(deal.currency) < (
             seller_amount_atomic + reward_nominal_amount_atomic
         ):
@@ -87,11 +96,11 @@ class PayoutService:
             )
         gas_required = payout_amount_atomic(self._settings.TON_GUARANT_PAYOUT_GAS_RESERVE)
         if deal.currency.value == "USDT":
-            gas_required += 2 * payout_amount_atomic(self._settings.USDT_JETTON_TRANSFER_TON)
+            message_count = 2 if reward_destination else 1
+            gas_required += message_count * payout_amount_atomic(self._settings.USDT_JETTON_TRANSFER_TON)
         if await self._ton.get_guarant_balance_atomic() < gas_required:
             raise InsufficientPayoutReserveError("Guarant TON balance does not cover payout gas")
         seller_comment = f"Payment for deal {deal.public_id}"
-        reward_comment = self._settings.SERVICE_FEE_COMMENT
 
         attempt = await self._payouts.claim(
             deal,
@@ -107,27 +116,8 @@ class PayoutService:
             return
 
         try:
-            if (
-                not attempt.reward_destination
-                or not attempt.reward_nominal_amount_atomic
-                or not attempt.reward_comment
-            ):
-                raise ValueError("Claimed payout has incomplete service reward data")
             prepared = await self._ton.prepare_guarant_payout(
-                [
-                    PayoutMessage(
-                        attempt.destination,
-                        attempt.amount_atomic,
-                        attempt.comment,
-                        currency=deal.currency,
-                    ),
-                    PayoutMessage(
-                        attempt.reward_destination,
-                        attempt.reward_nominal_amount_atomic,
-                        attempt.reward_comment,
-                        currency=deal.currency,
-                    ),
-                ],
+                self._messages(attempt)
             )
             attempt = await self._payouts.save_prepared(
                 attempt.id,
@@ -155,23 +145,8 @@ class PayoutService:
 
     async def reconcile(self, attempt: PayoutAttempt) -> None:
         if attempt.status is PayoutStatus.CREATING:
-            if (
-                not attempt.reward_destination
-                or not attempt.reward_nominal_amount_atomic
-                or not attempt.reward_comment
-            ):
-                await self._payouts.mark_failed(attempt.id, "Incomplete payout data")
-                return
             prepared = await self._ton.prepare_guarant_payout(
-                [
-                    PayoutMessage(attempt.destination, attempt.amount_atomic, attempt.comment, currency=attempt.currency),
-                    PayoutMessage(
-                        attempt.reward_destination,
-                        attempt.reward_nominal_amount_atomic,
-                        attempt.reward_comment,
-                        currency=attempt.currency,
-                    ),
-                ]
+                self._messages(attempt)
             )
             attempt = await self._payouts.save_prepared(
                 attempt.id,
@@ -197,6 +172,11 @@ class PayoutService:
         trace_status = await self._ton.get_payout_trace_status(attempt)
         match trace_status:
             case TraceStatus.CONFIRMED:
+                deal = await self._deals.get(attempt.deal_id)
+                if deal:
+                    seller = await self._users.get(deal.creator_id)
+                    buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
+                    await self._referrals.apply_reward(seller, buyer, deal)
                 completed = await self._payouts.mark_confirmed(attempt.id)
                 if completed:
                     await self._on_confirmed(completed)
@@ -220,5 +200,24 @@ class PayoutService:
     async def _on_confirmed(self, deal: Deal) -> None:
         seller = await self._users.get(deal.creator_id)
         buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
-        await self._referrals.apply_reward(seller, buyer, deal)
         await self._notifications.payout_confirmed(deal, buyer, seller)
+
+    @staticmethod
+    def _messages(attempt: PayoutAttempt) -> list[PayoutMessage]:
+        messages = [PayoutMessage(
+            attempt.destination, attempt.amount_atomic, attempt.comment,
+            currency=attempt.currency,
+        )]
+        reward_fields = (
+            attempt.reward_destination,
+            attempt.reward_nominal_amount_atomic,
+            attempt.reward_comment,
+        )
+        if all(reward_fields):
+            messages.append(PayoutMessage(
+                str(attempt.reward_destination), int(attempt.reward_nominal_amount_atomic or 0),
+                str(attempt.reward_comment), currency=attempt.currency,
+            ))
+        elif any(reward_fields):
+            raise ValueError("Payout has incomplete service reward data")
+        return messages

@@ -3,6 +3,7 @@ begin;
 drop function if exists claim_deal_payout(bigint, text, numeric, text);
 drop function if exists mark_collection_confirmed(bigint);
 drop function if exists claim_deal_payment(bigint, text, numeric, numeric, text, timestamptz);
+drop function if exists credit_referral_reward(bigint, bigint, text, numeric);
 
 create or replace function claim_deal_buyer(p_public_id text, p_buyer_id bigint)
 returns setof deals
@@ -63,11 +64,12 @@ end;
 $$;
 
 create or replace function credit_referral_reward(
+    p_deal_id bigint,
     p_referrer_id bigint,
     p_referred_id bigint,
     p_currency text,
     p_amount numeric
-) returns void
+) returns boolean
 language plpgsql
 security definer
 set search_path = public
@@ -79,16 +81,16 @@ begin
     if p_currency not in ('TON', 'USDT') then
         raise exception 'unsupported referral currency: %', p_currency;
     end if;
-    insert into referrals(referrer_id, referred_id, earned_ton, earned_usdt)
-    values (
-        p_referrer_id, p_referred_id,
-        case when p_currency = 'TON' then p_amount else 0 end,
-        case when p_currency = 'USDT' then p_amount else 0 end
-    )
-    on conflict (referrer_id, referred_id)
-    do update set
-        earned_ton = referrals.earned_ton + excluded.earned_ton,
-        earned_usdt = referrals.earned_usdt + excluded.earned_usdt;
+    insert into referral_rewards(deal_id, referrer_id, referred_id, currency, amount)
+    values (p_deal_id, p_referrer_id, p_referred_id, p_currency, p_amount)
+    on conflict (deal_id, referrer_id, referred_id) do nothing;
+    if not found then return false; end if;
+    insert into referral_balances(user_id, currency, balance)
+    values (p_referrer_id, p_currency, p_amount)
+    on conflict (user_id, currency) do update set
+        balance = referral_balances.balance + excluded.balance,
+        updated_at = timezone('utc', now());
+    return true;
 end;
 $$;
 
@@ -290,15 +292,15 @@ begin
     if p_amount_atomic is null or p_amount_atomic <= 0 then
         raise exception 'seller payout must be positive';
     end if;
-    if p_reward_nominal_amount_atomic is null or p_reward_nominal_amount_atomic <= 0 then
-        raise exception 'service reward must be positive';
+    if coalesce(p_reward_nominal_amount_atomic, 0) < 0 then
+        raise exception 'service reward cannot be negative';
     end if;
-    if nullif(btrim(p_reward_destination), '') is null then
-        raise exception 'service reward destination is required';
-    end if;
-    if p_reward_comment is null
-       or char_length(btrim(p_reward_comment)) not between 1 and 120 then
-        raise exception 'service reward comment is invalid';
+    if coalesce(p_reward_nominal_amount_atomic, 0) > 0 and (
+        nullif(btrim(p_reward_destination), '') is null
+        or p_reward_comment is null
+        or char_length(btrim(p_reward_comment)) not between 1 and 120
+    ) then
+        raise exception 'service reward data is invalid';
     end if;
 
     select * into v_deal from deals where id = p_deal_id for update;
@@ -306,6 +308,12 @@ begin
         return;
     end if;
     if exists (select 1 from payout_attempts where deal_id = p_deal_id) then
+        return;
+    end if;
+    if exists (
+        select 1 from referral_withdrawals
+        where status in ('creating', 'prepared', 'submitted')
+    ) then
         return;
     end if;
 
@@ -327,9 +335,9 @@ begin
         p_destination,
         p_amount_atomic,
         p_comment,
-        p_reward_destination,
-        p_reward_nominal_amount_atomic,
-        p_reward_comment,
+        case when coalesce(p_reward_nominal_amount_atomic, 0) > 0 then p_reward_destination end,
+        case when coalesce(p_reward_nominal_amount_atomic, 0) > 0 then p_reward_nominal_amount_atomic end,
+        case when coalesce(p_reward_nominal_amount_atomic, 0) > 0 then p_reward_comment end,
         v_deal.currency
     ) returning * into v_attempt;
 
@@ -488,6 +496,100 @@ begin
 
     get diagnostics v_deleted = row_count;
     return v_deleted;
+end;
+$$;
+
+create or replace function claim_referral_withdrawal(
+    p_user_id bigint, p_currency text, p_destination text, p_comment text
+) returns setof referral_withdrawals
+language plpgsql security definer set search_path = public
+as $$
+declare
+    v_balance referral_balances%rowtype;
+    v_attempt referral_withdrawals%rowtype;
+    v_atomic numeric;
+begin
+    if p_currency not in ('TON', 'USDT') then
+        raise exception 'unsupported referral currency: %', p_currency;
+    end if;
+    if exists (select 1 from payout_attempts where status in ('creating','prepared','submitted'))
+       or exists (select 1 from refund_attempts where status in ('creating','prepared','submitted'))
+       or exists (select 1 from referral_withdrawals where status in ('creating','prepared','submitted')) then
+        return;
+    end if;
+    select * into v_balance from referral_balances
+    where user_id = p_user_id and currency = p_currency for update;
+    if not found or v_balance.balance <= 0 then return; end if;
+    v_atomic := trunc(v_balance.balance * case when p_currency = 'TON' then 1000000000 else 1000000 end);
+    if v_atomic <= 0 then return; end if;
+    update referral_balances set balance = 0, updated_at = timezone('utc', now())
+    where user_id = p_user_id and currency = p_currency;
+    insert into referral_withdrawals(user_id, currency, amount, amount_atomic, destination, comment)
+    values (p_user_id, p_currency, v_balance.balance, v_atomic, p_destination, p_comment)
+    returning * into v_attempt;
+    return next v_attempt;
+end;
+$$;
+
+create or replace function save_prepared_referral_withdrawal(
+    p_withdrawal_id bigint, p_external_message_hash text, p_signed_boc text, p_valid_until timestamptz
+) returns setof referral_withdrawals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update referral_withdrawals set
+        status = 'prepared', external_message_hash = p_external_message_hash,
+        signed_boc = p_signed_boc, valid_until = p_valid_until,
+        updated_at = timezone('utc', now())
+    where id = p_withdrawal_id and status = 'creating' returning *;
+end;
+$$;
+
+create or replace function mark_referral_withdrawal_submitted(p_withdrawal_id bigint)
+returns setof referral_withdrawals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update referral_withdrawals set
+        status = 'submitted', submitted_at = coalesce(submitted_at, timezone('utc', now())),
+        last_checked_at = timezone('utc', now()), updated_at = timezone('utc', now())
+    where id = p_withdrawal_id and status in ('prepared', 'submitted') returning *;
+end;
+$$;
+
+create or replace function mark_referral_withdrawal_confirmed(p_withdrawal_id bigint)
+returns setof referral_withdrawals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update referral_withdrawals set
+        status = 'confirmed', confirmed_at = timezone('utc', now()),
+        last_checked_at = timezone('utc', now()), updated_at = timezone('utc', now())
+    where id = p_withdrawal_id and status = 'submitted' returning *;
+end;
+$$;
+
+create or replace function fail_referral_withdrawal(
+    p_withdrawal_id bigint, p_error text, p_bounced boolean default false
+) returns setof referral_withdrawals
+language plpgsql security definer set search_path = public
+as $$
+declare
+    v_attempt referral_withdrawals%rowtype;
+begin
+    update referral_withdrawals set
+        status = case when p_bounced then 'bounced' else 'failed' end,
+        error = p_error, last_checked_at = timezone('utc', now()),
+        updated_at = timezone('utc', now())
+    where id = p_withdrawal_id and status in ('creating','prepared','submitted')
+    returning * into v_attempt;
+    if not found then return; end if;
+    insert into referral_balances(user_id, currency, balance)
+    values (v_attempt.user_id, v_attempt.currency, v_attempt.amount)
+    on conflict (user_id, currency) do update set
+        balance = referral_balances.balance + excluded.balance,
+        updated_at = timezone('utc', now());
+    return next v_attempt;
 end;
 $$;
 

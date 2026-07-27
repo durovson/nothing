@@ -108,8 +108,10 @@ class JettonEscrowGateway:
         seller_ok = await self._notification_matches(
             trace, attempt.destination, attempt.amount_atomic, attempt.comment
         )
-        if not seller_ok or not attempt.reward_destination or not attempt.reward_comment:
+        if not seller_ok:
             return False
+        if not attempt.reward_destination or not attempt.reward_comment:
+            return True
         return await self._notification_matches(
             trace,
             attempt.reward_destination,
@@ -129,6 +131,11 @@ class JettonEscrowGateway:
             int(attempt.reward_nominal_amount_atomic or 0),
             attempt.reward_comment,
         )
+
+    async def transfer_trace_matches(
+        self, trace: dict, destination: str, amount_atomic: int, comment: str
+    ) -> bool:
+        return await self._notification_matches(trace, destination, amount_atomic, comment)
 
     async def _notification_matches(
         self, trace: dict, owner: str, amount_atomic: int, comment: str
