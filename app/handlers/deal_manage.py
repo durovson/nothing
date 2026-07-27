@@ -1,7 +1,7 @@
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-from app.core.enums import DealStatus, Language
+from app.core.enums import DealStatus, DealType, Language
 from app.core.constants import DISPUTE_DESCRIPTION_MAX_LENGTH, DISPUTE_DESCRIPTION_MIN_LENGTH
 from app.core.exceptions import (
     DealActionForbiddenError,
@@ -11,15 +11,52 @@ from app.core.exceptions import (
 from app.keyboards import DealCallback, MenuCallback, PageCallback, deal_actions, deals_list
 from app.keyboards.callbacks import DealAction, MenuAction, PageAction
 from app.locales import TextKey, translate
-from app.models.entities import User
+from app.models.entities import Deal, User
 from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
-from app.utils import currency_label, deal_status_label, deal_type_label, format_amount, render_menu
+from app.utils import channel_member_status_label, currency_label, deal_status_label, deal_type_label, format_amount, render_menu
 
 router = Router(name="deal-management")
 MY_DEALS_TEXTS = {translate(language, TextKey.MENU_MY_DEALS) for language in Language}
+
+
+async def render_deal_card(
+    message: types.Message,
+    deal: Deal,
+    db_user: User,
+) -> None:
+    """Render the canonical deal screen for callbacks and deep links."""
+    buyer = str(deal.buyer_id or "-")
+    if deal.buyer_id == db_user.telegram_id and db_user.username:
+        buyer = f"@{db_user.username}"
+    channel_details = ""
+    if deal.deal_type is DealType.CHANNEL:
+        role = channel_member_status_label(deal.channel_last_member_status, db_user.language)
+        if db_user.language is Language.RU:
+            channel_details = f"\nКанал: {deal.channel_title or '-'}\nРоль покупателя: {role}"
+        else:
+            channel_details = f"\nChannel: {deal.channel_title or '-'}\nBuyer role: {role}"
+    await render_menu(
+        message,
+        translate(
+            db_user.language,
+            TextKey.DEAL_CARD,
+            deal_id=deal.public_id,
+            status=deal_status_label(deal.status, db_user.language),
+            deal_type=deal_type_label(deal.deal_type, db_user.language),
+            description=deal.description,
+            amount=format_amount(deal.amount),
+            currency=currency_label(deal.currency),
+            wallet_address=deal.wallet_address or "-",
+            buyer=buyer,
+            channel_details=channel_details,
+            delivery_deadline=(deal.delivery_deadline_at.isoformat() if deal.delivery_deadline_at else "-"),
+            inspection_deadline=(deal.inspection_deadline_at.isoformat() if deal.inspection_deadline_at else "-"),
+        ),
+        deal_actions(db_user.language, deal, db_user.telegram_id),
+    )
 
 
 @router.message(F.text.in_(MY_DEALS_TEXTS))
@@ -92,31 +129,8 @@ async def open_deal(
             await callback.message.answer(translate(db_user.language, TextKey.DEAL_FORBIDDEN))
         await callback.answer()
         return
-    buyer = str(deal.buyer_id or "-")
-    if deal.buyer_id == db_user.telegram_id and db_user.username:
-        buyer = f"@{db_user.username}"
     if callback.message:
-        await render_menu(callback.message,
-            translate(
-                db_user.language,
-                TextKey.DEAL_CARD,
-                deal_id=deal.public_id,
-                status=deal_status_label(deal.status, db_user.language),
-                deal_type=deal_type_label(deal.deal_type, db_user.language),
-                description=deal.description,
-                amount=format_amount(deal.amount),
-                currency=currency_label(deal.currency),
-                wallet_address=deal.wallet_address or "-",
-                buyer=buyer,
-                delivery_deadline=(
-                    deal.delivery_deadline_at.isoformat() if deal.delivery_deadline_at else "-"
-                ),
-                inspection_deadline=(
-                    deal.inspection_deadline_at.isoformat() if deal.inspection_deadline_at else "-"
-                ),
-            ),
-            deal_actions(db_user.language, deal, db_user.telegram_id),
-        )
+        await render_deal_card(callback.message, deal, db_user)
     await callback.answer()
 
 

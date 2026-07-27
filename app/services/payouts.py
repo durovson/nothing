@@ -79,8 +79,11 @@ class PayoutService:
             deal.currency,
             self._settings.ESCROW_FEE_RATE,
         )
-        referral_reserved_atomic = asset_amount_atomic(
-            self._referrals.reward_total(seller, buyer, deal), deal.currency
+        referral_reward = self._referrals.reward_total(seller, buyer, deal)
+        referral_reserved_atomic = (
+            asset_amount_atomic(referral_reward, deal.currency)
+            if referral_reward > 0
+            else 0
         )
         reward_nominal_amount_atomic = service_fee_atomic - referral_reserved_atomic
         reward_destination = (

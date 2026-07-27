@@ -16,6 +16,7 @@ begin
         updated_at = timezone('utc', now())
     where id = p_deal_id and creator_id = p_seller_id
       and status = 'delivery_pending'
+      and deal_type <> 'channel'
       and delivery_deadline_at > timezone('utc', now())
     returning *;
 end;
@@ -281,34 +282,67 @@ begin
 end;
 $$;
 
-create or replace function mark_channel_access_granted(p_deal_id bigint)
-returns setof deals
-language plpgsql security definer set search_path = public
-as $$
-begin
-    return query update deals set
-        channel_access_granted_at = coalesce(channel_access_granted_at, timezone('utc', now())),
-        channel_access_error = null,
-        updated_at = timezone('utc', now())
-    where id = p_deal_id and deal_type = 'channel'
-      and status = 'delivery_pending' and buyer_id is not null
-    returning *;
-end;
-$$;
-
-create or replace function request_channel_release_after_access(p_deal_id bigint)
+create or replace function confirm_channel_owner_transfer(p_deal_id bigint)
 returns setof deals
 language plpgsql security definer set search_path = public
 as $$
 begin
     return query update deals set
         status = 'release_requested',
+        channel_owner_verified_at = coalesce(channel_owner_verified_at, timezone('utc', now())),
+        channel_access_granted_at = coalesce(channel_access_granted_at, timezone('utc', now())),
+        channel_last_member_status = 'creator',
+        channel_last_checked_at = timezone('utc', now()),
+        channel_access_error = null,
         updated_at = timezone('utc', now())
-    where id = p_deal_id and deal_type = 'channel'
+    where id = p_deal_id
+      and deal_type = 'channel'
       and status = 'delivery_pending'
-      and channel_access_granted_at is not null
       and buyer_id is not null
     returning *;
+end;
+$$;
+
+create or replace function dispute_expired_channel_transfer(
+    p_deal_id bigint,
+    p_reason text
+)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+declare
+    v_deal deals%rowtype;
+begin
+    update deals set
+        status = 'disputed',
+        resolution_reason = p_reason,
+        updated_at = timezone('utc', now())
+    where id = p_deal_id
+      and deal_type = 'channel'
+      and status = 'delivery_pending'
+      and buyer_id is not null
+      and channel_owner_verified_at is null
+      and delivery_deadline_at <= timezone('utc', now())
+    returning * into v_deal;
+
+    if not found then
+        return;
+    end if;
+
+    if not exists (
+        select 1 from dispute_tickets
+        where deal_id = v_deal.id and status = 'open'
+    ) then
+        insert into dispute_tickets(deal_id, opened_by, status, description)
+        values (
+            v_deal.id,
+            v_deal.buyer_id,
+            'open',
+            left('Automatic channel ownership verification failed: ' || p_reason, 1000)
+        );
+    end if;
+
+    return next v_deal;
 end;
 $$;
 

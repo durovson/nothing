@@ -1,3 +1,3 @@
-from app.states.forms import AdminStates, DealCreationStates, DisputeStates, WalletStates
+from app.states.forms import AdminStates, ChannelDealStates, DealCreationStates, DisputeStates, WalletStates
 
-__all__ = ["AdminStates", "DealCreationStates", "DisputeStates", "WalletStates"]
+__all__ = ["AdminStates", "ChannelDealStates", "DealCreationStates", "DisputeStates", "WalletStates"]

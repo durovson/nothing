@@ -11,7 +11,7 @@ from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
 from app.services.refunds import RefundService
 from app.services.referrals import ReferralService
-from app.services.channels import ChannelAccessService
+from app.services.channels import ChannelDealService
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class DealMonitor:
         refunds: RefundService,
         payouts: PayoutService,
         referrals: ReferralService,
-        channels: ChannelAccessService,
+        channels: ChannelDealService,
     ):
         self._settings = settings
         self._deals = deals

@@ -174,7 +174,17 @@ class DealRepository:
         return Deal(**response.data[0]) if response.data else None
 
     async def list_delivery_expired(self) -> list[Deal]:
-        return await self._list_expired(DealStatus.DELIVERY_PENDING, "delivery_deadline_at")
+        now = datetime.now(UTC).isoformat()
+        response = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.DELIVERY_PENDING.value)
+            .neq("deal_type", "channel")
+            .lte("delivery_deadline_at", now)
+            .order("delivery_deadline_at")
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
 
     async def list_inspection_expired(self) -> list[Deal]:
         return await self._list_expired(DealStatus.DELIVERED, "inspection_deadline_at")
@@ -270,35 +280,39 @@ class DealRepository:
             return int(response.data[0]) if response.data else 0
         return int(response.data or 0)
 
-    async def list_channel_access_pending(self) -> list[Deal]:
+    async def list_channel_transfer_pending(self) -> list[Deal]:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("deal_type", "channel")
             .eq("status", DealStatus.DELIVERY_PENDING.value)
-            .is_("channel_access_granted_at", "null")
+            .is_("channel_owner_verified_at", "null")
             .not_.is_("buyer_id", "null")
             .order("id")
             .execute()
         )
         return [Deal(**item) for item in response.data]
 
-    async def mark_channel_access_granted(self, deal_id: int) -> Deal | None:
+    async def confirm_channel_owner(self, deal_id: int) -> Deal | None:
         response = await self._database.rpc(
-            "mark_channel_access_granted", {"p_deal_id": deal_id}
+            "confirm_channel_owner_transfer", {"p_deal_id": deal_id}
         )
         return Deal(**response.data[0]) if response.data else None
 
-    async def record_channel_access_error(self, deal_id: int, error: str) -> None:
+    async def record_channel_observation(
+        self, deal_id: int, member_status: str, error: str | None = None
+    ) -> None:
         await self._database.run(
             lambda: self._database.client.table("deals").update({
-                "channel_access_error": error[:1000],
-                "updated_at": datetime.now(UTC).isoformat(),
+                "channel_last_member_status": member_status,
+                "channel_last_checked_at": datetime.now(UTC).isoformat(),
+                "channel_access_error": error[:1000] if error else None,
             }).eq("id", deal_id).eq("deal_type", "channel").execute()
         )
 
-    async def request_channel_release(self, deal_id: int) -> Deal | None:
+    async def dispute_channel_transfer(self, deal_id: int, reason: str) -> Deal | None:
         response = await self._database.rpc(
-            "request_channel_release_after_access", {"p_deal_id": deal_id}
+            "dispute_expired_channel_transfer",
+            {"p_deal_id": deal_id, "p_reason": reason[:1000]},
         )
         return Deal(**response.data[0]) if response.data else None

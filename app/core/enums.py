@@ -43,6 +43,14 @@ class DealType(StrEnum):
     ACCOUNT = "account"
 
 
+class ChannelMemberStatus(StrEnum):
+    OWNER = "creator"
+    ADMINISTRATOR = "administrator"
+    MEMBER = "member"
+    ABSENT = "absent"
+    UNKNOWN = "unknown"
+
+
 class DealStatus(StrEnum):
     CREATING = "creating"
     PENDING = "pending"

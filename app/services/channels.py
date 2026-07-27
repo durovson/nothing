@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 
 from app.api.channel_gateway import TelegramChannelGateway
-from app.core.enums import DealType
+from app.core.enums import ChannelMemberStatus, DealType
 from app.core.types import DealRepositoryProtocol, UserRepositoryProtocol
 from app.models.dto import ChannelDescriptor
 from app.models.entities import Deal
@@ -11,7 +12,8 @@ from app.models.entities import Deal
 logger = logging.getLogger(__name__)
 
 
-class ChannelAccessService:
+class ChannelDealService:
+    """Poll Telegram ownership and drive only atomic channel transitions."""
     def __init__(
         self,
         deals: DealRepositoryProtocol,
@@ -35,34 +37,51 @@ class ChannelAccessService:
     async def process_paid(self, deal: Deal) -> bool:
         if deal.deal_type is not DealType.CHANNEL:
             return False
-        if deal.channel_access_granted_at:
-            await self._deals.request_channel_release(deal.id)
-            return True
+        return await self.check_transfer(deal)
+
+    async def check_transfer(self, deal: Deal) -> bool:
+        """Release only for creator; dispute a non-owner only after the SLA."""
         buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
         seller = await self._users.get(deal.creator_id)
         if buyer is None:
-            await self._deals.record_channel_access_error(deal.id, "Buyer not found")
+            await self._deals.record_channel_observation(
+                deal.id, ChannelMemberStatus.UNKNOWN.value, "Buyer not found"
+            )
             return False
+        status = ChannelMemberStatus.UNKNOWN
         try:
-            granted = await self._gateway.grant_buyer_admin(deal)
-            if not granted:
-                waiting_reason = "Waiting for buyer join request"
-                if deal.channel_access_error != waiting_reason:
-                    invite = await self._gateway.create_buyer_join_link(deal)
-                    await self._gateway.access_required(deal, buyer, invite)
-                    await self._deals.record_channel_access_error(deal.id, waiting_reason)
+            status = await self._gateway.buyer_status(deal)
+            await self._deals.record_channel_observation(deal.id, status.value)
+            if status is ChannelMemberStatus.OWNER:
+                completed = await self._deals.confirm_channel_owner(deal.id)
+                if completed:
+                    await self._gateway.owner_verified(completed, buyer, seller)
+                    return True
                 return False
-            updated = await self._deals.mark_channel_access_granted(deal.id)
-            if updated is None:
-                return False
-            await self._gateway.access_granted(updated, buyer, seller)
-            await self._deals.request_channel_release(updated.id)
-            return True
+            if (
+                status is not ChannelMemberStatus.OWNER
+                and deal.delivery_deadline_at
+                and deal.delivery_deadline_at <= datetime.now(UTC)
+            ):
+                reason = f"Buyer Telegram status at deadline: {status.value}; owner required"
+                disputed = await self._deals.dispute_channel_transfer(deal.id, reason)
+                if disputed:
+                    await self._gateway.transfer_disputed(disputed, buyer, seller)
+            return False
         except Exception as exc:
-            await self._deals.record_channel_access_error(deal.id, str(exc))
-            logger.exception("Channel access failed deal=%s", deal.public_id)
+            await self._deals.record_channel_observation(
+                deal.id, ChannelMemberStatus.UNKNOWN.value, str(exc)
+            )
+            logger.exception("Channel ownership check failed deal=%s", deal.public_id)
+            if deal.delivery_deadline_at and deal.delivery_deadline_at <= datetime.now(UTC):
+                disputed = await self._deals.dispute_channel_transfer(
+                    deal.id,
+                    "Telegram ownership verification unavailable at deadline",
+                )
+                if disputed:
+                    await self._gateway.transfer_disputed(disputed, buyer, seller)
             return False
 
     async def process_pending(self) -> None:
-        for deal in await self._deals.list_channel_access_pending():
-            await self.process_paid(deal)
+        for deal in await self._deals.list_channel_transfer_pending():
+            await self.check_transfer(deal)

@@ -25,7 +25,7 @@ from app.services import (
     UserService,
     WalletService,
     AdminService,
-    ChannelAccessService,
+    ChannelDealService,
 )
 from app.tasks import DealMonitor
 from app.ton import TonEscrowClient
@@ -62,7 +62,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     users = UserService(repositories.users)
     wallets = WalletService(repositories.users, ton)
     referrals = ReferralService(app_settings, repositories.referrals, ton)
-    channels = ChannelAccessService(repositories.deals, repositories.users, channel_gateway)
+    channels = ChannelDealService(repositories.deals, repositories.users, channel_gateway)
     deals = DealService(app_settings, repositories.deals, repositories.users, ton)
     payouts = PayoutService(
         app_settings,

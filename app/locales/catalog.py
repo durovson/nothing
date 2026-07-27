@@ -107,9 +107,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_CHANNEL_WARNING: (
             "📢 <b>Сделка по каналу</b>\n\nДобавьте бота администратором канала и выдайте ему <b>полные права</b>, включая "
             "приглашение пользователей и назначение администраторов. Затем отправьте @username, ID канала "
-            "или перешлите сообщение из канала.\n\nПосле подтверждённой оплаты бот автоматически выдаст покупателю "
-            "максимальные админ-права и запустит выплату продавцу.\n\n"
-            "<blockquote>Статус владельца продавец передаёт вручную в Telegram.</blockquote>"
+            "или перешлите сообщение из канала.\n\nПокупатель вступит по инвайт-ссылке. После оплаты продавец вручную "
+            "передаёт ему статус владельца. Бот автоматически проверяет статус <code>creator</code> и только после "
+            "этого запускает выплату.\n\n"
+            "<blockquote>Не удаляйте бота из администраторов до завершения сделки.</blockquote>"
         ),
         TextKey.DEAL_CHANNEL_INVALID: "Канал не прошёл проверку: {reason}\n\nИсправьте права и отправьте канал ещё раз.",
         TextKey.DEAL_CHANNEL_VERIFIED: "Канал «{title}» проверен.",
@@ -133,8 +134,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "📝 <b>Обязательный комментарий:</b> <code>{deal_id}</code>\n"
             "🔗 <a href=\"{deep_link}\">Ссылка для покупателя</a>\n\n"
             "Для оффера после оплаты у продавца 24 часа на исполнение, затем у покупателя 24 часа на подтверждение либо спор. "
-            "Для канала бот автоматически выдаёт покупателю админ-доступ и запускает выплату после подтверждения оплаты. "
-            "Передача статуса владельца канала выполняется продавцом вручную. "
+            "Для канала продавец вручную передаёт покупателю статус владельца; бот проверяет его автоматически. "
             "Молчание продавца по офферу означает возврат, молчание покупателя — автоматическую выплату. "
             "Комиссия сервиса 1% удерживается при любом исходе; при возврате покупатель получает сумму сделки D."
         ),
@@ -161,7 +161,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "💼 <b>Сделка #{deal_id}</b>\n\n<b>Статус:</b> {status}\n<b>Тип:</b> {deal_type}\n"
             "<b>Описание:</b> {description}\n<b>Сумма:</b> {amount} {currency}\n\n"
             "<b>Escrow-адрес:</b> <code>{wallet_address}</code>\n"
-            "<b>Комментарий:</b> <code>{deal_id}</code>\n<b>Покупатель:</b> {buyer}\n\n"
+            "<b>Комментарий:</b> <code>{deal_id}</code>\n<b>Покупатель:</b> {buyer}{channel_details}\n\n"
             "<b>Дедлайн передачи:</b> {delivery_deadline}\n<b>Дедлайн проверки:</b> {inspection_deadline}"
         ),
         TextKey.DEAL_PAID_BUYER: "Средства поступили на кошелёк гаранта. Ожидайте передачу товара.",
@@ -171,11 +171,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Передайте товар и нажмите «Товар передан» в карточке сделки."
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
-            "Оплата канала подтверждена и удерживается гарантом. Бот проверяет заявку на вступление и выдаёт вам административный доступ."
+            "✅ Оплата канала подтверждена и удерживается гарантом. Вступите в канал по кнопке сделки и дождитесь, "
+            "пока продавец вручную передаст вам статус владельца. Бот проверит это автоматически."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
-            "Покупатель оплатил канал. Бот выдаст ему максимальные административные права и после успешной проверки автоматически запустит выплату. "
-            "Статус владельца канала передаётся вами вручную в Telegram.\n\nТранзакция:\n{transaction_url}"
+            "✅ Покупатель оплатил канал. Вручную передайте ему статус владельца в настройках Telegram и не удаляйте "
+            "бота из администраторов. После статуса creator бот автоматически запустит выплату.\n\nТранзакция:\n{transaction_url}"
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
             "Получение подтверждено. Выплата продавцу поставлена в очередь; "
@@ -253,8 +254,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_CHANNEL_WARNING: (
             "📢 <b>Channel deal</b>\n\nAdd the bot as a channel administrator with <b>full rights</b>, including inviting users "
             "and promoting administrators. Then send the @username, numeric channel ID, or forward a channel message.\n\n"
-            "After confirmed payment the bot grants the buyer the maximum administrator rights and queues the seller payout. "
-            "<blockquote>The seller transfers Telegram ownership manually.</blockquote>"
+            "The buyer joins through the invite link. After payment, the seller manually transfers ownership. "
+            "The bot verifies the <code>creator</code> status and only then queues payout. "
+            "<blockquote>Keep the bot as an administrator until the deal is complete.</blockquote>"
         ),
         TextKey.DEAL_CHANNEL_INVALID: "Channel validation failed: {reason}\n\nFix the permissions and send the channel again.",
         TextKey.DEAL_CHANNEL_VERIFIED: "Channel “{title}” verified.",
@@ -278,8 +280,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "📝 <b>Required comment:</b> <code>{deal_id}</code>\n"
             "🔗 <a href=\"{deep_link}\">Buyer link</a>\n\n"
             "For an offer, the seller has 24 hours after payment to deliver and the buyer has 24 hours to confirm or dispute. "
-            "For a channel, the bot grants administrator access and queues payout automatically after confirmed payment; "
-            "the seller transfers Telegram ownership manually. Seller silence means refund; "
+            "For a channel, the seller manually transfers ownership and the bot verifies it automatically. Seller silence means refund; "
             "buyer silence after delivery means automatic release. The 1% service fee is retained in every outcome; "
             "a refund returns the deal principal D."
         ),
@@ -306,7 +307,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "💼 <b>Deal #{deal_id}</b>\n\n<b>Status:</b> {status}\n<b>Type:</b> {deal_type}\n"
             "<b>Description:</b> {description}\n<b>Amount:</b> {amount} {currency}\n\n"
             "<b>Escrow address:</b> <code>{wallet_address}</code>\n"
-            "<b>Comment:</b> <code>{deal_id}</code>\n<b>Buyer:</b> {buyer}\n\n"
+            "<b>Comment:</b> <code>{deal_id}</code>\n<b>Buyer:</b> {buyer}{channel_details}\n\n"
             "<b>Delivery deadline:</b> {delivery_deadline}\n<b>Inspection deadline:</b> {inspection_deadline}"
         ),
         TextKey.DEAL_PAID_BUYER: "Funds reached the guarant wallet. Please wait for the item transfer.",
@@ -316,11 +317,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Transfer the item and press ‘Item delivered’ in the deal card."
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
-            "Channel payment is confirmed and held by the guarant. The bot is checking your join request and will grant administrator access."
+            "✅ Channel payment is confirmed and held by the guarant. Join through the deal button and wait for the seller "
+            "to transfer ownership. The bot verifies it automatically."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
-            "The buyer paid for the channel. The bot will grant maximum administrator rights and automatically queue payout after verification. "
-            "You transfer Telegram ownership manually.\n\nTransaction:\n{transaction_url}"
+            "✅ The buyer paid for the channel. Transfer ownership manually in Telegram and keep the bot as administrator. "
+            "Payout is queued automatically only after creator status is verified.\n\nTransaction:\n{transaction_url}"
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
             "Receipt confirmed. The seller payout was queued; "

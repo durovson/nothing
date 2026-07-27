@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.core.enums import Currency, DealStatus, DealType, Language
+from app.core.enums import ChannelMemberStatus, Currency, DealStatus, DealType, Language
 
 
 def format_amount(amount: Decimal) -> str:
@@ -60,3 +60,23 @@ def deal_status_label(
     if normalized is DealStatus.CANCELLED:
         return "Отменена 🔴" if locale is Language.RU else "Cancelled 🔴"
     return "Ошибка ❌" if locale is Language.RU else "Failed ❌"
+
+
+def channel_member_status_label(
+    status: ChannelMemberStatus | str | None,
+    locale: Language = Language.RU,
+) -> str:
+    if status is None:
+        return "ещё не проверен" if locale is Language.RU else "not checked yet"
+    try:
+        normalized = ChannelMemberStatus(status)
+    except ValueError:
+        normalized = ChannelMemberStatus.UNKNOWN
+    labels = {
+        ChannelMemberStatus.OWNER: ("владелец ✅", "owner ✅"),
+        ChannelMemberStatus.ADMINISTRATOR: ("администратор", "administrator"),
+        ChannelMemberStatus.MEMBER: ("участник", "member"),
+        ChannelMemberStatus.ABSENT: ("не вступил", "not joined"),
+        ChannelMemberStatus.UNKNOWN: ("проверка недоступна", "check unavailable"),
+    }
+    return labels[normalized][0 if locale is Language.RU else 1]

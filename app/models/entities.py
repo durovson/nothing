@@ -42,6 +42,9 @@ class Deal(BaseModel):
     channel_username: str | None = None
     channel_access_granted_at: datetime | None = None
     channel_access_error: str | None = None
+    channel_owner_verified_at: datetime | None = None
+    channel_last_member_status: str | None = None
+    channel_last_checked_at: datetime | None = None
     status: DealStatus
     wallet_address: str | None = None
     paid_tx_hash: str | None = None

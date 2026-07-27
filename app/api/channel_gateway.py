@@ -5,8 +5,14 @@ from html import escape
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.types import ChatMemberAdministrator, ChatMemberOwner
+from aiogram.types import (
+    ChatMemberAdministrator,
+    ChatMemberMember,
+    ChatMemberOwner,
+    ChatMemberRestricted,
+)
 
+from app.core.enums import ChannelMemberStatus
 from app.core.exceptions import ChannelConfigurationError
 from app.models.dto import ChannelDescriptor
 from app.models.entities import Deal, User
@@ -15,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramChannelGateway:
-    """Telegram Bot API adapter for channel validation and administrator access."""
+    """Validate a channel and observe ownership; never changes buyer privileges."""
 
     def __init__(self, bot: Bot):
         self._bot = bot
@@ -63,70 +69,54 @@ class TelegramChannelGateway:
         invite = await self._bot.create_chat_invite_link(
             deal.channel_id,
             name=f"Deal {deal.public_id}",
-            creates_join_request=True,
+            creates_join_request=False,
         )
         return invite.invite_link
 
-    async def grant_buyer_admin(self, deal: Deal) -> bool:
+    async def buyer_status(self, deal: Deal) -> ChannelMemberStatus:
+        """Return the buyer's current role reported by Telegram getChatMember."""
         if deal.channel_id is None or deal.buyer_id is None:
             raise ChannelConfigurationError("У сделки отсутствует канал или покупатель")
         try:
-            await self._bot.approve_chat_join_request(deal.channel_id, deal.buyer_id)
-        except TelegramBadRequest:
-            pass
-        try:
             member = await self._bot.get_chat_member(deal.channel_id, deal.buyer_id)
-        except TelegramBadRequest:
-            return False
-        if member.status in {"left", "kicked"}:
-            return False
-        try:
-            return await self._bot.promote_chat_member(
-                deal.channel_id,
-                deal.buyer_id,
-                is_anonymous=False,
-                can_manage_chat=True,
-                can_delete_messages=True,
-                can_manage_video_chats=True,
-                can_restrict_members=True,
-                can_promote_members=True,
-                can_change_info=True,
-                can_invite_users=True,
-                can_post_stories=True,
-                can_edit_stories=True,
-                can_delete_stories=True,
-                can_post_messages=True,
-                can_edit_messages=True,
-                can_pin_messages=True,
-            )
         except (TelegramBadRequest, TelegramForbiddenError) as exc:
             raise ChannelConfigurationError(
-                "Telegram не разрешил выдать покупателю права администратора"
+                "Не удалось проверить покупателя; бот должен оставаться администратором канала"
             ) from exc
+        if isinstance(member, ChatMemberOwner):
+            return ChannelMemberStatus.OWNER
+        if isinstance(member, ChatMemberAdministrator):
+            return ChannelMemberStatus.ADMINISTRATOR
+        if isinstance(member, (ChatMemberMember, ChatMemberRestricted)):
+            return ChannelMemberStatus.MEMBER
+        return ChannelMemberStatus.ABSENT
 
-    async def access_required(self, deal: Deal, buyer: User, invite_link: str) -> None:
-        await self._safe_send(
-            buyer.telegram_id,
-            "Оплата подтверждена и удерживается гарантом.\n\n"
-            "Чтобы получить доступ к каналу, отправьте заявку по ссылке:\n"
-            f"{escape(invite_link)}\n\nПосле заявки бот автоматически выдаст права администратора и запустит выплату продавцу.",
-        )
-
-    async def access_granted(
+    async def owner_verified(
         self, deal: Deal, buyer: User | None, seller: User | None
     ) -> None:
         if buyer:
             await self._safe_send(
                 buyer.telegram_id,
-                f"Доступ к каналу «{escape(deal.channel_title or deal.public_id)}» выдан. "
-                "Вы назначены администратором с максимальными доступными боту правами.",
+                f"✅ Вы стали владельцем канала «{escape(deal.channel_title or deal.public_id)}». "
+                "Проверка завершена автоматически; выплата продавцу поставлена в очередь.",
             )
         if seller:
             await self._safe_send(
                 seller.telegram_id,
-                f"Покупателю выдан полный административный доступ к каналу «{escape(deal.channel_title or deal.public_id)}». "
-                "Выплата поставлена в очередь. Передача статуса владельца выполняется вами вручную в Telegram.",
+                f"✅ Покупатель подтверждён владельцем канала «{escape(deal.channel_title or deal.public_id)}». "
+                "Выплата поставлена в очередь автоматически.",
             )
+
+    async def transfer_disputed(
+        self, deal: Deal, buyer: User | None, seller: User | None
+    ) -> None:
+        text = (
+            f"⚖️ Сделка #{deal.public_id} переведена в спор: к дедлайну Telegram "
+            "не подтвердил покупателя владельцем канала. Средства остаются у гаранта."
+        )
+        for user in (buyer, seller):
+            if user:
+                await self._safe_send(user.telegram_id, text)
 
     async def _safe_send(self, user_id: int, text: str) -> None:
         try:

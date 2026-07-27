@@ -19,8 +19,8 @@ from app.keyboards import (
 from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
-from app.services.channels import ChannelAccessService
-from app.states import DealCreationStates
+from app.services.channels import ChannelDealService
+from app.states import ChannelDealStates, DealCreationStates
 from app.utils import currency_label, deal_type_label, format_amount, remember_menu, render_menu, render_stored_menu
 from app.keyboards.callbacks import MenuAction
 
@@ -71,7 +71,7 @@ async def choose_deal_type(
     await state.update_data(deal_type=callback_data.deal_type.value)
     if callback.message:
         if callback_data.deal_type is DealType.CHANNEL:
-            await state.set_state(DealCreationStates.waiting_for_channel)
+            await state.set_state(ChannelDealStates.waiting_for_channel)
             await render_menu(callback.message,
                 translate(db_user.language, TextKey.DEAL_CHANNEL_WARNING),
                 back_keyboard(db_user.language)
@@ -82,11 +82,11 @@ async def choose_deal_type(
     await callback.answer()
 
 
-@router.message(DealCreationStates.waiting_for_channel)
+@router.message(ChannelDealStates.waiting_for_channel)
 async def handle_channel(
     message: types.Message,
     db_user: User,
-    channel_service: ChannelAccessService,
+    channel_service: ChannelDealService,
     state: FSMContext,
 ) -> None:
     origin_chat = getattr(message.forward_origin, "chat", None)
@@ -147,6 +147,7 @@ async def handle_description(
 
 
 @router.callback_query(DealCreationStates.waiting_for_currency, CurrencyCallback.filter())
+@router.callback_query(DealCreationStates.waiting_for_amount, CurrencyCallback.filter())
 async def choose_currency(
     callback: types.CallbackQuery,
     callback_data: CurrencyCallback,
@@ -156,7 +157,18 @@ async def choose_currency(
     await state.update_data(currency=callback_data.currency.value)
     await state.set_state(DealCreationStates.waiting_for_amount)
     if callback.message:
-        await render_menu(callback.message, translate(db_user.language, TextKey.DEAL_AMOUNT_PROMPT), back_keyboard(db_user.language))
+        selected = currency_label(callback_data.currency)
+        caption = translate(db_user.language, TextKey.DEAL_AMOUNT_PROMPT)
+        caption += (
+            f"\n\n<b>Выбрано:</b> {selected}"
+            if db_user.language is Language.RU
+            else f"\n\n<b>Selected:</b> {selected}"
+        )
+        await render_menu(
+            callback.message,
+            caption,
+            currency_keyboard(db_user.language),
+        )
     await callback.answer()
 
 

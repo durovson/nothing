@@ -14,7 +14,7 @@ from app.core.types import (
     UserRepositoryProtocol,
 )
 from app.models.entities import CollectionAttempt, Deal
-from app.services.channels import ChannelAccessService
+from app.services.channels import ChannelDealService
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class CollectionService:
         users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
         notifications: NotificationGatewayProtocol,
-        channels: ChannelAccessService,
+        channels: ChannelDealService,
     ):
         self._settings = settings
         self._deals = deals

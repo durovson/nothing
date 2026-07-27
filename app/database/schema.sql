@@ -62,6 +62,9 @@ alter table deals add column if not exists channel_title text;
 alter table deals add column if not exists channel_username text;
 alter table deals add column if not exists channel_access_granted_at timestamptz;
 alter table deals add column if not exists channel_access_error text;
+alter table deals add column if not exists channel_owner_verified_at timestamptz;
+alter table deals add column if not exists channel_last_member_status text;
+alter table deals add column if not exists channel_last_checked_at timestamptz;
 
 update deals
 set public_id = substring(md5(id::text || clock_timestamp()::text || random()::text), 1, 10)
@@ -143,6 +146,11 @@ alter table deals add constraint deals_channel_metadata_check check (
 alter table deals drop constraint if exists deals_channel_access_error_length_check;
 alter table deals add constraint deals_channel_access_error_length_check
     check (channel_access_error is null or char_length(channel_access_error) <= 1000);
+alter table deals drop constraint if exists deals_channel_member_status_check;
+alter table deals add constraint deals_channel_member_status_check check (
+    channel_last_member_status is null
+    or channel_last_member_status in ('creator', 'administrator', 'member', 'absent', 'unknown')
+);
 alter table deals drop constraint if exists deals_failure_reason_length_check;
 alter table deals add constraint deals_failure_reason_length_check
     check (failure_reason is null or char_length(failure_reason) <= 1000);
@@ -421,7 +429,7 @@ create index if not exists deals_channel_access_pending_idx
     on deals(id)
     where deal_type = 'channel'
       and status = 'delivery_pending'
-      and channel_access_granted_at is null
+      and channel_owner_verified_at is null
       and buyer_id is not null;
 create index if not exists referrals_referrer_idx on referrals(referrer_id);
 

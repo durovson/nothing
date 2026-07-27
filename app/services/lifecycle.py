@@ -32,6 +32,10 @@ class DealLifecycleService:
         deal = await self._deals.get(deal_id)
         if deal is None:
             raise DealNotFoundError(f"Deal {deal_id} not found")
+        if deal.deal_type is DealType.CHANNEL:
+            raise DealActionForbiddenError(
+                "Channel delivery is confirmed only by Telegram owner status"
+            )
         if deal.creator_id != seller_id or deal.status is not DealStatus.DELIVERY_PENDING:
             raise DealActionForbiddenError("Only the seller can mark an active deal delivered")
         timeout = (
