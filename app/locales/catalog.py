@@ -21,9 +21,14 @@ class TextKey(StrEnum):
     WALLET_INVALID = "wallet_invalid"
     DEAL_CREATE_INTRO = "deal_create_intro"
     DEAL_TYPE_GIFTS = "deal_type_gifts"
+    DEAL_TYPE_OFFER = "deal_type_offer"
     DEAL_TYPE_CHANNEL = "deal_type_channel"
     DEAL_TYPE_ACCOUNT = "deal_type_account"
     DEAL_CHANNEL_WARNING = "deal_channel_warning"
+    DEAL_CHANNEL_INVALID = "deal_channel_invalid"
+    DEAL_CHANNEL_VERIFIED = "deal_channel_verified"
+    DEAL_PAY_BUTTON = "deal_pay_button"
+    DEAL_CHANNEL_JOIN_BUTTON = "deal_channel_join_button"
     DEAL_DESCRIPTION_PROMPT = "deal_description_prompt"
     DEAL_CURRENCY_PROMPT = "deal_currency_prompt"
     DEAL_AMOUNT_PROMPT = "deal_amount_prompt"
@@ -45,6 +50,8 @@ class TextKey(StrEnum):
     DEAL_CARD = "deal_card"
     DEAL_PAID_BUYER = "deal_paid_buyer"
     DEAL_PAID_SELLER = "deal_paid_seller"
+    DEAL_CHANNEL_PAID_BUYER = "deal_channel_paid_buyer"
+    DEAL_CHANNEL_PAID_SELLER = "deal_channel_paid_seller"
     DEAL_RELEASE_ACCEPTED = "deal_release_accepted"
     DEAL_CONFIRMED = "deal_confirmed"
     DEAL_WAIT_WALLET = "deal_wait_wallet"
@@ -91,12 +98,22 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_SAVED: "Кошелек сохранен: {wallet}",
         TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
         TextKey.DEAL_CREATE_INTRO: "Выберите тип сделки.",
-        TextKey.DEAL_TYPE_GIFTS: "Подарки",
+        TextKey.DEAL_TYPE_GIFTS: "Оффер",
+        TextKey.DEAL_TYPE_OFFER: "🤝 Оффер",
         TextKey.DEAL_TYPE_CHANNEL: "Канал",
-        TextKey.DEAL_TYPE_ACCOUNT: "Аккаунт",
-        TextKey.DEAL_CHANNEL_WARNING: "Сделка по каналу.\n\n{warning}\n\nОпишите, что именно передается.",
+        TextKey.DEAL_TYPE_ACCOUNT: "Оффер",
+        TextKey.DEAL_CHANNEL_WARNING: (
+            "📢 Сделка по каналу\n\nДобавьте бота администратором канала и выдайте ему полные права, включая "
+            "приглашение пользователей и назначение администраторов. Затем отправьте @username, ID канала "
+            "или перешлите сообщение из канала.\n\nПосле подтверждённой оплаты бот автоматически выдаст покупателю "
+            "максимальные админ-права и запустит выплату продавцу. Статус владельца продавец передаёт вручную в Telegram."
+        ),
+        TextKey.DEAL_CHANNEL_INVALID: "Канал не прошёл проверку: {reason}\n\nИсправьте права и отправьте канал ещё раз.",
+        TextKey.DEAL_CHANNEL_VERIFIED: "Канал «{title}» проверен.",
+        TextKey.DEAL_PAY_BUTTON: "Оплатить в Tonkeeper",
+        TextKey.DEAL_CHANNEL_JOIN_BUTTON: "📢 Запросить доступ к каналу",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "Укажите описание сделки.\n\nНапример: аккаунт 2018 года, Cap или Telegram-канал с 10k подписчиков."
+            "Укажите описание оффера.\n\nНапример: цифровой товар, подарок, аккаунт или услуга и условия её оказания."
         ),
         TextKey.DEAL_CURRENCY_PROMPT: "Выберите валюту сделки.",
         TextKey.DEAL_AMOUNT_PROMPT: "Введите сумму сделки числом. Например: 5 или 12.5",
@@ -110,9 +127,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Продавец получит: {amount} {currency}\nПокупатель оплатит: {payment_amount} {currency}\n"
             "Escrow-адрес: {wallet_address}\nОбязательный комментарий: {deal_id}\n"
             "Ссылка покупателя: {deep_link}\n\n"
-            "После оплаты у продавца 24 часа на передачу. После отметки передачи у покупателя "
-            "3 часа для подарка или 24 часа для аккаунта/канала на подтверждение либо спор. "
-            "Молчание продавца означает возврат, молчание покупателя — автоматическую выплату. "
+            "Для оффера после оплаты у продавца 24 часа на исполнение, затем у покупателя 24 часа на подтверждение либо спор. "
+            "Для канала бот автоматически выдаёт покупателю админ-доступ и запускает выплату после подтверждения оплаты. "
+            "Передача статуса владельца канала выполняется продавцом вручную. "
+            "Молчание продавца по офферу означает возврат, молчание покупателя — автоматическую выплату. "
             "Комиссия сервиса 1% удерживается при любом исходе; при возврате покупатель получает сумму сделки D."
         ),
         TextKey.DEAL_CANCEL_BUTTON: "Отменить сделку",
@@ -145,6 +163,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Ссылка на транзакцию:\n{transaction_url}\n\n"
             "Передайте товар и нажмите «Товар передан» в карточке сделки."
         ),
+        TextKey.DEAL_CHANNEL_PAID_BUYER: (
+            "Оплата канала подтверждена и удерживается гарантом. Бот проверяет заявку на вступление и выдаёт вам административный доступ."
+        ),
+        TextKey.DEAL_CHANNEL_PAID_SELLER: (
+            "Покупатель оплатил канал. Бот выдаст ему максимальные административные права и после успешной проверки автоматически запустит выплату. "
+            "Статус владельца канала передаётся вами вручную в Telegram.\n\nТранзакция:\n{transaction_url}"
+        ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
             "Получение подтверждено. Выплата продавцу поставлена в очередь; "
             "окончательное уведомление придёт после подтверждения сети TON."
@@ -166,12 +191,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DISPUTE_PROMPT: (
             "Опишите проблему одним сообщением (10–1000 символов). Скриншоты в боте не хранятся; "
-            "при необходимости отправьте их напрямую @not_jammm."
+            "при необходимости отправьте их напрямую в службу поддержки."
         ),
         TextKey.DEAL_DISPUTE_INVALID: "Описание должно содержать от 10 до 1000 символов.",
         TextKey.DEAL_DISPUTE_CREATED: (
             "Спорный тикет создан. Средства заморожены у гаранта. "
-            "Для разбора напишите @not_jammm и укажите ID сделки."
+            "Для разбора напишите в службу поддержки и укажите ID сделки."
         ),
         TextKey.DEAL_REFUNDED: "Возврат покупателю подтверждён сетью TON.",
         TextKey.SETTINGS_CAPTION: "Настройки",
@@ -213,12 +238,22 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_SAVED: "Wallet saved: {wallet}",
         TextKey.WALLET_INVALID: "This does not look like a TON address. Please try again.",
         TextKey.DEAL_CREATE_INTRO: "Choose the deal type.",
-        TextKey.DEAL_TYPE_GIFTS: "Gifts",
+        TextKey.DEAL_TYPE_GIFTS: "Offer",
+        TextKey.DEAL_TYPE_OFFER: "🤝 Offer",
         TextKey.DEAL_TYPE_CHANNEL: "Channel",
-        TextKey.DEAL_TYPE_ACCOUNT: "Account",
-        TextKey.DEAL_CHANNEL_WARNING: "Channel deal.\n\n{warning}\n\nDescribe what exactly is being transferred.",
+        TextKey.DEAL_TYPE_ACCOUNT: "Offer",
+        TextKey.DEAL_CHANNEL_WARNING: (
+            "📢 Channel deal\n\nAdd the bot as a channel administrator with full rights, including inviting users "
+            "and promoting administrators. Then send the @username, numeric channel ID, or forward a channel message.\n\n"
+            "After confirmed payment the bot grants the buyer the maximum administrator rights and queues the seller payout. "
+            "The seller transfers Telegram ownership manually."
+        ),
+        TextKey.DEAL_CHANNEL_INVALID: "Channel validation failed: {reason}\n\nFix the permissions and send the channel again.",
+        TextKey.DEAL_CHANNEL_VERIFIED: "Channel “{title}” verified.",
+        TextKey.DEAL_PAY_BUTTON: "Pay in Tonkeeper",
+        TextKey.DEAL_CHANNEL_JOIN_BUTTON: "📢 Request channel access",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "Describe what is being transferred.\n\nExample: 2018 Telegram account or a 10k subscriber channel."
+            "Describe the offer.\n\nExample: a digital item, gift, account, service, and its delivery terms."
         ),
         TextKey.DEAL_CURRENCY_PROMPT: "Choose the deal currency.",
         TextKey.DEAL_AMOUNT_PROMPT: "Enter the amount as a number. Example: 5 or 12.5",
@@ -231,8 +266,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Deal #{deal_id} created.\n\nType: {deal_type}\nDescription: {description}\n"
             "Seller receives: {amount} {currency}\nBuyer pays: {payment_amount} {currency}\n"
             "Escrow address: {wallet_address}\nRequired comment: {deal_id}\nBuyer link: {deep_link}\n\n"
-            "The seller has 24 hours after payment to deliver. The buyer then has 3 hours for a gift "
-            "or 24 hours for an account/channel to confirm or dispute. Seller silence means refund; "
+            "For an offer, the seller has 24 hours after payment to deliver and the buyer has 24 hours to confirm or dispute. "
+            "For a channel, the bot grants administrator access and queues payout automatically after confirmed payment; "
+            "the seller transfers Telegram ownership manually. Seller silence means refund; "
             "buyer silence after delivery means automatic release. The 1% service fee is retained in every outcome; "
             "a refund returns the deal principal D."
         ),
@@ -265,6 +301,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Transaction:\n{transaction_url}\n\n"
             "Transfer the item and press ‘Item delivered’ in the deal card."
         ),
+        TextKey.DEAL_CHANNEL_PAID_BUYER: (
+            "Channel payment is confirmed and held by the guarant. The bot is checking your join request and will grant administrator access."
+        ),
+        TextKey.DEAL_CHANNEL_PAID_SELLER: (
+            "The buyer paid for the channel. The bot will grant maximum administrator rights and automatically queue payout after verification. "
+            "You transfer Telegram ownership manually.\n\nTransaction:\n{transaction_url}"
+        ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
             "Receipt confirmed. The seller payout was queued; "
             "a final notification will arrive after TON network confirmation."
@@ -285,12 +328,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DISPUTE_PROMPT: (
             "Describe the problem in one message (10–1000 characters). Screenshots are not stored by "
-            "the bot; send them directly to @not_jammm if needed."
+            "the bot; send them directly to support if needed."
         ),
         TextKey.DEAL_DISPUTE_INVALID: "Description must contain 10 to 1000 characters.",
         TextKey.DEAL_DISPUTE_CREATED: (
             "Dispute ticket created. Funds are frozen with the guarant. "
-            "Contact @not_jammm and include the deal ID."
+            "Contact support and include the deal ID."
         ),
         TextKey.DEAL_REFUNDED: "The TON network confirmed the buyer refund.",
         TextKey.SETTINGS_CAPTION: "Settings",

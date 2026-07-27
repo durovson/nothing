@@ -12,6 +12,7 @@ from app.services.refunds import RefundService
 from app.services.users import UserService
 from app.services.wallets import WalletService
 from app.services.admin import AdminService
+from app.services.channels import ChannelAccessService
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class Services:
     lifecycle: DealLifecycleService
     refunds: RefundService
     admin: AdminService
+    channels: ChannelAccessService
 
 
 __all__ = [
@@ -40,4 +42,5 @@ __all__ = [
     "UserService",
     "WalletService",
     "AdminService",
+    "ChannelAccessService",
 ]

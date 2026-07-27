@@ -22,7 +22,7 @@ create table if not exists deals (
     wallet_version text not null default 'v5r1',
     creator_id bigint not null references users(telegram_id) on delete cascade,
     buyer_id bigint references users(telegram_id) on delete set null,
-    deal_type text not null check (deal_type in ('gifts', 'channel', 'account')),
+    deal_type text not null check (deal_type in ('offer', 'gifts', 'channel', 'account')),
     description text not null,
     currency text not null check (currency in ('TON', 'USDT')),
     amount numeric(36, 9) not null check (amount > 0),
@@ -57,6 +57,11 @@ alter table deals add column if not exists inspection_deadline_at timestamptz;
 alter table deals add column if not exists resolution text;
 alter table deals add column if not exists resolution_reason text;
 alter table deals add column if not exists updated_at timestamptz not null default timezone('utc', now());
+alter table deals add column if not exists channel_id bigint;
+alter table deals add column if not exists channel_title text;
+alter table deals add column if not exists channel_username text;
+alter table deals add column if not exists channel_access_granted_at timestamptz;
+alter table deals add column if not exists channel_access_error text;
 
 update deals
 set public_id = substring(md5(id::text || clock_timestamp()::text || random()::text), 1, 10)
@@ -127,6 +132,17 @@ alter table deals add constraint deals_public_id_format_check
 alter table deals drop constraint if exists deals_description_length_check;
 alter table deals add constraint deals_description_length_check
     check (char_length(btrim(description)) between 1 and 2000);
+alter table deals drop constraint if exists deals_deal_type_check;
+alter table deals add constraint deals_deal_type_check
+    check (deal_type in ('offer', 'gifts', 'channel', 'account'));
+alter table deals drop constraint if exists deals_channel_metadata_check;
+alter table deals add constraint deals_channel_metadata_check check (
+    deal_type <> 'channel'
+    or (channel_id is not null and nullif(btrim(channel_title), '') is not null)
+) not valid;
+alter table deals drop constraint if exists deals_channel_access_error_length_check;
+alter table deals add constraint deals_channel_access_error_length_check
+    check (channel_access_error is null or char_length(channel_access_error) <= 1000);
 alter table deals drop constraint if exists deals_failure_reason_length_check;
 alter table deals add constraint deals_failure_reason_length_check
     check (failure_reason is null or char_length(failure_reason) <= 1000);

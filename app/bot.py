@@ -26,6 +26,7 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher["payout_service"] = services.payouts
     dispatcher["lifecycle_service"] = services.lifecycle
     dispatcher["admin_service"] = services.admin
+    dispatcher["channel_service"] = services.channels
     dispatcher.include_router(create_router())
     return dispatcher
 

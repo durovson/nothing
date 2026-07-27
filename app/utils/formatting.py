@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.core.enums import Currency
+from app.core.enums import Currency, DealType, Language
 
 
 def format_amount(amount: Decimal) -> str:
@@ -14,3 +14,10 @@ def format_amount(amount: Decimal) -> str:
 def currency_label(currency: Currency | str) -> str:
     normalized = Currency(currency)
     return "GRAM" if normalized is Currency.TON else normalized.value
+
+
+def deal_type_label(deal_type: DealType | str, locale: Language = Language.RU) -> str:
+    normalized = DealType(deal_type)
+    if normalized is DealType.CHANNEL:
+        return "Канал" if locale is Language.RU else "Channel"
+    return "Оффер" if locale is Language.RU else "Offer"

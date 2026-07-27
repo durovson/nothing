@@ -11,6 +11,7 @@ class MenuAction(StrEnum):
     CREATE_DEAL = "create"
     DEALS = "deals"
     SETTINGS = "settings"
+    REFERRALS = "referrals"
 
 
 class WalletAction(StrEnum):

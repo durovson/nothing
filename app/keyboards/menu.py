@@ -14,6 +14,9 @@ def main_menu(locale: Language) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"💼 {translate(locale, TextKey.MENU_CREATE_DEAL)}", callback_data=MenuCallback(action=MenuAction.CREATE_DEAL).pack())],
             [
                 InlineKeyboardButton(text=f"📋 {translate(locale, TextKey.MENU_MY_DEALS)}", callback_data=MenuCallback(action=MenuAction.DEALS).pack()),
+            ],
+            [
+                InlineKeyboardButton(text=f"👥 {translate(locale, TextKey.SETTINGS_REFERRALS)}", callback_data=MenuCallback(action=MenuAction.REFERRALS).pack()),
                 InlineKeyboardButton(text=f"⚙️ {translate(locale, TextKey.MENU_SETTINGS)}", callback_data=MenuCallback(action=MenuAction.SETTINGS).pack()),
             ],
         ]

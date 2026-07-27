@@ -9,10 +9,16 @@ def admin_menu(maintenance_enabled: bool) -> InlineKeyboardMarkup:
     maintenance = "Выключить техперерыв" if maintenance_enabled else "Включить техперерыв"
     action = AdminAction.MAINTENANCE_OFF if maintenance_enabled else AdminAction.MAINTENANCE_ON
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Споры", callback_data=AdminCallback(action=AdminAction.DISPUTES).pack())],
-        [InlineKeyboardButton(text="Рассылка", callback_data=AdminCallback(action=AdminAction.BROADCAST).pack())],
-        [InlineKeyboardButton(text=maintenance, callback_data=AdminCallback(action=action).pack())],
+        [InlineKeyboardButton(text="⚖️ Споры", callback_data=AdminCallback(action=AdminAction.DISPUTES).pack())],
+        [InlineKeyboardButton(text="📣 Рассылка", callback_data=AdminCallback(action=AdminAction.BROADCAST).pack())],
+        [InlineKeyboardButton(text=f"🛠 {maintenance}", callback_data=AdminCallback(action=action).pack())],
     ])
+
+
+def admin_back() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="⬅️ Админ-меню", callback_data=AdminCallback(action=AdminAction.BACK).pack())
+    ]])
 
 
 def admin_disputes(items: list[DisputeTicket], page: int, has_next: bool) -> InlineKeyboardMarkup:
@@ -37,7 +43,7 @@ def admin_disputes(items: list[DisputeTicket], page: int, has_next: bool) -> Inl
             ).pack()
         ))
     rows.append(navigation)
-    rows.append([InlineKeyboardButton(text="Админ-меню", callback_data=AdminCallback(action=AdminAction.BACK).pack())])
+    rows.append([InlineKeyboardButton(text="⬅️ Админ-меню", callback_data=AdminCallback(action=AdminAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

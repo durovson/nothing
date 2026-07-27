@@ -17,7 +17,6 @@ from app.locales import TextKey, translate
 def settings_keyboard(locale: Language) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=translate(locale, TextKey.SETTINGS_REFERRALS), callback_data=SettingsCallback(action=SettingsAction.REFERRALS).pack())],
             [InlineKeyboardButton(text=translate(locale, TextKey.SETTINGS_LANGUAGE), callback_data=SettingsCallback(action=SettingsAction.LANGUAGE).pack())],
             [InlineKeyboardButton(text=translate(locale, TextKey.SETTINGS_SUPPORT), callback_data=SettingsCallback(action=SettingsAction.SUPPORT).pack())],
             [InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
@@ -45,5 +44,5 @@ def referral_keyboard(locale: Language, ton_available: bool, usdt_available: boo
     if usdt_available:
         label = "💵 Вывести USDT" if locale is Language.RU else "💵 Withdraw USDT"
         rows.append([InlineKeyboardButton(text=label, callback_data=ReferralCallback(action=ReferralAction.WITHDRAW, currency=Currency.USDT).pack())])
-    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=SettingsCallback(action=SettingsAction.BACK).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)

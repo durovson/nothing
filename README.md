@@ -39,6 +39,16 @@ deal creation, deal list, settings and referrals edit that same card instead of 
 message. Telegram input prompts and asynchronous deal/payment notifications remain separate.
 The common image is bundled in `app/assets/menu.png`, so Render does not depend on an external CDN.
 
+The creation screen has two business types: **Offer** and **Channel**. Offer is universal and
+covers gifts, accounts, digital goods, and services; legacy `gifts`/`account` database rows remain
+readable but are displayed as Offer. This avoids splitting identical escrow logic into cosmetic types.
+
+For a channel deal, the seller must own the channel and grant the bot all administrator rights.
+The buyer requests access before or after payment. Once custody is confirmed, the bot approves the
+request, grants the maximum administrator rights available through the Telegram Bot API, and only
+then requests the seller payout. Telegram does not allow a bot to transfer channel ownership: the
+seller must perform the final owner transfer manually (including Telegram's own 2FA requirements).
+
 ## Referral program
 
 The referral policy is compiled into `app/core/constants.py`: the referral pool is 10% of the

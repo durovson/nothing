@@ -37,6 +37,7 @@ class WalletVersion(StrEnum):
 
 
 class DealType(StrEnum):
+    OFFER = "offer"
     GIFTS = "gifts"
     CHANNEL = "channel"
     ACCOUNT = "account"

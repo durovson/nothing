@@ -11,6 +11,7 @@ from app.services.payments import PaymentService
 from app.services.payouts import PayoutService
 from app.services.refunds import RefundService
 from app.services.referrals import ReferralService
+from app.services.channels import ChannelAccessService
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class DealMonitor:
         refunds: RefundService,
         payouts: PayoutService,
         referrals: ReferralService,
+        channels: ChannelAccessService,
     ):
         self._settings = settings
         self._deals = deals
@@ -37,6 +39,7 @@ class DealMonitor:
         self._refunds = refunds
         self._payouts = payouts
         self._referrals = referrals
+        self._channels = channels
         self._stop_event = asyncio.Event()
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -87,6 +90,7 @@ class DealMonitor:
     async def _lifecycle_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
+                await self._channels.process_pending()
                 await self._lifecycle.process_deadlines()
             except Exception:
                 logger.exception("Deal lifecycle iteration failed")

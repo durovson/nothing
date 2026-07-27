@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from aiogram import Bot
 
-from app.core.enums import TonNetwork
+from app.core.enums import DealType, TonNetwork
 from app.locales import TextKey, translate
 from app.models.entities import Deal, User
 
@@ -21,6 +21,16 @@ class TelegramNotificationGateway:
         buyer: User | None,
         seller: User | None,
     ) -> None:
+        if deal.deal_type is DealType.CHANNEL:
+            if buyer:
+                await self._send(buyer, TextKey.DEAL_CHANNEL_PAID_BUYER)
+            if seller:
+                await self._send(
+                    seller,
+                    TextKey.DEAL_CHANNEL_PAID_SELLER,
+                    transaction_url=self._transaction_url(deal),
+                )
+            return
         if buyer:
             await self._send(buyer, TextKey.DEAL_PAID_BUYER)
         if seller:

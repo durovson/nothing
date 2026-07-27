@@ -20,10 +20,9 @@ def deal_type_keyboard(locale: Language) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_GIFTS), callback_data=DealTypeCallback(deal_type=DealType.GIFTS).pack()),
+                InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_OFFER), callback_data=DealTypeCallback(deal_type=DealType.OFFER).pack()),
                 InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_CHANNEL), callback_data=DealTypeCallback(deal_type=DealType.CHANNEL).pack()),
             ],
-            [InlineKeyboardButton(text=translate(locale, TextKey.DEAL_TYPE_ACCOUNT), callback_data=DealTypeCallback(deal_type=DealType.ACCOUNT).pack())],
             [InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
         ]
     )
@@ -44,10 +43,18 @@ def back_keyboard(locale: Language) -> InlineKeyboardMarkup:
     ]])
 
 
-def payment_keyboard(payment_url: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Оплатить в Tonkeeper", url=payment_url)]
-    ])
+def payment_keyboard(
+    locale: Language,
+    payment_url: str,
+    channel_invite_url: str | None = None,
+) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text=translate(locale, TextKey.DEAL_PAY_BUTTON), url=payment_url)]]
+    if channel_invite_url:
+        rows.insert(0, [InlineKeyboardButton(
+            text=translate(locale, TextKey.DEAL_CHANNEL_JOIN_BUTTON),
+            url=channel_invite_url,
+        )])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def created_deal_actions(locale: Language, deal_id: int) -> InlineKeyboardMarkup:
@@ -79,7 +86,7 @@ def deal_actions(locale: Language, deal: Deal, viewer_id: int) -> InlineKeyboard
     rows: list[list[InlineKeyboardButton]] = []
     if deal.creator_id == viewer_id and deal.status is DealStatus.PENDING:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CANCEL_BUTTON), callback_data=DealCallback(action=DealAction.CANCEL, deal_id=deal.id).pack())])
-    if deal.creator_id == viewer_id and deal.status is DealStatus.DELIVERY_PENDING:
+    if deal.creator_id == viewer_id and deal.status is DealStatus.DELIVERY_PENDING and deal.deal_type is not DealType.CHANNEL:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DELIVER_BUTTON), callback_data=DealCallback(action=DealAction.DELIVER, deal_id=deal.id).pack())])
     if deal.buyer_id == viewer_id and deal.status is DealStatus.DELIVERED:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CONFIRM_BUTTON), callback_data=DealCallback(action=DealAction.CONFIRM, deal_id=deal.id).pack())])

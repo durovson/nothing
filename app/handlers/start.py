@@ -10,7 +10,8 @@ from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
 from app.services.referrals import ReferralService
-from app.utils import currency_label, format_amount, render_menu
+from app.services.channels import ChannelAccessService
+from app.utils import currency_label, deal_type_label, format_amount, render_menu
 
 router = Router(name="start")
 
@@ -24,6 +25,7 @@ async def start_with_args(
     referral_service: ReferralService,
     settings: Settings,
     state: FSMContext,
+    channel_service: ChannelAccessService,
 ) -> None:
     await state.clear()
     argument = (command.args or "").strip()
@@ -46,18 +48,26 @@ async def start_with_args(
                 reply_markup=main_menu(db_user.language),
             )
             return
+        try:
+            channel_invite = await channel_service.buyer_join_link(deal)
+        except Exception:
+            channel_invite = None
         await message.answer(
             translate(
                 db_user.language,
                 TextKey.DEAL_JOINED,
                 deal_id=deal.public_id,
-                deal_type=deal.deal_type.value,
+                deal_type=deal_type_label(deal.deal_type, db_user.language),
                 description=deal.description,
                 amount=format_amount(deal_service.buyer_payment_amount(deal)),
                 currency=currency_label(deal.currency),
                 wallet_address=deal.wallet_address or "-",
             ),
-            reply_markup=payment_keyboard(deal_service.tonkeeper_payment_link(deal)),
+            reply_markup=payment_keyboard(
+                db_user.language,
+                deal_service.tonkeeper_payment_link(deal),
+                channel_invite,
+            ),
         )
         await show_main_menu(message, db_user, settings)
         return

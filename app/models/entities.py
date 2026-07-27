@@ -37,6 +37,11 @@ class Deal(BaseModel):
     description: str
     currency: Currency
     amount: Decimal
+    channel_id: int | None = None
+    channel_title: str | None = None
+    channel_username: str | None = None
+    channel_access_granted_at: datetime | None = None
+    channel_access_error: str | None = None
     status: DealStatus
     wallet_address: str | None = None
     paid_tx_hash: str | None = None

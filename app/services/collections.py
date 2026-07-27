@@ -14,6 +14,7 @@ from app.core.types import (
     UserRepositoryProtocol,
 )
 from app.models.entities import CollectionAttempt, Deal
+from app.services.channels import ChannelAccessService
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class CollectionService:
         users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
         notifications: NotificationGatewayProtocol,
+        channels: ChannelAccessService,
     ):
         self._settings = settings
         self._deals = deals
@@ -34,6 +36,7 @@ class CollectionService:
         self._users = users
         self._ton = ton
         self._notifications = notifications
+        self._channels = channels
 
     async def start_collection(self, deal: Deal) -> None:
         if deal.currency is Currency.USDT:
@@ -45,6 +48,7 @@ class CollectionService:
                 seller = await self._users.get(direct.creator_id)
                 buyer = await self._users.get(direct.buyer_id) if direct.buyer_id else None
                 await self._notifications.payment_received(direct, buyer, seller)
+                await self._channels.process_paid(direct)
             return
         comment = f"Escrow for deal {deal.public_id}"
         attempt = await self._collections.claim(
@@ -120,6 +124,7 @@ class CollectionService:
                     seller = await self._users.get(deal.creator_id)
                     buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
                     await self._notifications.payment_received(deal, buyer, seller)
+                    await self._channels.process_paid(deal)
             case TraceStatus.BOUNCED:
                 await self._collections.mark_bounced(attempt.id, "Collection transfer bounced")
             case TraceStatus.FAILED:

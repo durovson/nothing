@@ -9,11 +9,11 @@ from aiogram.fsm.context import FSMContext
 from app.core.constants import BROADCAST_BATCH_SIZE, BROADCAST_DELAY_SECONDS
 from app.core.enums import AdminAction, AdminDisputeAction
 from app.core.exceptions import ApplicationError
-from app.keyboards.admin import admin_dispute_actions, admin_disputes, admin_menu
+from app.keyboards.admin import admin_back, admin_dispute_actions, admin_disputes, admin_menu
 from app.keyboards.callbacks import AdminCallback, AdminDisputeCallback
 from app.services.admin import AdminService
 from app.states.forms import AdminStates
-from app.utils import currency_label, format_amount
+from app.utils import currency_label, format_amount, render_menu
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin")
@@ -22,7 +22,12 @@ router = Router(name="admin")
 async def _show_menu(message: types.Message, actor_id: int, service: AdminService) -> None:
     service.require_admin(actor_id)
     settings = await service.maintenance(force=True)
-    await message.answer("Панель администратора", reply_markup=admin_menu(settings.maintenance_enabled))
+    status = "включён" if settings.maintenance_enabled else "выключен"
+    await render_menu(
+        message,
+        f"🛡 Панель администратора\n\nТехнический перерыв: {status}",
+        admin_menu(settings.maintenance_enabled),
+    )
 
 
 @router.message(Command("admin"))
@@ -32,7 +37,12 @@ async def open_admin(message: types.Message, admin_service: AdminService) -> Non
 
 
 @router.callback_query(AdminCallback.filter(F.action == AdminAction.BACK))
-async def back(callback: types.CallbackQuery, admin_service: AdminService) -> None:
+async def back(
+    callback: types.CallbackQuery,
+    admin_service: AdminService,
+    state: FSMContext,
+) -> None:
+    await state.clear()
     if callback.message and callback.from_user:
         await _show_menu(callback.message, callback.from_user.id, admin_service)
     await callback.answer()
@@ -40,7 +50,11 @@ async def back(callback: types.CallbackQuery, admin_service: AdminService) -> No
 
 async def _show_disputes(message: types.Message, actor_id: int, page: int, service: AdminService) -> None:
     items, has_next = await service.list_disputes(actor_id, page)
-    await message.answer("Споры (сначала открытые):", reply_markup=admin_disputes(items, page, has_next))
+    await render_menu(
+        message,
+        "⚖️ Споры\n\nСначала отображаются открытые тикеты.",
+        admin_disputes(items, page, has_next),
+    )
 
 
 @router.callback_query(AdminCallback.filter(F.action == AdminAction.DISPUTES))
@@ -58,11 +72,11 @@ async def dispute_open(callback: types.CallbackQuery, callback_data: AdminDisput
         await _show_disputes(callback.message, callback.from_user.id, callback_data.page, admin_service)
     else:
         ticket, deal = await admin_service.dispute_card(callback.from_user.id, callback_data.ticket_id)
-        await callback.message.answer(
+        await render_menu(callback.message,
             f"Тикет #{ticket.id}\nСделка: #{deal.public_id} ({deal.id})\nСтатус: {ticket.status.value}\n"
             f"Открыл: {ticket.opened_by}\nПродавец: {deal.creator_id}\nПокупатель: {deal.buyer_id}\n"
             f"Сумма: {format_amount(deal.amount)} {currency_label(deal.currency)}\n\n{ticket.description}",
-            reply_markup=admin_dispute_actions(ticket, callback_data.page),
+            admin_dispute_actions(ticket, callback_data.page),
         )
     await callback.answer()
 
@@ -73,7 +87,7 @@ async def begin_resolution(callback: types.CallbackQuery, callback_data: AdminDi
     await state.set_state(AdminStates.waiting_for_resolution_reason)
     await state.update_data(ticket_id=callback_data.ticket_id, resolution_action=callback_data.action.value)
     if callback.message:
-        await callback.message.answer("Введите причину решения (3–1000 символов).")
+        await render_menu(callback.message, "Введите причину решения (3–1000 символов).", admin_back())
     await callback.answer()
 
 
@@ -101,7 +115,7 @@ async def begin_broadcast(callback: types.CallbackQuery, state: FSMContext, admi
     admin_service.require_admin(callback.from_user.id)
     await state.set_state(AdminStates.waiting_for_broadcast)
     if callback.message:
-        await callback.message.answer("Отправьте одно сообщение для рассылки. Поддерживается любой тип контента Telegram.")
+        await render_menu(callback.message, "📣 Отправьте одно сообщение для рассылки.\n\nПоддерживается любой тип контента Telegram.", admin_back())
     await callback.answer()
 
 
@@ -137,7 +151,7 @@ async def maintenance_prompt(callback: types.CallbackQuery, state: FSMContext, a
     admin_service.require_admin(callback.from_user.id)
     await state.set_state(AdminStates.waiting_for_maintenance_message)
     if callback.message:
-        await callback.message.answer("Введите объявление о техническом перерыве. Оно будет показано всем не-админам.")
+        await render_menu(callback.message, "🛠 Введите объявление о техническом перерыве.\n\nОно будет показано всем пользователям, кроме администраторов.", admin_back())
     await callback.answer()
 
 
@@ -159,7 +173,7 @@ async def maintenance_on(message: types.Message, state: FSMContext, admin_servic
 async def maintenance_off(callback: types.CallbackQuery, admin_service: AdminService) -> None:
     await admin_service.set_maintenance(callback.from_user.id, False)
     if callback.message:
-        await callback.message.answer("Технический перерыв выключен.")
+        await _show_menu(callback.message, callback.from_user.id, admin_service)
     await callback.answer()
 
 

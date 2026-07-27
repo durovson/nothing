@@ -281,4 +281,35 @@ begin
 end;
 $$;
 
+create or replace function mark_channel_access_granted(p_deal_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals set
+        channel_access_granted_at = coalesce(channel_access_granted_at, timezone('utc', now())),
+        channel_access_error = null,
+        updated_at = timezone('utc', now())
+    where id = p_deal_id and deal_type = 'channel'
+      and status = 'delivery_pending' and buyer_id is not null
+    returning *;
+end;
+$$;
+
+create or replace function request_channel_release_after_access(p_deal_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals set
+        status = 'release_requested',
+        updated_at = timezone('utc', now())
+    where id = p_deal_id and deal_type = 'channel'
+      and status = 'delivery_pending'
+      and channel_access_granted_at is not null
+      and buyer_id is not null
+    returning *;
+end;
+$$;
+
 commit;

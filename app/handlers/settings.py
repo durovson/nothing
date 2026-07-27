@@ -89,6 +89,7 @@ async def support_info(
     await callback.answer()
 
 
+@router.callback_query(MenuCallback.filter(F.action == MenuAction.REFERRALS))
 @router.callback_query(SettingsCallback.filter(F.action == SettingsAction.REFERRALS))
 async def referral_info(
     callback: types.CallbackQuery,

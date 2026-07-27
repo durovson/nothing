@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.core.enums import Currency, DealType, Language
-from app.core.exceptions import DealAmountTooSmallError, MissingLinkedWalletError
+from app.core.exceptions import ChannelConfigurationError, DealAmountTooSmallError, MissingLinkedWalletError
 from app.keyboards import (
     CurrencyCallback,
     back_keyboard,
@@ -19,8 +19,9 @@ from app.keyboards import (
 from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.deals import DealService
+from app.services.channels import ChannelAccessService
 from app.states import DealCreationStates
-from app.utils import currency_label, format_amount, remember_menu, render_menu, render_stored_menu
+from app.utils import currency_label, deal_type_label, format_amount, remember_menu, render_menu, render_stored_menu
 from app.keyboards.callbacks import MenuAction
 
 router = Router(name="deal-creation")
@@ -65,23 +66,64 @@ async def choose_deal_type(
     callback: types.CallbackQuery,
     callback_data: DealTypeCallback,
     db_user: User,
-    settings: Settings,
     state: FSMContext,
 ) -> None:
     await state.update_data(deal_type=callback_data.deal_type.value)
-    await state.set_state(DealCreationStates.waiting_for_description)
     if callback.message:
         if callback_data.deal_type is DealType.CHANNEL:
+            await state.set_state(DealCreationStates.waiting_for_channel)
             await render_menu(callback.message,
-                translate(
-                    db_user.language,
-                    TextKey.DEAL_CHANNEL_WARNING,
-                    warning=settings.CHANNEL_PASSWORD_WARNING,
-                ), back_keyboard(db_user.language)
+                translate(db_user.language, TextKey.DEAL_CHANNEL_WARNING),
+                back_keyboard(db_user.language)
             )
         else:
+            await state.set_state(DealCreationStates.waiting_for_description)
             await render_menu(callback.message, translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT), back_keyboard(db_user.language))
     await callback.answer()
+
+
+@router.message(DealCreationStates.waiting_for_channel)
+async def handle_channel(
+    message: types.Message,
+    db_user: User,
+    channel_service: ChannelAccessService,
+    state: FSMContext,
+) -> None:
+    origin_chat = getattr(message.forward_origin, "chat", None)
+    raw_reference = origin_chat.id if origin_chat else (message.text or "").strip()
+    reference: int | str
+    try:
+        reference = int(raw_reference) if str(raw_reference).lstrip("-").isdigit() else str(raw_reference)
+        if not reference:
+            raise ValueError
+        descriptor = await channel_service.validate_for_sale(reference, db_user.telegram_id)
+    except (ChannelConfigurationError, ValueError) as exc:
+        reason = str(exc) if str(exc) else "invalid channel reference"
+        await render_stored_menu(
+            message,
+            state,
+            translate(db_user.language, TextKey.DEAL_CHANNEL_INVALID, reason=reason),
+            back_keyboard(db_user.language),
+        )
+        return
+    await state.update_data(
+        channel_id=descriptor.channel_id,
+        channel_title=descriptor.title,
+        channel_username=descriptor.username,
+    )
+    await state.set_state(DealCreationStates.waiting_for_description)
+    await render_stored_menu(
+        message,
+        state,
+        translate(
+            db_user.language,
+            TextKey.DEAL_CHANNEL_VERIFIED,
+            title=descriptor.title,
+        )
+        + "\n\n"
+        + translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT),
+        back_keyboard(db_user.language),
+    )
 
 
 @router.message(DealCreationStates.waiting_for_description)
@@ -142,6 +184,9 @@ async def handle_amount(
             description=str(data["description"]),
             currency=Currency(data["currency"]),
             amount=amount,
+            channel_id=int(data["channel_id"]) if data.get("channel_id") is not None else None,
+            channel_title=str(data["channel_title"]) if data.get("channel_title") else None,
+            channel_username=str(data["channel_username"]) if data.get("channel_username") else None,
         )
     except DealAmountTooSmallError as exc:
         await render_stored_menu(message, state,
@@ -170,7 +215,7 @@ async def handle_amount(
             db_user.language,
             TextKey.DEAL_CREATED,
             deal_id=deal.public_id,
-            deal_type=deal.deal_type.value,
+            deal_type=deal_type_label(deal.deal_type, db_user.language),
             description=deal.description,
             amount=format_amount(deal.amount),
             payment_amount=format_amount(deal_service.buyer_payment_amount(deal)),

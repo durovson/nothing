@@ -46,3 +46,7 @@ class InsufficientPayoutReserveError(ApplicationError):
 
 class ReferralWithdrawalError(ApplicationError):
     pass
+
+
+class ChannelConfigurationError(ApplicationError):
+    pass

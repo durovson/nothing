@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher
 
 from app.api.keepalive import RenderKeepAlive
 from app.api.telegram_notifier import TelegramNotificationGateway
+from app.api.channel_gateway import TelegramChannelGateway
 from app.bot import create_dispatcher
 from app.config import Settings, get_settings
 from app.database import SupabaseDatabase
@@ -22,6 +23,7 @@ from app.services import (
     UserService,
     WalletService,
     AdminService,
+    ChannelAccessService,
 )
 from app.tasks import DealMonitor
 from app.ton import TonEscrowClient
@@ -47,10 +49,12 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     repositories = Repositories.build(database)
     ton = TonEscrowClient(app_settings)
     notifications = TelegramNotificationGateway(bot, app_settings.TON_NETWORK)
+    channel_gateway = TelegramChannelGateway(bot)
 
     users = UserService(repositories.users)
     wallets = WalletService(repositories.users, ton)
     referrals = ReferralService(app_settings, repositories.referrals, ton)
+    channels = ChannelAccessService(repositories.deals, repositories.users, channel_gateway)
     deals = DealService(app_settings, repositories.deals, repositories.users, ton)
     payouts = PayoutService(
         app_settings,
@@ -69,6 +73,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         repositories.users,
         ton,
         notifications,
+        channels,
     )
     lifecycle = DealLifecycleService(
         repositories.deals,
@@ -103,6 +108,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         lifecycle=lifecycle,
         refunds=refunds,
         admin=admin,
+        channels=channels,
     )
     dispatcher = create_dispatcher(app_settings, services)
     monitor = DealMonitor(
@@ -114,6 +120,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         refunds,
         payouts,
         referrals,
+        channels,
     )
     keepalive = RenderKeepAlive(app_settings)
     return AppContainer(

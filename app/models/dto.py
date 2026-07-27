@@ -13,6 +13,15 @@ class CreateDealCommand(BaseModel):
     description: str = Field(min_length=1, max_length=2_000)
     currency: Currency
     amount: Decimal = Field(gt=Decimal("0"))
+    channel_id: int | None = None
+    channel_title: str | None = Field(default=None, max_length=255)
+    channel_username: str | None = Field(default=None, max_length=64)
+
+
+class ChannelDescriptor(BaseModel):
+    channel_id: int
+    title: str = Field(min_length=1, max_length=255)
+    username: str | None = Field(default=None, max_length=64)
 
 
 class PaymentObservation(BaseModel):

@@ -12,6 +12,7 @@ from app.core.exceptions import (
     DealAmountTooSmallError,
     DealNotFoundError,
     MissingLinkedWalletError,
+    ChannelConfigurationError,
 )
 from app.core.types import DealRepositoryProtocol, TonGatewayProtocol, UserRepositoryProtocol
 from app.models.dto import CreateDealCommand
@@ -41,7 +42,16 @@ class DealService:
         description: str,
         currency: Currency,
         amount: Decimal,
+        channel_id: int | None = None,
+        channel_title: str | None = None,
+        channel_username: str | None = None,
     ) -> Deal:
+        if deal_type is DealType.CHANNEL and (channel_id is None or not channel_title):
+            raise ChannelConfigurationError("Channel deal requires a verified channel")
+        if deal_type is not DealType.CHANNEL:
+            channel_id = None
+            channel_title = None
+            channel_username = None
         creator = await self._users.get(creator_id)
         if not creator or not creator.wallet_address:
             raise MissingLinkedWalletError("Seller must link a wallet before creating a deal")
@@ -55,6 +65,9 @@ class DealService:
             description=description.strip(),
             currency=currency,
             amount=amount,
+            channel_id=channel_id,
+            channel_title=channel_title,
+            channel_username=channel_username,
         )
         deal = await self._deals.create(command)
         try:

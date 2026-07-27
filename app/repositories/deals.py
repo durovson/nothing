@@ -31,6 +31,9 @@ class DealRepository:
                     "description": command.description,
                     "currency": command.currency.value,
                     "amount": str(command.amount),
+                    "channel_id": command.channel_id,
+                    "channel_title": command.channel_title,
+                    "channel_username": command.channel_username,
                     "status": DealStatus.CREATING.value,
                 }
             )
@@ -266,3 +269,36 @@ class DealRepository:
         if isinstance(response.data, list):
             return int(response.data[0]) if response.data else 0
         return int(response.data or 0)
+
+    async def list_channel_access_pending(self) -> list[Deal]:
+        response = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("deal_type", "channel")
+            .eq("status", DealStatus.DELIVERY_PENDING.value)
+            .is_("channel_access_granted_at", "null")
+            .not_.is_("buyer_id", "null")
+            .order("id")
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
+    async def mark_channel_access_granted(self, deal_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "mark_channel_access_granted", {"p_deal_id": deal_id}
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def record_channel_access_error(self, deal_id: int, error: str) -> None:
+        await self._database.run(
+            lambda: self._database.client.table("deals").update({
+                "channel_access_error": error[:1000],
+                "updated_at": datetime.now(UTC).isoformat(),
+            }).eq("id", deal_id).eq("deal_type", "channel").execute()
+        )
+
+    async def request_channel_release(self, deal_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "request_channel_release_after_access", {"p_deal_id": deal_id}
+        )
+        return Deal(**response.data[0]) if response.data else None
