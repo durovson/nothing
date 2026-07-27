@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 from app.api.keepalive import RenderKeepAlive
 from app.api.telegram_notifier import TelegramNotificationGateway
@@ -44,7 +46,13 @@ class AppContainer:
 
 def build_container(settings: Settings | None = None) -> AppContainer:
     app_settings = settings or get_settings()
-    bot = Bot(token=app_settings.TELEGRAM_BOT_TOKEN)
+    bot = Bot(
+        token=app_settings.TELEGRAM_BOT_TOKEN,
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML,
+            link_preview_is_disabled=True,
+        ),
+    )
     database = SupabaseDatabase(app_settings)
     repositories = Repositories.build(database)
     ton = TonEscrowClient(app_settings)

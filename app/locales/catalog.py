@@ -1,4 +1,5 @@
 from enum import StrEnum
+from html import escape
 from typing import Any
 
 from app.core.enums import Language
@@ -78,18 +79,19 @@ class TextKey(StrEnum):
 TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.RU: {
         TextKey.MAIN_MENU_CAPTION: (
-            "Gift Guarant\n\nБезопасные escrow-сделки в Telegram.\n"
-            "Комиссия сервиса: 1%\nПоддержка: {support_username}"
+            "🎁 <b>Gift Guarant</b>\n\n"
+            "🛡 <b>Безопасные escrow-сделки в Telegram</b>\n"
+            "Комиссия сервиса: <b>1%</b>\nПоддержка: {support_username}"
         ),
         TextKey.MENU_WALLET: "Мой кошелек",
         TextKey.MENU_CREATE_DEAL: "Создать сделку",
         TextKey.MENU_MY_DEALS: "Мои сделки",
         TextKey.MENU_SETTINGS: "Настройки",
         TextKey.WALLET_CAPTION: (
-            "Ваш привязанный кошелек:\n{wallet}\n\n"
+            "💰 <b>Мой кошелёк</b>\n\nВаш привязанный кошелек:\n<code>{wallet}</code>\n\n"
             "Этот адрес используется для вывода средств после завершения сделки."
         ),
-        TextKey.WALLET_EMPTY: "Кошелек пока не привязан.",
+        TextKey.WALLET_EMPTY: "💰 <b>Мой кошелёк</b>\n\nКошелек пока не привязан.",
         TextKey.WALLET_ADD: "Добавить кошелек",
         TextKey.WALLET_CHANGE: "Изменить кошелек",
         TextKey.WALLET_DELETE: "Удалить кошелек",
@@ -97,36 +99,39 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_PROMPT: "Отправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_SAVED: "Кошелек сохранен: {wallet}",
         TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
-        TextKey.DEAL_CREATE_INTRO: "Выберите тип сделки.",
+        TextKey.DEAL_CREATE_INTRO: "💼 <b>Создание сделки</b>\n\nВыберите тип сделки 👇",
         TextKey.DEAL_TYPE_GIFTS: "Оффер",
         TextKey.DEAL_TYPE_OFFER: "🤝 Оффер",
         TextKey.DEAL_TYPE_CHANNEL: "Канал",
         TextKey.DEAL_TYPE_ACCOUNT: "Оффер",
         TextKey.DEAL_CHANNEL_WARNING: (
-            "📢 Сделка по каналу\n\nДобавьте бота администратором канала и выдайте ему полные права, включая "
+            "📢 <b>Сделка по каналу</b>\n\nДобавьте бота администратором канала и выдайте ему <b>полные права</b>, включая "
             "приглашение пользователей и назначение администраторов. Затем отправьте @username, ID канала "
             "или перешлите сообщение из канала.\n\nПосле подтверждённой оплаты бот автоматически выдаст покупателю "
-            "максимальные админ-права и запустит выплату продавцу. Статус владельца продавец передаёт вручную в Telegram."
+            "максимальные админ-права и запустит выплату продавцу.\n\n"
+            "<blockquote>Статус владельца продавец передаёт вручную в Telegram.</blockquote>"
         ),
         TextKey.DEAL_CHANNEL_INVALID: "Канал не прошёл проверку: {reason}\n\nИсправьте права и отправьте канал ещё раз.",
         TextKey.DEAL_CHANNEL_VERIFIED: "Канал «{title}» проверен.",
         TextKey.DEAL_PAY_BUTTON: "Оплатить в Tonkeeper",
         TextKey.DEAL_CHANNEL_JOIN_BUTTON: "📢 Запросить доступ к каналу",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "Укажите описание оффера.\n\nНапример: цифровой товар, подарок, аккаунт или услуга и условия её оказания."
+            "💼 <b>Создание оффера</b>\n\nУкажите, что вы предлагаете в сделке.\n\n"
+            "<blockquote>Например: цифровой товар, подарок, аккаунт или услуга и условия её оказания.</blockquote>"
         ),
-        TextKey.DEAL_CURRENCY_PROMPT: "Выберите валюту сделки.",
-        TextKey.DEAL_AMOUNT_PROMPT: "Введите сумму сделки числом. Например: 5 или 12.5",
+        TextKey.DEAL_CURRENCY_PROMPT: "💼 <b>Создание сделки</b>\n\nВыберите валюту сделки 👇",
+        TextKey.DEAL_AMOUNT_PROMPT: "💼 <b>Создание сделки</b>\n\nВведите сумму сделки.\nНапример: <code>5</code> или <code>12.5</code>",
         TextKey.DEAL_AMOUNT_INVALID: "Введите положительное число.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "Минимальная сумма сделки — {minimum} {currency}. "
             "Комиссия сервиса добавляется к счёту; сетевой gas оплачивается отдельно."
         ),
         TextKey.DEAL_CREATED: (
-            "Сделка #{deal_id} создана.\n\nТип: {deal_type}\nОписание: {description}\n"
-            "Продавец получит: {amount} {currency}\nПокупатель оплатит: {payment_amount} {currency}\n"
-            "Escrow-адрес: {wallet_address}\nОбязательный комментарий: {deal_id}\n"
-            "Ссылка покупателя: {deep_link}\n\n"
+            "✅ <b>Сделка #{deal_id} создана</b>\n\n<b>Тип:</b> {deal_type}\n<b>Описание:</b> {description}\n"
+            "<b>Продавец получит:</b> {amount} {currency}\n<b>Покупатель оплатит:</b> {payment_amount} {currency}\n\n"
+            "💰 <b>Escrow-адрес:</b>\n<code>{wallet_address}</code>\n"
+            "📝 <b>Обязательный комментарий:</b> <code>{deal_id}</code>\n"
+            "🔗 <a href=\"{deep_link}\">Ссылка для покупателя</a>\n\n"
             "Для оффера после оплаты у продавца 24 часа на исполнение, затем у покупателя 24 часа на подтверждение либо спор. "
             "Для канала бот автоматически выдаёт покупателю админ-доступ и запускает выплату после подтверждения оплаты. "
             "Передача статуса владельца канала выполняется продавцом вручную. "
@@ -139,9 +144,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DISPUTE_BUTTON: "Открыть спор",
         TextKey.DEAL_REFRESH_BUTTON: "Обновить",
         TextKey.DEAL_JOINED: (
-            "Сделка #{deal_id}\n\nТип: {deal_type}\nОписание: {description}\n"
-            "Сумма: {amount} {currency}\nАдрес оплаты: {wallet_address}\n"
-            "Обязательный комментарий: {deal_id}\n\nПосле оплаты бот автоматически проверит перевод. "
+            "💼 <b>Сделка #{deal_id}</b>\n\n<b>Тип:</b> {deal_type}\n<b>Описание:</b> {description}\n"
+            "💎 <b>Сумма к оплате:</b> {amount} {currency}\n\n💰 <b>Адрес оплаты:</b>\n<code>{wallet_address}</code>\n"
+            "📝 <b>Обязательный комментарий:</b> <code>{deal_id}</code>\n\n"
+            "<blockquote>Укажите точную сумму и обязательный комментарий. После оплаты бот автоматически проверит перевод.</blockquote> "
             "Привязанный TON-кошелёк используется для безопасного возврата. "
             "Комиссия сервиса 1% невозвратная; при refund возвращается сумма сделки D."
         ),
@@ -152,10 +158,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_EMPTY: "У вас пока нет сделок.",
         TextKey.DEAL_LIST_CAPTION: "Ваши сделки:",
         TextKey.DEAL_CARD: (
-            "Сделка #{deal_id}\nСтатус: {status}\nТип: {deal_type}\nОписание: {description}\n"
-            "Сумма: {amount} {currency}\nEscrow-адрес: {wallet_address}\n"
-            "Комментарий: {deal_id}\nПокупатель: {buyer}\n"
-            "Дедлайн передачи: {delivery_deadline}\nДедлайн проверки: {inspection_deadline}"
+            "💼 <b>Сделка #{deal_id}</b>\n\n<b>Статус:</b> {status}\n<b>Тип:</b> {deal_type}\n"
+            "<b>Описание:</b> {description}\n<b>Сумма:</b> {amount} {currency}\n\n"
+            "<b>Escrow-адрес:</b> <code>{wallet_address}</code>\n"
+            "<b>Комментарий:</b> <code>{deal_id}</code>\n<b>Покупатель:</b> {buyer}\n\n"
+            "<b>Дедлайн передачи:</b> {delivery_deadline}\n<b>Дедлайн проверки:</b> {inspection_deadline}"
         ),
         TextKey.DEAL_PAID_BUYER: "Средства поступили на кошелёк гаранта. Ожидайте передачу товара.",
         TextKey.DEAL_PAID_SELLER: (
@@ -199,16 +206,16 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Для разбора напишите в службу поддержки и укажите ID сделки."
         ),
         TextKey.DEAL_REFUNDED: "Возврат покупателю подтверждён сетью TON.",
-        TextKey.SETTINGS_CAPTION: "Настройки",
+        TextKey.SETTINGS_CAPTION: "⚙️ <b>Настройки</b>",
         TextKey.SETTINGS_REFERRALS: "Рефералы",
         TextKey.SETTINGS_LANGUAGE: "Язык",
         TextKey.SETTINGS_SUPPORT: "Поддержка",
         TextKey.LANGUAGE_SAVED: "Язык переключен: {language}.",
-        TextKey.SUPPORT_TEXT: "По вопросам и спорам напишите {support_username}.",
+        TextKey.SUPPORT_TEXT: "🛟 <b>Поддержка</b>\n\nПо вопросам и спорам напишите {support_username}.",
         TextKey.REFERRAL_CAPTION: (
-            "Реферальная система\n\nНаграда: {rate}% от комиссии сервиса с завершённых сделок приглашённых\n"
-            "Приглашено: {count}\nБаланс GRAM: {earned_ton}\nБаланс USDT: {earned_usdt}\n\n"
-            "Ваша ссылка:\n{link}\n\n"
+            "👥 <b>Реферальная система</b>\n\n<b>Награда:</b> {rate}% от комиссии сервиса с завершённых сделок приглашённых\n"
+            "<b>Приглашено:</b> {count}\n<b>Баланс GRAM:</b> {earned_ton}\n<b>Баланс USDT:</b> {earned_usdt}\n\n"
+            "🔗 <b>Ваша ссылка:</b>\n<code>{link}</code>\n\n"
             "Вывод выполняется на привязанный адрес. Для биржевых, кастодиальных и чужих "
             "кошельков могут требоваться дополнительные данные; риск потери средств несёт пользователь."
         ),
@@ -218,18 +225,19 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
     },
     Language.EN: {
         TextKey.MAIN_MENU_CAPTION: (
-            "Gift Guarant\n\nSafe Telegram escrow deals.\n"
-            "Service fee: 1%\nSupport: {support_username}"
+            "🎁 <b>Gift Guarant</b>\n\n"
+            "🛡 <b>Safe Telegram escrow deals</b>\n"
+            "Service fee: <b>1%</b>\nSupport: {support_username}"
         ),
         TextKey.MENU_WALLET: "My wallet",
         TextKey.MENU_CREATE_DEAL: "Create deal",
         TextKey.MENU_MY_DEALS: "My deals",
         TextKey.MENU_SETTINGS: "Settings",
         TextKey.WALLET_CAPTION: (
-            "Your linked wallet:\n{wallet}\n\n"
+            "💰 <b>My wallet</b>\n\nYour linked wallet:\n<code>{wallet}</code>\n\n"
             "This address is used for seller payouts after the deal is completed."
         ),
-        TextKey.WALLET_EMPTY: "No wallet linked yet.",
+        TextKey.WALLET_EMPTY: "💰 <b>My wallet</b>\n\nNo wallet linked yet.",
         TextKey.WALLET_ADD: "Add wallet",
         TextKey.WALLET_CHANGE: "Change wallet",
         TextKey.WALLET_DELETE: "Delete wallet",
@@ -237,35 +245,38 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_PROMPT: "Send the TON address you want to link to your profile.",
         TextKey.WALLET_SAVED: "Wallet saved: {wallet}",
         TextKey.WALLET_INVALID: "This does not look like a TON address. Please try again.",
-        TextKey.DEAL_CREATE_INTRO: "Choose the deal type.",
+        TextKey.DEAL_CREATE_INTRO: "💼 <b>Create a deal</b>\n\nChoose the deal type 👇",
         TextKey.DEAL_TYPE_GIFTS: "Offer",
         TextKey.DEAL_TYPE_OFFER: "🤝 Offer",
         TextKey.DEAL_TYPE_CHANNEL: "Channel",
         TextKey.DEAL_TYPE_ACCOUNT: "Offer",
         TextKey.DEAL_CHANNEL_WARNING: (
-            "📢 Channel deal\n\nAdd the bot as a channel administrator with full rights, including inviting users "
+            "📢 <b>Channel deal</b>\n\nAdd the bot as a channel administrator with <b>full rights</b>, including inviting users "
             "and promoting administrators. Then send the @username, numeric channel ID, or forward a channel message.\n\n"
             "After confirmed payment the bot grants the buyer the maximum administrator rights and queues the seller payout. "
-            "The seller transfers Telegram ownership manually."
+            "<blockquote>The seller transfers Telegram ownership manually.</blockquote>"
         ),
         TextKey.DEAL_CHANNEL_INVALID: "Channel validation failed: {reason}\n\nFix the permissions and send the channel again.",
         TextKey.DEAL_CHANNEL_VERIFIED: "Channel “{title}” verified.",
         TextKey.DEAL_PAY_BUTTON: "Pay in Tonkeeper",
         TextKey.DEAL_CHANNEL_JOIN_BUTTON: "📢 Request channel access",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "Describe the offer.\n\nExample: a digital item, gift, account, service, and its delivery terms."
+            "💼 <b>Create an offer</b>\n\nDescribe what you offer in the deal.\n\n"
+            "<blockquote>Example: a digital item, gift, account, service, and its delivery terms.</blockquote>"
         ),
-        TextKey.DEAL_CURRENCY_PROMPT: "Choose the deal currency.",
-        TextKey.DEAL_AMOUNT_PROMPT: "Enter the amount as a number. Example: 5 or 12.5",
+        TextKey.DEAL_CURRENCY_PROMPT: "💼 <b>Create a deal</b>\n\nChoose the deal currency 👇",
+        TextKey.DEAL_AMOUNT_PROMPT: "💼 <b>Create a deal</b>\n\nEnter the deal amount.\nExample: <code>5</code> or <code>12.5</code>",
         TextKey.DEAL_AMOUNT_INVALID: "Please enter a positive number.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "The minimum deal amount is {minimum} {currency}. "
             "The service fee is added to the invoice; network gas is paid separately."
         ),
         TextKey.DEAL_CREATED: (
-            "Deal #{deal_id} created.\n\nType: {deal_type}\nDescription: {description}\n"
-            "Seller receives: {amount} {currency}\nBuyer pays: {payment_amount} {currency}\n"
-            "Escrow address: {wallet_address}\nRequired comment: {deal_id}\nBuyer link: {deep_link}\n\n"
+            "✅ <b>Deal #{deal_id} created</b>\n\n<b>Type:</b> {deal_type}\n<b>Description:</b> {description}\n"
+            "<b>Seller receives:</b> {amount} {currency}\n<b>Buyer pays:</b> {payment_amount} {currency}\n\n"
+            "💰 <b>Escrow address:</b>\n<code>{wallet_address}</code>\n"
+            "📝 <b>Required comment:</b> <code>{deal_id}</code>\n"
+            "🔗 <a href=\"{deep_link}\">Buyer link</a>\n\n"
             "For an offer, the seller has 24 hours after payment to deliver and the buyer has 24 hours to confirm or dispute. "
             "For a channel, the bot grants administrator access and queues payout automatically after confirmed payment; "
             "the seller transfers Telegram ownership manually. Seller silence means refund; "
@@ -278,9 +289,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DISPUTE_BUTTON: "Open dispute",
         TextKey.DEAL_REFRESH_BUTTON: "Refresh",
         TextKey.DEAL_JOINED: (
-            "Deal #{deal_id}\n\nType: {deal_type}\nDescription: {description}\nAmount: {amount} {currency}\n"
-            "Payment address: {wallet_address}\nRequired comment: {deal_id}\n\n"
-            "After payment, the bot verifies the transfer automatically. Link your TON wallet first; "
+            "💼 <b>Deal #{deal_id}</b>\n\n<b>Type:</b> {deal_type}\n<b>Description:</b> {description}\n"
+            "💎 <b>Amount due:</b> {amount} {currency}\n\n💰 <b>Payment address:</b>\n<code>{wallet_address}</code>\n"
+            "📝 <b>Required comment:</b> <code>{deal_id}</code>\n\n"
+            "<blockquote>Use the exact amount and required comment. The bot verifies payment automatically.</blockquote> "
+            "Link your TON wallet first; "
             "it is used as the safe refund destination. The 1% service fee is non-refundable; a refund returns D."
         ),
         TextKey.DEAL_NOT_FOUND: "Deal not found.",
@@ -290,10 +303,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_EMPTY: "You do not have any deals yet.",
         TextKey.DEAL_LIST_CAPTION: "Your deals:",
         TextKey.DEAL_CARD: (
-            "Deal #{deal_id}\nStatus: {status}\nType: {deal_type}\nDescription: {description}\n"
-            "Amount: {amount} {currency}\nEscrow address: {wallet_address}\n"
-            "Comment: {deal_id}\nBuyer: {buyer}\n"
-            "Delivery deadline: {delivery_deadline}\nInspection deadline: {inspection_deadline}"
+            "💼 <b>Deal #{deal_id}</b>\n\n<b>Status:</b> {status}\n<b>Type:</b> {deal_type}\n"
+            "<b>Description:</b> {description}\n<b>Amount:</b> {amount} {currency}\n\n"
+            "<b>Escrow address:</b> <code>{wallet_address}</code>\n"
+            "<b>Comment:</b> <code>{deal_id}</code>\n<b>Buyer:</b> {buyer}\n\n"
+            "<b>Delivery deadline:</b> {delivery_deadline}\n<b>Inspection deadline:</b> {inspection_deadline}"
         ),
         TextKey.DEAL_PAID_BUYER: "Funds reached the guarant wallet. Please wait for the item transfer.",
         TextKey.DEAL_PAID_SELLER: (
@@ -336,16 +350,16 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Contact support and include the deal ID."
         ),
         TextKey.DEAL_REFUNDED: "The TON network confirmed the buyer refund.",
-        TextKey.SETTINGS_CAPTION: "Settings",
+        TextKey.SETTINGS_CAPTION: "⚙️ <b>Settings</b>",
         TextKey.SETTINGS_REFERRALS: "Referrals",
         TextKey.SETTINGS_LANGUAGE: "Language",
         TextKey.SETTINGS_SUPPORT: "Support",
         TextKey.LANGUAGE_SAVED: "Language switched: {language}.",
-        TextKey.SUPPORT_TEXT: "For support or disputes, contact {support_username}.",
+        TextKey.SUPPORT_TEXT: "🛟 <b>Support</b>\n\nFor support or disputes, contact {support_username}.",
         TextKey.REFERRAL_CAPTION: (
-            "Referral program\n\nReward: {rate}% of the service fee from completed referred deals\n"
-            "Invited: {count}\nGRAM balance: {earned_ton}\nUSDT balance: {earned_usdt}\n\n"
-            "Your link:\n{link}\n\n"
+            "👥 <b>Referral program</b>\n\n<b>Reward:</b> {rate}% of the service fee from completed referred deals\n"
+            "<b>Invited:</b> {count}\n<b>GRAM balance:</b> {earned_ton}\n<b>USDT balance:</b> {earned_usdt}\n\n"
+            "🔗 <b>Your link:</b>\n<code>{link}</code>\n\n"
             "Withdrawals go to the linked address. Exchanges, custodial services and third-party "
             "wallets may require extra metadata and are used at your own risk."
         ),
@@ -361,4 +375,5 @@ def translate(locale: Language | str, key: TextKey, **kwargs: Any) -> str:
         language = Language(locale)
     except ValueError:
         language = Language.RU
-    return TEXTS[language][key].format(**kwargs)
+    safe_kwargs = {name: escape(str(value), quote=True) for name, value in kwargs.items()}
+    return TEXTS[language][key].format(**safe_kwargs)

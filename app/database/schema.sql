@@ -417,6 +417,12 @@ create index if not exists deals_delivery_deadline_idx
     on deals(delivery_deadline_at) where status = 'delivery_pending';
 create index if not exists deals_inspection_deadline_idx
     on deals(inspection_deadline_at) where status = 'delivered';
+create index if not exists deals_channel_access_pending_idx
+    on deals(id)
+    where deal_type = 'channel'
+      and status = 'delivery_pending'
+      and channel_access_granted_at is null
+      and buyer_id is not null;
 create index if not exists referrals_referrer_idx on referrals(referrer_id);
 
 create table if not exists referral_rewards (

@@ -91,9 +91,12 @@ class DealMonitor:
         while not self._stop_event.is_set():
             try:
                 await self._channels.process_pending()
+            except Exception:
+                logger.exception("Channel access reconciliation iteration failed")
+            try:
                 await self._lifecycle.process_deadlines()
             except Exception:
-                logger.exception("Deal lifecycle iteration failed")
+                logger.exception("Deal deadline iteration failed")
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
 
     async def _collection_loop(self) -> None:

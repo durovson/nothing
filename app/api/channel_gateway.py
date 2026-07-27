@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -108,7 +109,7 @@ class TelegramChannelGateway:
             buyer.telegram_id,
             "Оплата подтверждена и удерживается гарантом.\n\n"
             "Чтобы получить доступ к каналу, отправьте заявку по ссылке:\n"
-            f"{invite_link}\n\nПосле заявки бот автоматически выдаст права администратора и запустит выплату продавцу.",
+            f"{escape(invite_link)}\n\nПосле заявки бот автоматически выдаст права администратора и запустит выплату продавцу.",
         )
 
     async def access_granted(
@@ -117,13 +118,13 @@ class TelegramChannelGateway:
         if buyer:
             await self._safe_send(
                 buyer.telegram_id,
-                f"Доступ к каналу «{deal.channel_title or deal.public_id}» выдан. "
+                f"Доступ к каналу «{escape(deal.channel_title or deal.public_id)}» выдан. "
                 "Вы назначены администратором с максимальными доступными боту правами.",
             )
         if seller:
             await self._safe_send(
                 seller.telegram_id,
-                f"Покупателю выдан полный административный доступ к каналу «{deal.channel_title or deal.public_id}». "
+                f"Покупателю выдан полный административный доступ к каналу «{escape(deal.channel_title or deal.public_id)}». "
                 "Выплата поставлена в очередь. Передача статуса владельца выполняется вами вручную в Telegram.",
             )
 

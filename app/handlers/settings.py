@@ -1,3 +1,5 @@
+from html import escape
+
 from aiogram import F, Router, types
 
 from app.config import Settings
@@ -136,7 +138,8 @@ async def withdraw_referral_reward(
             "Link your personal TON wallet in My wallet first."
         )
     except ReferralWithdrawalError as exc:
-        text = f"Вывод сейчас недоступен: {exc}" if db_user.language is Language.RU else f"Withdrawal is unavailable: {exc}"
+        error = escape(str(exc))
+        text = f"Вывод сейчас недоступен: {error}" if db_user.language is Language.RU else f"Withdrawal is unavailable: {error}"
     except Exception:
         text = (
             "Не удалось подготовить вывод. Баланс не потерян; попробуйте позже."

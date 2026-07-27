@@ -151,6 +151,13 @@ Run the files completely and in this exact order in SQL Editor:
 
 Use only a server-side service-role/secret key. `permissions.sql` enables RLS and grants financial/admin RPC execution only to `service_role`.
 
+### Upgrade an existing database for channel deals
+
+If the application log contains `column deals.channel_access_granted_at does not exist`, run only
+`app/database/migrations/20260727_channel_deals.sql` in Supabase SQL Editor. The migration is
+idempotent, preserves all deals and balances, installs the channel RPCs and reloads the PostgREST
+schema cache. Do not recreate the database.
+
 ## Local run
 
 ```powershell

@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from html import escape
 from typing import Any
 
 from aiogram import BaseMiddleware
@@ -25,5 +26,5 @@ class MaintenanceMiddleware(BaseMiddleware):
             return await handler(event, data)
         bot = data.get("bot")
         if bot and user:
-            await bot.send_message(user.id, settings.maintenance_message)
+            await bot.send_message(user.id, escape(settings.maintenance_message))
         return None

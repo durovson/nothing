@@ -13,7 +13,7 @@ from app.keyboards.callbacks import (
 )
 from app.locales import TextKey, translate
 from app.models.entities import Deal
-from app.utils import currency_label
+from app.utils import currency_label, deal_status_label
 
 
 def deal_type_keyboard(locale: Language) -> InlineKeyboardMarkup:
@@ -68,7 +68,10 @@ def created_deal_actions(locale: Language, deal_id: int) -> InlineKeyboardMarkup
 
 def deals_list(locale: Language, deals: list[Deal], page: int, has_next: bool) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=f"#{deal.public_id} · {deal.status.value}", callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal.id).pack())]
+        [InlineKeyboardButton(
+            text=f"#{deal.public_id} | {deal_status_label(deal.status, locale)}",
+            callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal.id).pack(),
+        )]
         for deal in deals
     ]
     pagination: list[InlineKeyboardButton] = []

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from html import escape
 
 from aiogram import F, Router, types
 from aiogram.exceptions import TelegramAPIError
@@ -75,7 +76,7 @@ async def dispute_open(callback: types.CallbackQuery, callback_data: AdminDisput
         await render_menu(callback.message,
             f"Тикет #{ticket.id}\nСделка: #{deal.public_id} ({deal.id})\nСтатус: {ticket.status.value}\n"
             f"Открыл: {ticket.opened_by}\nПродавец: {deal.creator_id}\nПокупатель: {deal.buyer_id}\n"
-            f"Сумма: {format_amount(deal.amount)} {currency_label(deal.currency)}\n\n{ticket.description}",
+            f"Сумма: {format_amount(deal.amount)} {currency_label(deal.currency)}\n\n{escape(ticket.description)}",
             admin_dispute_actions(ticket, callback_data.page),
         )
     await callback.answer()
@@ -104,7 +105,7 @@ async def save_resolution(message: types.Message, state: FSMContext, admin_servi
             message.text or "",
         )
     except (ApplicationError, ValueError, KeyError) as exc:
-        await message.answer(f"Решение не применено: {exc}")
+        await message.answer(f"Решение не применено: {escape(str(exc))}")
         return
     await state.clear()
     await message.answer(f"Решение принято. Сделка #{deal.public_id}: {deal.status.value}")

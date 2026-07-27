@@ -16,7 +16,7 @@ from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
-from app.utils import currency_label, deal_type_label, format_amount, render_menu
+from app.utils import currency_label, deal_status_label, deal_type_label, format_amount, render_menu
 
 router = Router(name="deal-management")
 MY_DEALS_TEXTS = {translate(language, TextKey.MENU_MY_DEALS) for language in Language}
@@ -101,7 +101,7 @@ async def open_deal(
                 db_user.language,
                 TextKey.DEAL_CARD,
                 deal_id=deal.public_id,
-                status=deal.status.value,
+                status=deal_status_label(deal.status, db_user.language),
                 deal_type=deal_type_label(deal.deal_type, db_user.language),
                 description=deal.description,
                 amount=format_amount(deal.amount),
