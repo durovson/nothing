@@ -12,9 +12,13 @@ class MenuAction(StrEnum):
     DEALS = "deals"
     SETTINGS = "settings"
     REFERRALS = "referrals"
+    FAQ = "faq"
+    DOCUMENTS = "documents"
 
 
 class WalletAction(StrEnum):
+    OPEN = "open"
+    BACK = "back"
     EDIT = "edit"
     DELETE = "delete"
 

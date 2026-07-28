@@ -19,7 +19,7 @@ def settings_keyboard(locale: Language) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text=translate(locale, TextKey.SETTINGS_LANGUAGE), callback_data=SettingsCallback(action=SettingsAction.LANGUAGE).pack())],
             [InlineKeyboardButton(text=translate(locale, TextKey.SETTINGS_SUPPORT), callback_data=SettingsCallback(action=SettingsAction.SUPPORT).pack())],
-            [InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
+            [InlineKeyboardButton(text=translate(locale, TextKey.MAIN_MENU_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
         ]
     )
 
@@ -36,6 +36,15 @@ def language_keyboard(locale: Language) -> InlineKeyboardMarkup:
     )
 
 
+def home_keyboard(locale: Language) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=translate(locale, TextKey.MAIN_MENU_BUTTON),
+            callback_data=MenuCallback(action=MenuAction.BACK).pack(),
+        )
+    ]])
+
+
 def referral_keyboard(locale: Language, ton_available: bool, usdt_available: bool) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     if ton_available:
@@ -44,5 +53,5 @@ def referral_keyboard(locale: Language, ton_available: bool, usdt_available: boo
     if usdt_available:
         label = "💵 Вывести USDT" if locale is Language.RU else "💵 Withdraw USDT"
         rows.append([InlineKeyboardButton(text=label, callback_data=ReferralCallback(action=ReferralAction.WITHDRAW, currency=Currency.USDT).pack())])
-    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.MAIN_MENU_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)

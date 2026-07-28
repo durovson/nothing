@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 
 from aiogram.types import Update
@@ -30,6 +30,14 @@ def create_api_router(container: AppContainer) -> APIRouter:
             "status": status,
             "checks": checks,
         }
+
+    @router.get("/documents/privacy", response_class=HTMLResponse)
+    async def privacy_policy() -> str:
+        return """<!doctype html><html lang='ru'><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Политика конфиденциальности</title><style>body{font:16px system-ui;max-width:760px;margin:40px auto;padding:0 20px;line-height:1.6;color:#18212f}h1{line-height:1.2}</style><h1>Политика конфиденциальности</h1><p>Сервис обрабатывает Telegram ID, username, выбранный язык, привязанный TON-адрес и данные сделок исключительно для работы escrow, уведомлений, возвратов и выплат.</p><p>Секретные ключи и seed-фразы пользователей не запрашиваются. Публичные blockchain-транзакции доступны в сети TON. Данные могут храниться в Supabase в пределах срока, необходимого для исполнения сделки и разрешения споров.</p><p>Для вопросов об обработке данных обратитесь в поддержку бота.</p></html>"""
+
+    @router.get("/documents/terms", response_class=HTMLResponse)
+    async def terms_of_service() -> str:
+        return """<!doctype html><html lang='ru'><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Пользовательское соглашение</title><style>body{font:16px system-ui;max-width:760px;margin:40px auto;padding:0 20px;line-height:1.6;color:#18212f}h1{line-height:1.2}</style><h1>Пользовательское соглашение</h1><p>Сервис предоставляет технический escrow-инструмент для сделок между продавцом и покупателем. Комиссия сервиса составляет 1% суммы сделки. Сетевые комиссии TON учитываются отдельно.</p><p>Пользователи самостоятельно отвечают за законность предмета сделки, правильность кошельков и передачу товара или услуги. Средства удерживаются гарантом до подтверждения, отмены, автоматического условия или решения спора.</p><p>При использовании биржевого, кастодиального или чужого адреса пользователь принимает риск потери зачисления. Решения по спору принимаются администратором на основании доступных материалов.</p></html>"""
 
     @router.post(settings.TELEGRAM_WEBHOOK_PATH)
     async def telegram_webhook(request: Request) -> JSONResponse:

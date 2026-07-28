@@ -99,22 +99,34 @@ class DealService:
         deal = await self._deals.get(deal_id)
         if not deal:
             raise DealNotFoundError(f"Deal {deal_id} not found")
-        if deal.creator_id != actor_id or deal.status is not DealStatus.PENDING:
+        if actor_id not in {deal.creator_id, deal.buyer_id}:
             return deal
-        return await self._deals.transition(
-            deal_id,
-            DealStatus.PENDING,
-            status=DealStatus.CANCELLED,
-        )
+        cancelled = await self._deals.request_cancellation(deal_id, actor_id)
+        return cancelled or deal
 
     async def get_deal(self, deal_id: int) -> Deal | None:
         return await self._deals.get(deal_id)
 
-    async def list_user_deals(self, telegram_id: int, page: int = 0) -> tuple[list[Deal], bool]:
+    async def claim_join_notification(self, deal: Deal) -> tuple[User, User, int] | None:
+        claimed = await self._deals.claim_join_notification(deal.id)
+        if not claimed or not claimed.buyer_id:
+            return None
+        buyer = await self._users.get(claimed.buyer_id)
+        seller = await self._users.get(claimed.creator_id)
+        if not buyer or not seller:
+            return None
+        return buyer, seller, await self._deals.count_as_buyer(buyer.telegram_id)
+
+    async def participants(self, deal: Deal) -> tuple[User | None, User | None]:
+        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
+        seller = await self._users.get(deal.creator_id)
+        return buyer, seller
+
+    async def list_user_deals(self, telegram_id: int, page: int = 0) -> tuple[list[Deal], int]:
         return await self._deals.list_for_user(
             telegram_id,
             page=max(0, page),
-            page_size=self._settings.DEALS_PAGE_SIZE,
+            page_size=min(self._settings.DEALS_PAGE_SIZE, 5),
         )
 
     def buyer_payment_amount(self, deal: Deal) -> Decimal:

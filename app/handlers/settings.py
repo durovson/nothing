@@ -4,7 +4,7 @@ from aiogram import F, Router, types
 
 from app.config import Settings
 from app.core.enums import Language
-from app.keyboards import LanguageCallback, MenuCallback, ReferralCallback, SettingsCallback, language_keyboard, referral_keyboard, settings_keyboard
+from app.keyboards import LanguageCallback, MenuCallback, ReferralCallback, SettingsCallback, home_keyboard, language_keyboard, referral_keyboard, settings_keyboard
 from app.keyboards.callbacks import MenuAction, ReferralAction, SettingsAction
 from app.locales import TextKey, translate
 from app.models.entities import User
@@ -34,7 +34,7 @@ async def settings_menu(message: types.Message, db_user: User) -> None:
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.SETTINGS))
 async def settings_menu_callback(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
-        await render_menu(callback.message, translate(db_user.language, TextKey.SETTINGS_CAPTION), settings_keyboard(db_user.language))
+        await render_menu(callback.message, translate(db_user.language, TextKey.SETTINGS_CAPTION), settings_keyboard(db_user.language), screen="settings")
     await callback.answer()
 
 
@@ -52,8 +52,9 @@ async def settings_back(callback: types.CallbackQuery, db_user: User) -> None:
 async def choose_language(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
         await render_menu(callback.message,
-            translate(db_user.language, TextKey.SETTINGS_CAPTION),
+            translate(db_user.language, TextKey.LANGUAGE_PROMPT),
             language_keyboard(db_user.language),
+            screen="language",
         )
     await callback.answer()
 
@@ -68,8 +69,9 @@ async def save_language(
     user = await user_service.change_language(db_user.telegram_id, callback_data.language)
     if callback.message:
         await render_menu(callback.message,
-            translate(user.language, TextKey.LANGUAGE_SAVED, language=user.language.value),
-            settings_keyboard(user.language),
+            translate(user.language, TextKey.LANGUAGE_SAVED),
+            home_keyboard(user.language),
+            screen="language",
         )
     await callback.answer()
 
@@ -118,6 +120,7 @@ async def referral_info(
                 stats.balance_ton >= REFERRAL_MIN_WITHDRAW_TON,
                 stats.balance_usdt >= REFERRAL_MIN_WITHDRAW_USDT,
             ),
+            screen="referrals",
         )
     await callback.answer()
 
@@ -132,14 +135,22 @@ async def withdraw_referral_reward(
     try:
         withdrawal = await referral_service.request_withdrawal(db_user, callback_data.currency)
     except MissingLinkedWalletError:
-        text = (
-            "Сначала привяжите личный TON-кошелёк в разделе «Мой кошелёк»."
-            if db_user.language is Language.RU else
-            "Link your personal TON wallet in My wallet first."
+        await callback.answer(
+            "Для начала привяжите кошелек"
+            if db_user.language is Language.RU
+            else "Link a wallet first",
+            show_alert=True,
         )
+        return
     except ReferralWithdrawalError as exc:
         error = escape(str(exc))
-        text = f"Вывод сейчас недоступен: {error}" if db_user.language is Language.RU else f"Withdrawal is unavailable: {error}"
+        await callback.answer(
+            f"Вывод сейчас недоступен: {error}"
+            if db_user.language is Language.RU
+            else f"Withdrawal is unavailable: {error}",
+            show_alert=True,
+        )
+        return
     except Exception:
         text = (
             "Не удалось подготовить вывод. Баланс не потерян; попробуйте позже."

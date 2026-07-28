@@ -58,13 +58,13 @@ class Settings(BaseSettings):
     USDT_JETTON_TRANSFER_TON: Decimal = Field(default=Decimal("0.05"), gt=0)
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
-    DEAL_PAYMENT_TIMEOUT_SECONDS: int = Field(default=3_600, ge=60)
     MIN_DEAL_AMOUNT: Decimal = Field(default=Decimal("1"), ge=Decimal("1"))
     MIN_USDT_DEAL_AMOUNT: Decimal = Field(default=Decimal("1"), ge=Decimal("1"))
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
     ESCROW_FEE_RATE: Decimal = Field(default=Decimal("0.01"), gt=0, lt=1)
-    DEALS_PAGE_SIZE: int = Field(default=8, ge=1, le=20)
+    # Keep accepting the legacy Render value (8); the UI service caps a page at five rows.
+    DEALS_PAGE_SIZE: int = Field(default=5, ge=1, le=20)
 
     DEFAULT_LANGUAGE: Language = Language.RU
     DEFAULT_CURRENCY: Currency = Currency.TON

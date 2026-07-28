@@ -2,6 +2,53 @@ begin;
 
 drop function if exists claim_deal_refund(bigint, text, numeric, text, text);
 
+create or replace function request_deal_cancellation(
+    p_deal_id bigint,
+    p_actor_id bigint
+) returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+declare
+    v_deal deals%rowtype;
+begin
+    select * into v_deal from deals where id = p_deal_id for update;
+    if not found or (
+        p_actor_id <> v_deal.creator_id
+        and p_actor_id is distinct from v_deal.buyer_id
+    ) then
+        return;
+    end if;
+
+    if v_deal.status = 'pending' then
+        update deals set status = 'cancelled', resolution = 'cancel',
+            resolution_reason = 'Cancelled by participant',
+            cancellation_requested_at = timezone('utc', now()),
+            updated_at = timezone('utc', now())
+        where id = p_deal_id returning * into v_deal;
+    elsif v_deal.status in ('collecting', 'collection_submitted') then
+        update deals set resolution = 'refund',
+            resolution_reason = 'Cancelled while custody was being confirmed',
+            cancellation_requested_at = timezone('utc', now()),
+            updated_at = timezone('utc', now())
+        where id = p_deal_id returning * into v_deal;
+    elsif v_deal.status in ('delivery_pending', 'delivered') then
+        update deals as d set status = case
+                when u.wallet_address is null then 'refund_awaiting_wallet'
+                else 'refund_requested'
+            end,
+            resolution = 'refund', resolution_reason = 'Cancelled by participant',
+            cancellation_requested_at = timezone('utc', now()),
+            updated_at = timezone('utc', now())
+        from users as u
+        where d.id = p_deal_id and d.buyer_id = u.telegram_id
+        returning d.* into v_deal;
+    else
+        return;
+    end if;
+    return next v_deal;
+end;
+$$;
+
 create or replace function mark_deal_delivered(
     p_deal_id bigint,
     p_seller_id bigint,

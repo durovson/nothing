@@ -26,11 +26,20 @@ async def render_deal_card(
     message: types.Message,
     deal: Deal,
     db_user: User,
+    deal_service: DealService,
 ) -> None:
     """Render the canonical deal screen for callbacks and deep links."""
-    buyer = str(deal.buyer_id or "-")
-    if deal.buyer_id == db_user.telegram_id and db_user.username:
-        buyer = f"@{db_user.username}"
+    buyer_user, seller_user = await deal_service.participants(deal)
+    buyer = f"@{buyer_user.username} ({buyer_user.telegram_id})" if buyer_user and buyer_user.username else str(deal.buyer_id or "—")
+    seller = f"@{seller_user.username} ({seller_user.telegram_id})" if seller_user and seller_user.username else str(deal.creator_id)
+    if deal.status is DealStatus.DELIVERED:
+        status_note = "✅ Услуга оказана\nОжидание подтверждения от покупателя..." if db_user.language is Language.RU else "✅ Service delivered\nWaiting for buyer confirmation..."
+    elif deal.status is DealStatus.COMPLETED:
+        status_note = "✅ Сделка завершена" if db_user.language is Language.RU else "✅ Deal completed"
+    elif deal.status is DealStatus.PENDING:
+        status_note = "⏰ Ожидание оплаты покупателем" if db_user.language is Language.RU else "⏰ Waiting for buyer payment"
+    else:
+        status_note = "Средства обрабатываются согласно статусу сделки." if db_user.language is Language.RU else "Funds are being processed according to the deal status."
     channel_details = ""
     if deal.deal_type is DealType.CHANNEL:
         role = channel_member_status_label(deal.channel_last_member_status, db_user.language)
@@ -51,11 +60,12 @@ async def render_deal_card(
             currency=currency_label(deal.currency),
             wallet_address=deal.wallet_address or "-",
             buyer=buyer,
+            seller=seller,
             channel_details=channel_details,
-            delivery_deadline=(deal.delivery_deadline_at.isoformat() if deal.delivery_deadline_at else "-"),
-            inspection_deadline=(deal.inspection_deadline_at.isoformat() if deal.inspection_deadline_at else "-"),
+            status_note=status_note,
         ),
         deal_actions(db_user.language, deal, db_user.telegram_id),
+        screen="deal",
     )
 
 
@@ -65,24 +75,20 @@ async def my_deals(
     db_user: User,
     deal_service: DealService,
 ) -> None:
-    items, has_next = await deal_service.list_user_deals(db_user.telegram_id)
+    items, total_pages = await deal_service.list_user_deals(db_user.telegram_id)
     if not items:
-        await message.answer(translate(db_user.language, TextKey.DEAL_LIST_EMPTY))
-        return
-    await message.answer(
-        translate(db_user.language, TextKey.DEAL_LIST_CAPTION),
-        reply_markup=deals_list(db_user.language, items, 0, has_next),
-    )
+        total_pages = 1
+    await render_menu(message, translate(db_user.language, TextKey.DEAL_LIST_CAPTION if items else TextKey.DEAL_LIST_EMPTY), deals_list(db_user.language, items, 0, total_pages), screen="deals")
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.DEALS))
 async def my_deals_callback(
     callback: types.CallbackQuery, db_user: User, deal_service: DealService
 ) -> None:
-    items, has_next = await deal_service.list_user_deals(db_user.telegram_id)
+    items, total_pages = await deal_service.list_user_deals(db_user.telegram_id)
     if callback.message:
         caption = translate(db_user.language, TextKey.DEAL_LIST_CAPTION) if items else translate(db_user.language, TextKey.DEAL_LIST_EMPTY)
-        await render_menu(callback.message, caption, deals_list(db_user.language, items, 0, has_next))
+        await render_menu(callback.message, caption, deals_list(db_user.language, items, 0, total_pages), screen="deals")
     await callback.answer()
 
 
@@ -99,14 +105,15 @@ async def open_page(
     deal_service: DealService,
 ) -> None:
     page = max(0, callback_data.page)
-    items, has_next = await deal_service.list_user_deals(db_user.telegram_id, page)
+    items, total_pages = await deal_service.list_user_deals(db_user.telegram_id, page)
     if not items and page > 0:
         page -= 1
-        items, has_next = await deal_service.list_user_deals(db_user.telegram_id, page)
+        items, total_pages = await deal_service.list_user_deals(db_user.telegram_id, page)
     if callback.message:
         await render_menu(callback.message,
             translate(db_user.language, TextKey.DEAL_LIST_CAPTION),
-            deals_list(db_user.language, items, page, has_next),
+            deals_list(db_user.language, items, page, total_pages),
+            screen="deals",
         )
     await callback.answer()
 
@@ -130,7 +137,7 @@ async def open_deal(
         await callback.answer()
         return
     if callback.message:
-        await render_deal_card(callback.message, deal, db_user)
+        await render_deal_card(callback.message, deal, db_user, deal_service)
     await callback.answer()
 
 
@@ -142,7 +149,18 @@ async def cancel_deal(
     deal_service: DealService,
 ) -> None:
     deal = await deal_service.cancel_deal(callback_data.deal_id, db_user.telegram_id)
-    key = TextKey.DEAL_CANCELLED if deal.status is DealStatus.CANCELLED else TextKey.DEAL_ALREADY_CANCELLED
+    key = (
+        TextKey.DEAL_CANCELLED
+        if deal.status in {
+            DealStatus.CANCELLED,
+            DealStatus.REFUND_AWAITING_WALLET,
+            DealStatus.REFUND_REQUESTED,
+            DealStatus.REFUND_PROCESSING,
+            DealStatus.REFUND_SUBMITTED,
+        }
+        or deal.resolution == "refund"
+        else TextKey.DEAL_ALREADY_CANCELLED
+    )
     if callback.message:
         await callback.message.answer(translate(db_user.language, key))
     await callback.answer()

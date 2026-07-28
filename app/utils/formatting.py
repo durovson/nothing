@@ -29,15 +29,16 @@ def deal_status_label(
 ) -> str:
     normalized = DealStatus(status)
     if normalized in {DealStatus.CREATING, DealStatus.PENDING}:
-        return "Ожидание ⏳" if locale is Language.RU else "Waiting ⏳"
+        return "Ожидание ⏰" if locale is Language.RU else "Waiting ⏰"
     if normalized in {
         DealStatus.COLLECTING,
         DealStatus.COLLECTION_SUBMITTED,
         DealStatus.PAID,
         DealStatus.DELIVERY_PENDING,
-        DealStatus.DELIVERED,
     }:
         return "Активная 🟢" if locale is Language.RU else "Active 🟢"
+    if normalized is DealStatus.DELIVERED:
+        return "Услуга оказана" if locale is Language.RU else "Service delivered"
     if normalized is DealStatus.DISPUTED:
         return "Спор ⚖️" if locale is Language.RU else "Dispute ⚖️"
     if normalized in {
@@ -58,7 +59,7 @@ def deal_status_label(
     if normalized is DealStatus.REFUNDED:
         return "Возвращена ↩️" if locale is Language.RU else "Refunded ↩️"
     if normalized is DealStatus.CANCELLED:
-        return "Отменена 🔴" if locale is Language.RU else "Cancelled 🔴"
+        return "Отменена ❌" if locale is Language.RU else "Cancelled ❌"
     return "Ошибка ❌" if locale is Language.RU else "Failed ❌"
 
 

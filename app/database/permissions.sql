@@ -23,6 +23,8 @@ revoke all on function mark_collection_bounced(bigint, text) from public, anon, 
 revoke all on function mark_collection_failed(bigint, text) from public, anon, authenticated;
 revoke all on function request_deal_release(bigint, bigint) from public, anon, authenticated;
 revoke all on function claim_deal_buyer(text, bigint) from public, anon, authenticated;
+revoke all on function claim_deal_join_notification(bigint) from public, anon, authenticated;
+revoke all on function request_deal_cancellation(bigint, bigint) from public, anon, authenticated;
 revoke all on function assign_user_referrer(bigint, bigint) from public, anon, authenticated;
 revoke all on function credit_referral_reward(bigint, bigint, bigint, text, numeric) from public, anon, authenticated;
 revoke all on function claim_referral_withdrawal(bigint, text, text, text) from public, anon, authenticated;
@@ -66,6 +68,8 @@ grant execute on function mark_collection_bounced(bigint, text) to service_role;
 grant execute on function mark_collection_failed(bigint, text) to service_role;
 grant execute on function request_deal_release(bigint, bigint) to service_role;
 grant execute on function claim_deal_buyer(text, bigint) to service_role;
+grant execute on function claim_deal_join_notification(bigint) to service_role;
+grant execute on function request_deal_cancellation(bigint, bigint) to service_role;
 grant execute on function assign_user_referrer(bigint, bigint) to service_role;
 grant execute on function credit_referral_reward(bigint, bigint, bigint, text, numeric) to service_role;
 grant execute on function claim_referral_withdrawal(bigint, text, text, text) to service_role;

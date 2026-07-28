@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
 from app.core.constants import SELLER_DELIVERY_TIMEOUT_SECONDS
-from app.core.enums import CollectionStatus, Currency, TraceStatus
+from app.core.enums import CollectionStatus, Currency, DealStatus, TraceStatus
 from app.core.types import (
     CollectionRepositoryProtocol,
     DealRepositoryProtocol,
@@ -45,10 +45,11 @@ class CollectionService:
                 datetime.now(UTC) + timedelta(seconds=SELLER_DELIVERY_TIMEOUT_SECONDS),
             )
             if direct:
-                seller = await self._users.get(direct.creator_id)
-                buyer = await self._users.get(direct.buyer_id) if direct.buyer_id else None
-                await self._notifications.payment_received(direct, buyer, seller)
-                await self._channels.process_paid(direct)
+                if direct.status is DealStatus.DELIVERY_PENDING:
+                    seller = await self._users.get(direct.creator_id)
+                    buyer = await self._users.get(direct.buyer_id) if direct.buyer_id else None
+                    await self._notifications.payment_received(direct, buyer, seller)
+                    await self._channels.process_paid(direct)
             return
         comment = f"Escrow for deal {deal.public_id}"
         attempt = await self._collections.claim(
@@ -121,10 +122,11 @@ class CollectionService:
                     datetime.now(UTC) + timedelta(seconds=SELLER_DELIVERY_TIMEOUT_SECONDS),
                 )
                 if deal:
-                    seller = await self._users.get(deal.creator_id)
-                    buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
-                    await self._notifications.payment_received(deal, buyer, seller)
-                    await self._channels.process_paid(deal)
+                    if deal.status is DealStatus.DELIVERY_PENDING:
+                        seller = await self._users.get(deal.creator_id)
+                        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
+                        await self._notifications.payment_received(deal, buyer, seller)
+                        await self._channels.process_paid(deal)
             case TraceStatus.BOUNCED:
                 await self._collections.mark_bounced(attempt.id, "Collection transfer bounced")
             case TraceStatus.FAILED:

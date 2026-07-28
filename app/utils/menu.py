@@ -2,15 +2,40 @@ from pathlib import Path
 
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    FSInputFile,
+    InlineKeyboardMarkup,
+    InputMediaAnimation,
+    InputMediaPhoto,
+    Message,
+)
 
 MENU_IMAGE = Path(__file__).resolve().parent.parent / "assets" / "menu.png"
+MEDIA_DIR = MENU_IMAGE.parent / "media"
+MEDIA_EXTENSIONS = (".gif", ".mp4", ".png", ".jpg", ".jpeg")
+
+
+def media_path(screen: str) -> Path:
+    """Resolve a replaceable repository media asset, falling back to menu.png."""
+    for extension in MEDIA_EXTENSIONS:
+        candidate = MEDIA_DIR / f"{screen}{extension}"
+        if candidate.is_file():
+            return candidate
+    return MENU_IMAGE
+
+
+def _input_media(path: Path, caption: str):
+    source = FSInputFile(path)
+    if path.suffix.lower() in {".gif", ".mp4"}:
+        return InputMediaAnimation(media=source, caption=caption)
+    return InputMediaPhoto(media=source, caption=caption)
 
 
 async def render_menu(
     message: Message,
     caption: str,
     keyboard: InlineKeyboardMarkup,
+    screen: str = "main_menu",
 ) -> Message:
     """Edit the current bot card, falling back to one replacement card."""
     if len(caption) > 1024:
@@ -24,10 +49,11 @@ async def render_menu(
             except TelegramBadRequest:
                 pass
         return await message.answer(caption, reply_markup=keyboard)
+    asset = media_path(screen)
     if message.from_user and message.from_user.is_bot:
         try:
             if message.photo or message.animation:
-                await message.edit_caption(caption=caption, reply_markup=keyboard)
+                await message.edit_media(media=_input_media(asset, caption), reply_markup=keyboard)
             else:
                 await message.edit_text(caption, reply_markup=keyboard)
             return message
@@ -38,9 +64,19 @@ async def render_menu(
                 await message.delete()
             except TelegramBadRequest:
                 pass
-    return await message.answer_photo(
-        photo=FSInputFile(MENU_IMAGE), caption=caption, reply_markup=keyboard
-    )
+    if asset.suffix.lower() in {".gif", ".mp4"}:
+        return await message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+    return await message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+
+
+async def render_home(message: Message, caption: str, keyboard: InlineKeyboardMarkup) -> Message:
+    """Home is always a fresh card, as required by the navigation contract."""
+    if message.from_user and message.from_user.is_bot:
+        try:
+            await message.delete()
+        except TelegramBadRequest:
+            pass
+    return await render_menu(message, caption, keyboard, screen="main_menu")
 
 
 async def remember_menu(state: FSMContext, message: Message) -> None:
@@ -52,6 +88,7 @@ async def render_stored_menu(
     state: FSMContext,
     caption: str,
     keyboard: InlineKeyboardMarkup,
+    screen: str = "deal_join",
 ) -> Message | None:
     data = await state.get_data()
     chat_id = data.get("menu_chat_id")
@@ -77,8 +114,10 @@ async def render_stored_menu(
         except TelegramBadRequest as exc:
             if "message is not modified" in str(exc).lower():
                 return None
-    result = await user_message.answer_photo(
-        photo=FSInputFile(MENU_IMAGE), caption=caption, reply_markup=keyboard
-    )
+    asset = media_path(screen)
+    if asset.suffix.lower() in {".gif", ".mp4"}:
+        result = await user_message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+    else:
+        result = await user_message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
     await remember_menu(state, result)
     return result

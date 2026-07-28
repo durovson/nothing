@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from app.core.enums import Language
 from app.core.exceptions import InvalidWalletError
-from app.keyboards import WalletCallback, main_menu, wallet_actions
+from app.keyboards import WalletCallback, main_menu, wallet_actions, wallet_details
 from app.keyboards.callbacks import MenuAction, WalletAction
 from app.keyboards import MenuCallback
 from app.locales import TextKey, translate
@@ -16,21 +16,72 @@ router = Router(name="wallet")
 WALLET_MENU_TEXTS = {translate(language, TextKey.MENU_WALLET) for language in Language}
 
 
+def _short_wallet(address: str) -> str:
+    return f"{address[:10]}...{address[-10:]}"
+
+
+def _wallet_url(address: str) -> str:
+    return f"https://tonviewer.com/{address}"
+
+
+def _list_keyboard(user: User):
+    address = user.wallet_address
+    return wallet_actions(
+        user.language,
+        bool(address),
+        _wallet_url(address) if address else None,
+        _short_wallet(address) if address else None,
+    )
+
+
 @router.message(F.text.in_(WALLET_MENU_TEXTS))
 async def open_wallet(message: types.Message, db_user: User) -> None:
-    wallet = db_user.wallet_address or translate(db_user.language, TextKey.WALLET_EMPTY)
     await render_menu(
         message,
-        translate(db_user.language, TextKey.WALLET_CAPTION, wallet=wallet),
-        wallet_actions(db_user.language, bool(db_user.wallet_address)),
+        translate(db_user.language, TextKey.WALLET_EMPTY),
+        _list_keyboard(db_user),
+        screen="wallet",
     )
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.WALLET))
 async def open_wallet_callback(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
-        wallet = db_user.wallet_address or translate(db_user.language, TextKey.WALLET_EMPTY)
-        await render_menu(callback.message, translate(db_user.language, TextKey.WALLET_CAPTION, wallet=wallet), wallet_actions(db_user.language, bool(db_user.wallet_address)))
+        await render_menu(callback.message, translate(db_user.language, TextKey.WALLET_EMPTY), _list_keyboard(db_user), screen="wallet")
+    await callback.answer()
+
+
+@router.callback_query(WalletCallback.filter(F.action == WalletAction.OPEN))
+async def open_wallet_details(callback: types.CallbackQuery, db_user: User) -> None:
+    address = db_user.wallet_address
+    if not address:
+        await callback.answer(translate(db_user.language, TextKey.WALLET_EMPTY), show_alert=True)
+        return
+    if callback.message:
+        await render_menu(
+            callback.message,
+            translate(
+                db_user.language,
+                TextKey.WALLET_CAPTION,
+                wallet=address,
+                wallet_short=_short_wallet(address),
+                wallet_url=_wallet_url(address),
+            ),
+            wallet_details(db_user.language),
+            screen="wallet",
+        )
+    await callback.answer()
+
+
+@router.callback_query(WalletCallback.filter(F.action == WalletAction.BACK))
+async def wallet_back(callback: types.CallbackQuery, db_user: User) -> None:
+    if callback.message:
+        await render_menu(
+            callback.message,
+            translate(db_user.language, TextKey.WALLET_EMPTY),
+            _list_keyboard(db_user),
+            screen="wallet",
+        )
     await callback.answer()
 
 

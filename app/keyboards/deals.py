@@ -61,12 +61,12 @@ def created_deal_actions(locale: Language, deal_id: int) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CANCEL_BUTTON), callback_data=DealCallback(action=DealAction.CANCEL, deal_id=deal_id).pack())],
-            [InlineKeyboardButton(text=translate(locale, TextKey.DEAL_REFRESH_BUTTON), callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal_id).pack())],
+            [InlineKeyboardButton(text=translate(locale, TextKey.MAIN_MENU_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())],
         ]
     )
 
 
-def deals_list(locale: Language, deals: list[Deal], page: int, has_next: bool) -> InlineKeyboardMarkup:
+def deals_list(locale: Language, deals: list[Deal], page: int, total_pages: int) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(
             text=f"#{deal.public_id} | {deal_status_label(deal.status, locale)}",
@@ -77,17 +77,23 @@ def deals_list(locale: Language, deals: list[Deal], page: int, has_next: bool) -
     pagination: list[InlineKeyboardButton] = []
     if page > 0:
         pagination.append(InlineKeyboardButton(text="⬅️", callback_data=PageCallback(action=PageAction.OPEN, page=page - 1).pack()))
-    pagination.append(InlineKeyboardButton(text=str(page + 1), callback_data=PageCallback(action=PageAction.CURRENT, page=page).pack()))
-    if has_next:
+    pagination.append(InlineKeyboardButton(text=f"{page + 1}/{total_pages}", callback_data=PageCallback(action=PageAction.CURRENT, page=page).pack()))
+    if page + 1 < total_pages:
         pagination.append(InlineKeyboardButton(text="➡️", callback_data=PageCallback(action=PageAction.OPEN, page=page + 1).pack()))
     rows.append(pagination)
-    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.MAIN_MENU_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def deal_actions(locale: Language, deal: Deal, viewer_id: int) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
-    if deal.creator_id == viewer_id and deal.status is DealStatus.PENDING:
+    if deal.resolution != "refund" and viewer_id in {deal.creator_id, deal.buyer_id} and deal.status in {
+        DealStatus.PENDING,
+        DealStatus.COLLECTING,
+        DealStatus.COLLECTION_SUBMITTED,
+        DealStatus.DELIVERY_PENDING,
+        DealStatus.DELIVERED,
+    }:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CANCEL_BUTTON), callback_data=DealCallback(action=DealAction.CANCEL, deal_id=deal.id).pack())])
     if deal.creator_id == viewer_id and deal.status is DealStatus.DELIVERY_PENDING and deal.deal_type is not DealType.CHANNEL:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DELIVER_BUTTON), callback_data=DealCallback(action=DealAction.DELIVER, deal_id=deal.id).pack())])
@@ -98,6 +104,6 @@ def deal_actions(locale: Language, deal: Deal, viewer_id: int) -> InlineKeyboard
         DealStatus.DELIVERED,
     }:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DISPUTE_BUTTON), callback_data=DealCallback(action=DealAction.DISPUTE, deal_id=deal.id).pack())])
-    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_REFRESH_BUTTON), callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal.id).pack())])
-    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.BACK_BUTTON), callback_data=MenuCallback(action=MenuAction.DEALS).pack())])
+    rows.append([InlineKeyboardButton(text=translate(locale, TextKey.MAIN_MENU_BUTTON), callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)

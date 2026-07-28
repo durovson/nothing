@@ -60,6 +60,7 @@ class Deal(BaseModel):
     resolution: str | None = None
     resolution_reason: str | None = None
     failure_reason: str | None = None
+    cancellation_requested_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

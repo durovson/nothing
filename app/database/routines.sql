@@ -29,6 +29,19 @@ begin
 end;
 $$;
 
+create or replace function claim_deal_join_notification(p_deal_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals
+    set buyer_join_notified_at = timezone('utc', now())
+    where id = p_deal_id and buyer_id is not null
+      and buyer_join_notified_at is null
+    returning *;
+end;
+$$;
+
 create or replace function assign_user_referrer(
     p_referrer_id bigint,
     p_referred_id bigint
@@ -112,7 +125,8 @@ declare
     v_payment_id bigint;
 begin
     select * into v_deal from deals where id = p_deal_id for update;
-    if not found or v_deal.status <> 'pending' then
+    if not found or v_deal.status not in ('pending', 'cancelled')
+       or v_deal.buyer_id is null then
         return;
     end if;
 
@@ -128,6 +142,10 @@ begin
     set status = 'collecting', paid_tx_hash = p_tx_hash, paid_tx_lt = p_tx_lt,
         paid_amount_atomic = p_amount_atomic, payment_sender = p_sender,
         payment_memo_missing = p_memo_missing,
+        resolution = case when v_deal.status = 'cancelled' then 'refund' else resolution end,
+        resolution_reason = case when v_deal.status = 'cancelled'
+            then coalesce(resolution_reason, 'Payment detected after cancellation')
+            else resolution_reason end,
         paid_at = p_observed_at, updated_at = timezone('utc', now())
     where id = p_deal_id
     returning * into v_deal;
@@ -161,13 +179,20 @@ create or replace function mark_direct_custody_confirmed(
 language plpgsql security definer set search_path = public
 as $$
 begin
-    return query update deals
-    set status = 'delivery_pending', failure_reason = null,
+    return query update deals as d
+    set status = case
+            when d.resolution = 'refund' and u.wallet_address is null then 'refund_awaiting_wallet'
+            when d.resolution = 'refund' then 'refund_requested'
+            else 'delivery_pending'
+        end,
+        failure_reason = null,
         custody_confirmed_at = timezone('utc', now()),
         delivery_deadline_at = p_delivery_deadline_at,
         updated_at = timezone('utc', now())
-    where id = p_deal_id and status = 'collecting' and currency = 'USDT'
-    returning *;
+    from users as u
+    where d.id = p_deal_id and d.status = 'collecting' and d.currency = 'USDT'
+      and d.buyer_id = u.telegram_id
+    returning d.*;
 end;
 $$;
 
@@ -220,11 +245,18 @@ begin
         last_checked_at=timezone('utc', now()), updated_at=timezone('utc', now())
     where id=p_attempt_id and status='submitted' returning deal_id into v_deal_id;
     if v_deal_id is null then return; end if;
-    return query update deals set status='delivery_pending', failure_reason=null,
+    return query update deals as d set status = case
+            when d.resolution = 'refund' and u.wallet_address is null then 'refund_awaiting_wallet'
+            when d.resolution = 'refund' then 'refund_requested'
+            else 'delivery_pending'
+        end,
+        failure_reason=null,
         custody_confirmed_at=timezone('utc', now()),
         delivery_deadline_at=p_delivery_deadline_at,
         updated_at=timezone('utc', now())
-    where id=v_deal_id and status='collection_submitted' returning *;
+    from users as u
+    where d.id=v_deal_id and d.status='collection_submitted'
+      and d.buyer_id=u.telegram_id returning d.*;
 end;
 $$;
 

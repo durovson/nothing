@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from app.handlers import admin, deal_creation, deal_manage, settings, start, wallet
+from app.handlers import admin, deal_creation, deal_manage, info, settings, start, wallet
 
 
 def create_router() -> Router:
@@ -9,6 +9,7 @@ def create_router() -> Router:
         start.router,
         admin.router,
         wallet.router,
+        info.router,
         deal_creation.router,
         deal_manage.router,
         settings.router,

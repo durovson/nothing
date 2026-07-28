@@ -65,6 +65,8 @@ alter table deals add column if not exists channel_access_error text;
 alter table deals add column if not exists channel_owner_verified_at timestamptz;
 alter table deals add column if not exists channel_last_member_status text;
 alter table deals add column if not exists channel_last_checked_at timestamptz;
+alter table deals add column if not exists buyer_join_notified_at timestamptz;
+alter table deals add column if not exists cancellation_requested_at timestamptz;
 
 update deals
 set public_id = substring(md5(id::text || clock_timestamp()::text || random()::text), 1, 10)

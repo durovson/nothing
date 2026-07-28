@@ -107,6 +107,21 @@ class DealRepository:
         )
         return Deal(**response.data[0]) if response.data else None
 
+    async def claim_join_notification(self, deal_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "claim_deal_join_notification", {"p_deal_id": deal_id}
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def count_as_buyer(self, buyer_id: int) -> int:
+        response = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("id", count="exact")
+            .eq("buyer_id", buyer_id)
+            .execute()
+        )
+        return int(response.count or 0)
+
     async def claim_payment(self, deal_id: int, payment: PaymentObservation) -> Deal | None:
         response = await self._database.rpc(
             "claim_deal_payment",
@@ -240,36 +255,37 @@ class DealRepository:
         telegram_id: int,
         page: int,
         page_size: int,
-    ) -> tuple[list[Deal], bool]:
+    ) -> tuple[list[Deal], int]:
         offset = page * page_size
         response = await self._database.read(
             lambda: self._database.client.table("deals")
-            .select("*")
+            .select("*", count="exact")
             .or_(f"creator_id.eq.{telegram_id},buyer_id.eq.{telegram_id}")
             .order("id", desc=True)
-            .range(offset, offset + page_size)
+            .range(offset, offset + page_size - 1)
             .execute()
         )
         rows = [Deal(**item) for item in response.data]
-        return rows[:page_size], len(rows) > page_size
+        total = int(response.count or 0)
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        return rows, total_pages
 
     async def list_pending(self) -> list[Deal]:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
-            .eq("status", DealStatus.PENDING.value)
+            .in_("status", [DealStatus.PENDING.value, DealStatus.CANCELLED.value])
             .not_.is_("buyer_id", "null")
             .execute()
         )
         return [Deal(**item) for item in response.data]
 
-    async def expire_unpaid(self, deal_id: int) -> Deal:
-        return await self.transition(
-            deal_id,
-            DealStatus.PENDING,
-            status=DealStatus.CANCELLED,
-            failure_reason="Payment window expired",
+    async def request_cancellation(self, deal_id: int, actor_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "request_deal_cancellation",
+            {"p_deal_id": deal_id, "p_actor_id": actor_id},
         )
+        return Deal(**response.data[0]) if response.data else None
 
     async def purge_unsuccessful(self, retention_days: int) -> int:
         response = await self._database.rpc(

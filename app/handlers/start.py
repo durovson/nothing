@@ -3,7 +3,7 @@ from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 
 from app.config import Settings
-from app.core.enums import DealStatus
+from app.core.enums import DealStatus, DealType
 from app.core.exceptions import MissingLinkedWalletError
 from app.keyboards import MenuCallback, main_menu, payment_keyboard
 from app.keyboards.callbacks import MenuAction
@@ -12,8 +12,9 @@ from app.models.entities import User
 from app.services.deals import DealService
 from app.services.referrals import ReferralService
 from app.services.channels import ChannelDealService
+from app.api.telegram_notifier import TelegramNotificationGateway
 from app.handlers.deal_manage import render_deal_card
-from app.utils import currency_label, deal_type_label, format_amount, render_menu
+from app.utils import currency_label, deal_type_label, format_amount, render_home, render_menu
 
 router = Router(name="start")
 
@@ -28,6 +29,7 @@ async def start_with_args(
     settings: Settings,
     state: FSMContext,
     channel_service: ChannelDealService,
+    notification_gateway: TelegramNotificationGateway,
 ) -> None:
     await state.clear()
     argument = (command.args or "").strip()
@@ -50,13 +52,25 @@ async def start_with_args(
                 reply_markup=main_menu(db_user.language),
             )
             return
+        join_event = await deal_service.claim_join_notification(deal)
+        if join_event:
+            buyer, seller, buyer_deals = join_event
+            await notification_gateway.buyer_joined(deal, buyer, seller, buyer_deals)
         if deal.status is not DealStatus.PENDING:
-            await render_deal_card(message, deal, db_user)
+            await render_deal_card(message, deal, db_user, deal_service)
             return
         try:
             channel_invite = await channel_service.buyer_join_link(deal)
         except Exception:
             channel_invite = None
+        if deal.deal_type is DealType.CHANNEL and not channel_invite:
+            await render_menu(
+                message,
+                translate(db_user.language, TextKey.DEAL_CHANNEL_INVITE_UNAVAILABLE),
+                main_menu(db_user.language, settings.SUPPORT_USERNAME),
+                screen="deal_join",
+            )
+            return
         await render_menu(
             message,
             translate(
@@ -74,6 +88,7 @@ async def start_with_args(
                 deal_service.tonkeeper_payment_link(deal),
                 channel_invite,
             ),
+            screen="deal_join",
         )
         return
 
@@ -102,12 +117,12 @@ async def menu_back(
 
 
 async def show_main_menu(message: types.Message, user: User, settings: Settings) -> None:
-    await render_menu(
+    await render_home(
         message,
         translate(
             user.language,
             TextKey.MAIN_MENU_CAPTION,
             support_username=settings.SUPPORT_USERNAME,
         ),
-        main_menu(user.language),
+        main_menu(user.language, settings.SUPPORT_USERNAME),
     )

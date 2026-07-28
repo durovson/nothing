@@ -42,6 +42,7 @@ class AppContainer:
     ton: TonEscrowClient
     monitor: DealMonitor
     keepalive: RenderKeepAlive
+    notifications: TelegramNotificationGateway
 
 
 def build_container(settings: Settings | None = None) -> AppContainer:
@@ -119,6 +120,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         channels=channels,
     )
     dispatcher = create_dispatcher(app_settings, services)
+    dispatcher["notification_gateway"] = notifications
     monitor = DealMonitor(
         app_settings,
         deals,
@@ -141,4 +143,5 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         ton=ton,
         monitor=monitor,
         keepalive=keepalive,
+        notifications=notifications,
     )

@@ -39,10 +39,13 @@ async def start_deal_creation(
         await message.answer(translate(db_user.language, TextKey.DEAL_WAIT_WALLET))
         return
     await state.set_state(DealCreationStates.waiting_for_type)
-    await message.answer(
+    menu_message = await render_menu(
+        message,
         translate(db_user.language, TextKey.DEAL_CREATE_INTRO),
-        reply_markup=deal_type_keyboard(db_user.language),
+        deal_type_keyboard(db_user.language),
+        screen="deal_create",
     )
+    await remember_menu(state, menu_message)
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.CREATE_DEAL))
@@ -52,12 +55,20 @@ async def start_deal_creation_callback(
     await state.clear()
     if callback.message:
         if not db_user.wallet_address:
-            from app.keyboards import main_menu
-            await render_menu(callback.message, translate(db_user.language, TextKey.DEAL_WAIT_WALLET), main_menu(db_user.language))
+            await callback.answer(
+                "Для начала привяжите кошелек" if db_user.language is Language.RU else "Link a wallet first",
+                show_alert=True,
+            )
+            return
         else:
             await state.set_state(DealCreationStates.waiting_for_type)
             await remember_menu(state, callback.message)
-            await render_menu(callback.message, translate(db_user.language, TextKey.DEAL_CREATE_INTRO), deal_type_keyboard(db_user.language))
+            await render_menu(
+                callback.message,
+                translate(db_user.language, TextKey.DEAL_CREATE_INTRO),
+                deal_type_keyboard(db_user.language),
+                screen="deal_create",
+            )
     await callback.answer()
 
 
@@ -74,11 +85,17 @@ async def choose_deal_type(
             await state.set_state(ChannelDealStates.waiting_for_channel)
             await render_menu(callback.message,
                 translate(db_user.language, TextKey.DEAL_CHANNEL_WARNING),
-                back_keyboard(db_user.language)
+                back_keyboard(db_user.language),
+                screen="deal_create",
             )
         else:
             await state.set_state(DealCreationStates.waiting_for_description)
-            await render_menu(callback.message, translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT), back_keyboard(db_user.language))
+            await render_menu(
+                callback.message,
+                translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT),
+                back_keyboard(db_user.language),
+                screen="deal_create",
+            )
     await callback.answer()
 
 
@@ -104,6 +121,7 @@ async def handle_channel(
             state,
             translate(db_user.language, TextKey.DEAL_CHANNEL_INVALID, reason=reason),
             back_keyboard(db_user.language),
+            screen="deal_create",
         )
         return
     await state.update_data(
@@ -123,6 +141,7 @@ async def handle_channel(
         + "\n\n"
         + translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT),
         back_keyboard(db_user.language),
+        screen="deal_create",
     )
 
 
@@ -134,7 +153,13 @@ async def handle_description(
 ) -> None:
     description = (message.text or "").strip()
     if not 1 <= len(description) <= 2_000:
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT), back_keyboard(db_user.language))
+        await render_stored_menu(
+            message,
+            state,
+            translate(db_user.language, TextKey.DEAL_DESCRIPTION_PROMPT),
+            back_keyboard(db_user.language),
+            screen="deal_create",
+        )
         return
     await state.update_data(description=description)
     await state.set_state(DealCreationStates.waiting_for_currency)
@@ -143,6 +168,7 @@ async def handle_description(
         state,
         translate(db_user.language, TextKey.DEAL_CURRENCY_PROMPT),
         currency_keyboard(db_user.language),
+        screen="deal_create",
     )
 
 
@@ -168,6 +194,7 @@ async def choose_currency(
             callback.message,
             caption,
             currency_keyboard(db_user.language),
+            screen="deal_create",
         )
     await callback.answer()
 
@@ -185,7 +212,7 @@ async def handle_amount(
         if not amount.is_finite() or amount <= 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language))
+        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language), screen="deal_create")
         return
 
     data = await state.get_data()
@@ -207,16 +234,16 @@ async def handle_amount(
                 TextKey.DEAL_AMOUNT_TOO_SMALL,
                 minimum=format_amount(exc.minimum),
                 currency=currency_label(exc.currency),
-            ), currency_keyboard(db_user.language)
+            ), currency_keyboard(db_user.language), screen="deal_create"
         )
         return
     except MissingLinkedWalletError:
         from app.keyboards import main_menu
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_WAIT_WALLET), main_menu(db_user.language))
+        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_WAIT_WALLET), main_menu(db_user.language), screen="deal_create")
         await state.clear()
         return
     except (ValidationError, KeyError, ValueError):
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language))
+        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language), screen="deal_create")
         return
     bot_username = settings.TELEGRAM_BOT_USERNAME or (await message.bot.get_me()).username or "YourBot"
     deep_link = f"https://t.me/{bot_username}?start={deal.public_id}"
@@ -236,5 +263,6 @@ async def handle_amount(
             deep_link=deep_link,
         ),
         created_deal_actions(db_user.language, deal.id),
+        screen="deal_create",
     )
     await state.clear()
