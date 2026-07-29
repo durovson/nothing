@@ -1,7 +1,7 @@
 import uvicorn
 
 from app.api.application import create_application
-from app.core.logger import configure_logging
+from app.core.logger import configure_logging, uvicorn_log_config
 from app.core.runtime import ensure_supported_python
 from app.loader import build_container
 
@@ -18,6 +18,7 @@ def main() -> None:
         host=container.settings.APP_HOST,
         port=container.settings.APP_PORT,
         reload=False,
+        log_config=uvicorn_log_config(),
     )
 
 
