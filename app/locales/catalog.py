@@ -97,7 +97,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "🤖 <b>Технология:</b> Прямая интеграция TON × Telegram\n\n"
             "✋ <b>Безопасность:</b> Заморозка активов до завершения условий\n\n"
             "📊 <b>Прозрачность:</b> Фиксированная комиссия — всего 1%\n\n"
-            "💬 <b>Отзывы:</b> @reviews_grnt"
+            "💬 <b>Отзывы:</b> <a href=\"https://t.me/grnthub/4\">@grnthub</a>"
         ),
         TextKey.MENU_WALLET: "Мой кошелек",
         TextKey.MENU_CREATE_DEAL: "Создать сделку",
@@ -295,7 +295,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<b>For those who value speed and security.</b> Make deals without unnecessary intermediaries.\n\n"
             "🤖 <b>Technology:</b> Direct TON × Telegram integration\n\n"
             "✋ <b>Security:</b> Assets are frozen until conditions are completed\n\n"
-            "📊 <b>Transparency:</b> Fixed 1% fee\n\n💬 <b>Reviews:</b> @reviews_grnt"
+            "📊 <b>Transparency:</b> Fixed 1% fee\n\n💬 <b>Reviews:</b> <a href=\"https://t.me/grnthub/4\">@grnthub</a>"
         ),
         TextKey.MENU_WALLET: "My wallet",
         TextKey.MENU_CREATE_DEAL: "Create deal",
