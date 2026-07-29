@@ -29,31 +29,31 @@ def deal_status_label(
 ) -> str:
     normalized = DealStatus(status)
     if normalized in {DealStatus.CREATING, DealStatus.PENDING}:
-        return "Ожидание ⏰" if locale is Language.RU else "Waiting ⏰"
+        return "Ожидание оплаты ⏳" if locale is Language.RU else "Waiting for payment ⏳"
     if normalized in {
         DealStatus.COLLECTING,
         DealStatus.COLLECTION_SUBMITTED,
         DealStatus.PAID,
         DealStatus.DELIVERY_PENDING,
     }:
-        return "Активная 🟢" if locale is Language.RU else "Active 🟢"
+        return "Ожидание оказания услуги ⏳" if locale is Language.RU else "Waiting for delivery ⏳"
     if normalized is DealStatus.DELIVERED:
-        return "Услуга оказана" if locale is Language.RU else "Service delivered"
+        return "Ожидание подтверждения покупателя ⏳" if locale is Language.RU else "Waiting for buyer confirmation ⏳"
     if normalized is DealStatus.DISPUTED:
-        return "Спор ⚖️" if locale is Language.RU else "Dispute ⚖️"
+        return "Открыт спор ⚖️" if locale is Language.RU else "Dispute opened ⚖️"
     if normalized in {
         DealStatus.RELEASE_REQUESTED,
         DealStatus.PAYOUT_PROCESSING,
         DealStatus.PAYOUT_SUBMITTED,
     }:
-        return "Выплата 💸" if locale is Language.RU else "Payout 💸"
+        return "Выплата обрабатывается ⏳" if locale is Language.RU else "Payout processing ⏳"
     if normalized in {
         DealStatus.REFUND_AWAITING_WALLET,
         DealStatus.REFUND_REQUESTED,
         DealStatus.REFUND_PROCESSING,
         DealStatus.REFUND_SUBMITTED,
     }:
-        return "Возврат ↩️" if locale is Language.RU else "Refund ↩️"
+        return "Возврат обрабатывается ⏳" if locale is Language.RU else "Refund processing ⏳"
     if normalized is DealStatus.COMPLETED:
         return "Завершена ✅" if locale is Language.RU else "Completed ✅"
     if normalized is DealStatus.REFUNDED:

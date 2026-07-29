@@ -2,7 +2,15 @@ from enum import StrEnum
 
 from aiogram.filters.callback_data import CallbackData
 
-from app.core.enums import AdminAction, AdminDisputeAction, Currency, DealType, Language
+from app.core.enums import (
+    AdminAction,
+    AdminDisputeAction,
+    Currency,
+    DealType,
+    FinancialAdminAction,
+    Language,
+    UnmatchedPaymentAction,
+)
 
 
 class MenuAction(StrEnum):
@@ -93,4 +101,16 @@ class AdminCallback(CallbackData, prefix="admin"):
 class AdminDisputeCallback(CallbackData, prefix="adm-dsp"):
     action: AdminDisputeAction
     ticket_id: int
+    page: int = 0
+
+
+class AdminFinancialCallback(CallbackData, prefix="adm-fin"):
+    action: FinancialAdminAction
+    operation_id: int
+    page: int = 0
+
+
+class AdminUnmatchedCallback(CallbackData, prefix="adm-unm"):
+    action: UnmatchedPaymentAction
+    payment_id: int
     page: int = 0

@@ -19,11 +19,36 @@ class AdminDisputeAction(StrEnum):
 
 class AdminAction(StrEnum):
     DISPUTES = "disputes"
+    FINANCIAL_OPERATIONS = "financial_operations"
+    UNMATCHED_PAYMENTS = "unmatched_payments"
     BROADCAST = "broadcast"
     MAINTENANCE = "maintenance"
     MAINTENANCE_ON = "maintenance_on"
     MAINTENANCE_OFF = "maintenance_off"
+    MODE_NORMAL = "mode_normal"
+    MODE_READ_ONLY = "mode_read_only"
+    MODE_EMERGENCY = "mode_emergency"
     BACK = "back"
+
+
+class SystemMode(StrEnum):
+    NORMAL = "normal"
+    READ_ONLY = "read_only"
+    EMERGENCY = "emergency"
+
+
+class FinancialAdminAction(StrEnum):
+    OPEN = "open"
+    RETRY = "retry"
+    REOPEN = "reopen"
+    MANUAL_REVIEW = "manual_review"
+    FORCE_COMPLETE = "force_complete"
+
+
+class UnmatchedPaymentAction(StrEnum):
+    OPEN = "open"
+    REFUND = "refund"
+    CONFIRM_REFUND = "confirm_refund"
 
 
 class TonNetwork(StrEnum):
@@ -112,6 +137,49 @@ class ReferralWithdrawalStatus(StrEnum):
     CONFIRMED = "confirmed"
     BOUNCED = "bounced"
     FAILED = "failed"
+
+
+class FinancialOperationType(StrEnum):
+    COLLECTION_TRANSFER = "collection_transfer"
+    SELLER_TRANSFER = "seller_transfer"
+    BUYER_REFUND = "buyer_refund"
+    SERVICE_FEE_TRANSFER = "service_fee_transfer"
+    REFERRAL_TRANSFER = "referral_transfer"
+
+
+class FinancialOperationFlow(StrEnum):
+    COLLECTION = "collection"
+    PAYOUT = "payout"
+    REFUND = "refund"
+    REFERRAL = "referral"
+    UNMATCHED_REFUND = "unmatched_refund"
+
+
+class FinancialOperationStatus(StrEnum):
+    PENDING = "pending"
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+    MANUAL_REVIEW = "manual_review"
+
+
+class FinancialAttemptStatus(StrEnum):
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+    UNKNOWN = "unknown"
+
+
+class UnmatchedPaymentStatus(StrEnum):
+    OPEN = "open"
+    REFUND_PENDING = "refund_pending"
+    REFUNDED = "refunded"
+    LINKED = "linked"
+    IGNORED = "ignored"
 
 
 class DisputeStatus(StrEnum):

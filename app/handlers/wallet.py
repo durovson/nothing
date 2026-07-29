@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from app.core.enums import Language
 from app.core.exceptions import InvalidWalletError
-from app.keyboards import WalletCallback, main_menu, wallet_actions, wallet_details
+from app.keyboards import WalletCallback, home_keyboard, wallet_actions, wallet_details
 from app.keyboards.callbacks import MenuAction, WalletAction
 from app.keyboards import MenuCallback
 from app.locales import TextKey, translate
@@ -25,29 +25,46 @@ def _wallet_url(address: str) -> str:
 
 
 def _list_keyboard(user: User):
-    address = user.wallet_address
-    return wallet_actions(
-        user.language,
-        bool(address),
-        _wallet_url(address) if address else None,
-        _short_wallet(address) if address else None,
-    )
+    return home_keyboard(user.language)
+
+
+def _wallet_prompt(user: User) -> str:
+    if user.wallet_address:
+        return translate(
+            user.language,
+            TextKey.WALLET_ACTIVE_PROMPT,
+            wallet=user.wallet_address,
+        )
+    return translate(user.language, TextKey.WALLET_PROMPT)
 
 
 @router.message(F.text.in_(WALLET_MENU_TEXTS))
-async def open_wallet(message: types.Message, db_user: User) -> None:
-    await render_menu(
+async def open_wallet(message: types.Message, db_user: User, state: FSMContext) -> None:
+    await state.clear()
+    await state.set_state(WalletStates.waiting_for_wallet)
+    menu_message = await render_menu(
         message,
-        translate(db_user.language, TextKey.WALLET_EMPTY),
+        _wallet_prompt(db_user),
         _list_keyboard(db_user),
         screen="wallet",
     )
+    await remember_menu(state, menu_message)
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.WALLET))
-async def open_wallet_callback(callback: types.CallbackQuery, db_user: User) -> None:
+async def open_wallet_callback(
+    callback: types.CallbackQuery, db_user: User, state: FSMContext
+) -> None:
+    await state.clear()
+    await state.set_state(WalletStates.waiting_for_wallet)
     if callback.message:
-        await render_menu(callback.message, translate(db_user.language, TextKey.WALLET_EMPTY), _list_keyboard(db_user), screen="wallet")
+        await remember_menu(state, callback.message)
+        await render_menu(
+            callback.message,
+            _wallet_prompt(db_user),
+            _list_keyboard(db_user),
+            screen="wallet",
+        )
     await callback.answer()
 
 
@@ -126,11 +143,7 @@ async def save_wallet(
     await render_stored_menu(
         message,
         state,
-        translate(
-            updated_user.language,
-            TextKey.WALLET_SAVED,
-            wallet=updated_user.wallet_address,
-        ),
-        main_menu(updated_user.language),
+        _wallet_prompt(updated_user),
+        home_keyboard(updated_user.language),
+        screen="wallet",
     )
-    await state.clear()

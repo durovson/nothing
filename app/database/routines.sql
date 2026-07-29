@@ -2,6 +2,7 @@ begin;
 
 drop function if exists claim_deal_payout(bigint, text, numeric, text);
 drop function if exists mark_collection_confirmed(bigint);
+drop function if exists mark_payout_confirmed(bigint);
 drop function if exists claim_deal_payment(bigint, text, numeric, numeric, text, timestamptz);
 drop function if exists credit_referral_reward(bigint, bigint, text, numeric);
 
@@ -13,6 +14,7 @@ set search_path = public
 as $$
 declare
     v_deal deals%rowtype;
+    v_buyer_wallet text;
 begin
     select * into v_deal from deals where public_id = p_public_id for update;
     if not found or v_deal.status <> 'pending' or v_deal.creator_id = p_buyer_id then
@@ -21,8 +23,15 @@ begin
     if v_deal.buyer_id is not null and v_deal.buyer_id <> p_buyer_id then
         return;
     end if;
+    select wallet_address into v_buyer_wallet
+    from users where telegram_id = p_buyer_id;
+    if v_buyer_wallet is null then
+        return;
+    end if;
     if v_deal.buyer_id is null then
-        update deals set buyer_id = p_buyer_id, updated_at = timezone('utc', now())
+        update deals set buyer_id = p_buyer_id,
+            buyer_wallet_address = v_buyer_wallet,
+            updated_at = timezone('utc', now())
         where id = v_deal.id returning * into v_deal;
     end if;
     return next v_deal;
@@ -39,6 +48,29 @@ begin
     where id = p_deal_id and buyer_id is not null
       and buyer_join_notified_at is null
     returning *;
+end;
+$$;
+
+create or replace function claim_success_feed_notification(p_deal_id bigint)
+returns setof deals
+language plpgsql security definer set search_path = public
+as $$
+begin
+    return query update deals
+    set success_feed_notified_at = timezone('utc', now())
+    where id = p_deal_id and status = 'completed'
+      and success_feed_notified_at is null
+    returning *;
+end;
+$$;
+
+create or replace function release_success_feed_notification(p_deal_id bigint)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+    update deals set success_feed_notified_at = null
+    where id = p_deal_id and status = 'completed';
 end;
 $$;
 
@@ -437,7 +469,10 @@ begin
 end;
 $$;
 
-create or replace function mark_payout_confirmed(p_attempt_id bigint)
+create or replace function mark_payout_confirmed(
+    p_attempt_id bigint,
+    p_transaction_hash text
+)
 returns setof deals
 language plpgsql
 security definer
@@ -446,6 +481,7 @@ as $$
 declare
     v_deal_id bigint;
 begin
+    if nullif(btrim(p_transaction_hash), '') is null then return; end if;
     update payout_attempts
     set status = 'confirmed', confirmed_at = timezone('utc', now()),
         last_checked_at = timezone('utc', now()), updated_at = timezone('utc', now())
@@ -454,6 +490,7 @@ begin
     if v_deal_id is null then return; end if;
     return query
     update deals set status = 'completed', failure_reason = null,
+        payout_tx_hash = p_transaction_hash,
         updated_at = timezone('utc', now())
     where id = v_deal_id and status = 'payout_submitted'
     returning *;
@@ -506,29 +543,34 @@ begin
 end;
 $$;
 
-create or replace function purge_expired_unsuccessful_deals(p_retention_days integer)
+create or replace function archive_expired_unsuccessful_deals(p_retention_days integer)
 returns bigint
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-    v_deleted bigint;
+    v_archived bigint;
 begin
     if p_retention_days is null or p_retention_days < 1 or p_retention_days > 30 then
         raise exception 'retention must be between 1 and 30 days';
     end if;
 
-    delete from deals
-    where status in (
-        'cancelled', 'creation_failed', 'collection_failed',
-        'payout_failed', 'payout_bounced', 'refund_failed', 'refund_bounced'
-    )
+    update deals set archived_at=timezone('utc',now()),
+      archived_reason='Unpaid unsuccessful deal retention',updated_at=timezone('utc',now())
+    where status in ('cancelled','creation_failed') and archived_at is null
+      and paid_tx_hash is null
+      and not exists(select 1 from deal_payments p where p.deal_id=deals.id)
       and updated_at < timezone('utc', now()) - make_interval(days => p_retention_days);
 
-    get diagnostics v_deleted = row_count;
-    return v_deleted;
+    get diagnostics v_archived = row_count;
+    return v_archived;
 end;
+$$;
+
+create or replace function purge_expired_unsuccessful_deals(p_retention_days integer)
+returns bigint language sql security definer set search_path=public as $$
+  select archive_expired_unsuccessful_deals(p_retention_days);
 $$;
 
 create or replace function claim_referral_withdrawal(

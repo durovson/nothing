@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.core.enums import Currency, DealType, Language
-from app.core.exceptions import ChannelConfigurationError, DealAmountTooSmallError, MissingLinkedWalletError
+from app.core.exceptions import ChannelConfigurationError, DealAmountTooSmallError, MissingLinkedWalletError, ServiceUnavailableError
 from app.keyboards import (
     CurrencyCallback,
     back_keyboard,
@@ -240,6 +240,12 @@ async def handle_amount(
     except MissingLinkedWalletError:
         from app.keyboards import main_menu
         await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_WAIT_WALLET), main_menu(db_user.language), screen="deal_create")
+        await state.clear()
+        return
+    except ServiceUnavailableError as exc:
+        await render_stored_menu(
+            message, state, str(exc), back_keyboard(db_user.language), screen="deal_create"
+        )
         await state.clear()
         return
     except (ValidationError, KeyError, ValueError):

@@ -159,10 +159,10 @@ async def withdraw_referral_reward(
         )
     else:
         if db_user.language is Language.RU:
-            text = (f"Вывод {format_amount(withdrawal.amount)} {withdrawal.currency.value} отправлен в сеть TON.\n\n"
+            text = (f"Вывод {format_amount(withdrawal.amount)} {withdrawal.currency.value} принят в безопасную очередь TON.\n\n"
                     "Адрес взят из профиля. При использовании биржевого или чужого адреса сервис не отвечает за зачисление средств.")
         else:
-            text = (f"Withdrawal of {format_amount(withdrawal.amount)} {withdrawal.currency.value} was submitted to TON.\n\n"
+            text = (f"Withdrawal of {format_amount(withdrawal.amount)} {withdrawal.currency.value} was accepted into the TON settlement queue.\n\n"
                     "The linked profile address was used. The service is not responsible for exchange or third-party address crediting.")
     stats = await referral_service.get_stats(db_user.telegram_id)
     if callback.message:

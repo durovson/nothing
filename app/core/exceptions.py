@@ -50,3 +50,7 @@ class ReferralWithdrawalError(ApplicationError):
 
 class ChannelConfigurationError(ApplicationError):
     pass
+
+
+class ServiceUnavailableError(ApplicationError):
+    pass

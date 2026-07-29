@@ -21,8 +21,6 @@ services:
         value: "786080766"
       - key: USDT_MASTER_ADDRESS
         value: EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs
-      - key: MIN_USDT_DEAL_AMOUNT
-        value: "1"
       - key: TON_GUARANT_ADDRESS
         sync: false
       - key: TELEGRAM_BOT_TOKEN

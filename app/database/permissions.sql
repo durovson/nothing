@@ -24,6 +24,8 @@ revoke all on function mark_collection_failed(bigint, text) from public, anon, a
 revoke all on function request_deal_release(bigint, bigint) from public, anon, authenticated;
 revoke all on function claim_deal_buyer(text, bigint) from public, anon, authenticated;
 revoke all on function claim_deal_join_notification(bigint) from public, anon, authenticated;
+revoke all on function claim_success_feed_notification(bigint) from public, anon, authenticated;
+revoke all on function release_success_feed_notification(bigint) from public, anon, authenticated;
 revoke all on function request_deal_cancellation(bigint, bigint) from public, anon, authenticated;
 revoke all on function assign_user_referrer(bigint, bigint) from public, anon, authenticated;
 revoke all on function credit_referral_reward(bigint, bigint, bigint, text, numeric) from public, anon, authenticated;
@@ -36,7 +38,7 @@ revoke all on function claim_deal_batch_payout(bigint, text, numeric, text, text
     from public, anon, authenticated;
 revoke all on function save_prepared_payout(bigint, text, text, timestamptz) from public, anon, authenticated;
 revoke all on function mark_payout_submitted(bigint) from public, anon, authenticated;
-revoke all on function mark_payout_confirmed(bigint) from public, anon, authenticated;
+revoke all on function mark_payout_confirmed(bigint, text) from public, anon, authenticated;
 revoke all on function mark_payout_bounced(bigint, text) from public, anon, authenticated;
 revoke all on function mark_payout_failed(bigint, text) from public, anon, authenticated;
 revoke all on function purge_expired_unsuccessful_deals(integer) from public, anon, authenticated;
@@ -69,6 +71,8 @@ grant execute on function mark_collection_failed(bigint, text) to service_role;
 grant execute on function request_deal_release(bigint, bigint) to service_role;
 grant execute on function claim_deal_buyer(text, bigint) to service_role;
 grant execute on function claim_deal_join_notification(bigint) to service_role;
+grant execute on function claim_success_feed_notification(bigint) to service_role;
+grant execute on function release_success_feed_notification(bigint) to service_role;
 grant execute on function request_deal_cancellation(bigint, bigint) to service_role;
 grant execute on function assign_user_referrer(bigint, bigint) to service_role;
 grant execute on function credit_referral_reward(bigint, bigint, bigint, text, numeric) to service_role;
@@ -81,7 +85,7 @@ grant execute on function claim_deal_batch_payout(bigint, text, numeric, text, t
     to service_role;
 grant execute on function save_prepared_payout(bigint, text, text, timestamptz) to service_role;
 grant execute on function mark_payout_submitted(bigint) to service_role;
-grant execute on function mark_payout_confirmed(bigint) to service_role;
+grant execute on function mark_payout_confirmed(bigint, text) to service_role;
 grant execute on function mark_payout_bounced(bigint, text) to service_role;
 grant execute on function mark_payout_failed(bigint, text) to service_role;
 grant execute on function purge_expired_unsuccessful_deals(integer) to service_role;

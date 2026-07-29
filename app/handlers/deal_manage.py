@@ -7,8 +7,10 @@ from app.core.exceptions import (
     DealActionForbiddenError,
     DealConfirmationForbiddenError,
     DealNotFoundError,
+    ServiceUnavailableError,
 )
-from app.keyboards import DealCallback, MenuCallback, PageCallback, deal_actions, deals_list
+from app.api.telegram_notifier import TelegramNotificationGateway
+from app.keyboards import DealCallback, MenuCallback, PageCallback, deal_actions, deals_list, home_keyboard
 from app.keyboards.callbacks import DealAction, MenuAction, PageAction
 from app.locales import TextKey, translate
 from app.models.entities import Deal, User
@@ -32,14 +34,7 @@ async def render_deal_card(
     buyer_user, seller_user = await deal_service.participants(deal)
     buyer = f"@{buyer_user.username} ({buyer_user.telegram_id})" if buyer_user and buyer_user.username else str(deal.buyer_id or "—")
     seller = f"@{seller_user.username} ({seller_user.telegram_id})" if seller_user and seller_user.username else str(deal.creator_id)
-    if deal.status is DealStatus.DELIVERED:
-        status_note = "✅ Услуга оказана\nОжидание подтверждения от покупателя..." if db_user.language is Language.RU else "✅ Service delivered\nWaiting for buyer confirmation..."
-    elif deal.status is DealStatus.COMPLETED:
-        status_note = "✅ Сделка завершена" if db_user.language is Language.RU else "✅ Deal completed"
-    elif deal.status is DealStatus.PENDING:
-        status_note = "⏰ Ожидание оплаты покупателем" if db_user.language is Language.RU else "⏰ Waiting for buyer payment"
-    else:
-        status_note = "Средства обрабатываются согласно статусу сделки." if db_user.language is Language.RU else "Funds are being processed according to the deal status."
+    payment_amount = deal_service.buyer_payment_amount(deal)
     channel_details = ""
     if deal.deal_type is DealType.CHANNEL:
         role = channel_member_status_label(deal.channel_last_member_status, db_user.language)
@@ -57,12 +52,12 @@ async def render_deal_card(
             deal_type=deal_type_label(deal.deal_type, db_user.language),
             description=deal.description,
             amount=format_amount(deal.amount),
+            payment_amount=format_amount(payment_amount),
             currency=currency_label(deal.currency),
             wallet_address=deal.wallet_address or "-",
             buyer=buyer,
             seller=seller,
             channel_details=channel_details,
-            status_note=status_note,
         ),
         deal_actions(db_user.language, deal, db_user.telegram_id),
         screen="deal",
@@ -147,23 +142,43 @@ async def cancel_deal(
     callback_data: DealCallback,
     db_user: User,
     deal_service: DealService,
+    notification_gateway: TelegramNotificationGateway,
 ) -> None:
-    deal = await deal_service.cancel_deal(callback_data.deal_id, db_user.telegram_id)
-    key = (
-        TextKey.DEAL_CANCELLED
-        if deal.status in {
-            DealStatus.CANCELLED,
-            DealStatus.REFUND_AWAITING_WALLET,
-            DealStatus.REFUND_REQUESTED,
-            DealStatus.REFUND_PROCESSING,
-            DealStatus.REFUND_SUBMITTED,
-        }
-        or deal.resolution == "refund"
-        else TextKey.DEAL_ALREADY_CANCELLED
+    deal, applied = await deal_service.cancel_deal(
+        callback_data.deal_id, db_user.telegram_id
     )
+    if not applied:
+        await callback.answer(
+            translate(db_user.language, TextKey.DEAL_ALREADY_CANCELLED),
+            show_alert=True,
+        )
+        return
+    if (
+        deal.status is DealStatus.CANCELLED
+        and db_user.telegram_id == deal.creator_id
+        and deal.buyer_id is not None
+    ):
+        buyer, _ = await deal_service.participants(deal)
+        if buyer:
+            await notification_gateway.cancelled_by_seller(deal, buyer)
+    elif deal.status is not DealStatus.CANCELLED:
+        buyer, seller = await deal_service.participants(deal)
+        await notification_gateway.dispute_opened(deal, buyer, seller)
+        if callback.message:
+            await render_deal_card(callback.message, deal, db_user, deal_service)
+        await callback.answer(
+            "После оплаты отмена рассматривается как спор. Средства заморожены до решения администратора."
+            if db_user.language is Language.RU
+            else "After payment, cancellation opens a dispute. Funds remain frozen until an administrator decides.",
+            show_alert=True,
+        )
+        return
     if callback.message:
-        await callback.message.answer(translate(db_user.language, key))
-    await callback.answer()
+        await callback.message.edit_reply_markup(reply_markup=home_keyboard(db_user.language))
+    await callback.answer(
+        translate(db_user.language, TextKey.DEAL_CANCELLED),
+        show_alert=True,
+    )
 
 
 @router.callback_query(DealCallback.filter(F.action == DealAction.CONFIRM))
@@ -172,15 +187,34 @@ async def confirm_deal(
     callback_data: DealCallback,
     db_user: User,
     payout_service: PayoutService,
+    deal_service: DealService,
 ) -> None:
     try:
-        await payout_service.confirm_receipt(callback_data.deal_id, db_user.telegram_id)
+        deal = await payout_service.confirm_receipt(callback_data.deal_id, db_user.telegram_id)
+    except ServiceUnavailableError as exc:
+        await callback.answer(str(exc), show_alert=True)
+        return
     except (DealConfirmationForbiddenError, DealNotFoundError):
-        key = TextKey.DEAL_FORBIDDEN
-    else:
-        key = TextKey.DEAL_RELEASE_ACCEPTED
+        await callback.answer(
+            "Сделка уже завершена или выплата обрабатывается"
+            if db_user.language is Language.RU
+            else "The deal is already completed or its payout is processing",
+            show_alert=True,
+        )
+        return
     if callback.message:
-        await callback.message.answer(translate(db_user.language, key))
+        await callback.message.answer(
+            translate(
+                db_user.language,
+                TextKey.DEAL_RELEASE_ACCEPTED,
+                description=deal.description,
+                seller_amount=format_amount(deal.amount),
+                payment_amount=format_amount(deal_service.buyer_payment_amount(deal)),
+                currency=currency_label(deal.currency),
+            ),
+            reply_markup=home_keyboard(db_user.language),
+        )
+        await callback.message.edit_reply_markup(reply_markup=home_keyboard(db_user.language))
     await callback.answer()
 
 
@@ -194,11 +228,25 @@ async def mark_delivered(
     try:
         await lifecycle_service.mark_delivered(callback_data.deal_id, db_user.telegram_id)
     except (DealActionForbiddenError, DealNotFoundError):
-        key = TextKey.DEAL_FORBIDDEN
-    else:
-        key = TextKey.DEAL_DELIVERED
-    if callback.message:
-        await callback.message.answer(translate(db_user.language, key))
+        await callback.answer(
+            "Услуга уже отмечена как оказанная"
+            if db_user.language is Language.RU
+            else "Service has already been marked as delivered",
+            show_alert=True,
+        )
+        return
+    if callback.message and callback.message.reply_markup:
+        rows = [
+            [button for button in row if not (
+                button.callback_data
+                and button.callback_data
+                == DealCallback(action=DealAction.DELIVER, deal_id=callback_data.deal_id).pack()
+            )]
+            for row in callback.message.reply_markup.inline_keyboard
+        ]
+        await callback.message.edit_reply_markup(
+            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[row for row in rows if row])
+        )
     await callback.answer()
 
 
@@ -208,7 +256,24 @@ async def begin_dispute(
     callback_data: DealCallback,
     db_user: User,
     state: FSMContext,
+    deal_service: DealService,
 ) -> None:
+    deal = await deal_service.get_deal(callback_data.deal_id)
+    if (
+        deal is None
+        or db_user.telegram_id not in {deal.creator_id, deal.buyer_id}
+        or deal.status not in {
+            DealStatus.COLLECTING,
+            DealStatus.COLLECTION_SUBMITTED,
+            DealStatus.DELIVERY_PENDING,
+            DealStatus.DELIVERED,
+        }
+    ):
+        await callback.answer(
+            translate(db_user.language, TextKey.DEAL_FORBIDDEN),
+            show_alert=True,
+        )
+        return
     await state.set_state(DisputeStates.waiting_for_description)
     await state.update_data(dispute_deal_id=callback_data.deal_id)
     if callback.message:

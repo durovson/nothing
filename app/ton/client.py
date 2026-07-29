@@ -30,11 +30,11 @@ from app.core.constants import (
 )
 from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
 from app.core.exceptions import InvalidWalletError, TonGatewayError
-from app.models.dto import PaymentObservation
-from app.models.entities import CollectionAttempt, Deal, PayoutAttempt, ReferralWithdrawal, RefundAttempt
-from app.ton.amounts import asset_payment_amount_atomic
+from app.models.dto import DepositScanBatch, PaymentObservation
+from app.models.entities import CollectionAttempt, Deal, FinancialOperation, FinancialOperationAttempt
+from app.ton.amounts import asset_payment_amount_atomic, payout_amount_atomic
 from app.ton.jettons import JettonEscrowGateway
-from app.ton.models import PayoutMessage, PreparedPayout
+from app.ton.models import PayoutMessage, PreparedPayout, TraceResult
 from app.ton.parsing import (
     classify_trace,
     decode_text_comment,
@@ -172,7 +172,7 @@ class TonEscrowClient:
 
     async def find_incoming_payment(self, deal: Deal) -> PaymentObservation | None:
         if deal.currency is Currency.USDT:
-            return await self._jettons.find_incoming_payment(deal)
+            raise TonGatewayError("USDT deposits must be processed by the cursor indexer")
         wallet = self._wallet(deal)
         expected_atomic = asset_payment_amount_atomic(
             deal.amount,
@@ -204,6 +204,19 @@ class TonEscrowClient:
             if memo != deal.public_id or info.value_coins != expected_atomic:
                 continue
 
+            sender = info.src.to_str(is_bounceable=False) if info.src else None
+            if deal.buyer_wallet_address and (
+                sender is None
+                or self.normalize_address(sender)
+                != self.normalize_address(deal.buyer_wallet_address)
+            ):
+                logger.warning(
+                    "Ignored payment for deal=%s from unexpected sender=%s",
+                    deal.public_id,
+                    sender,
+                )
+                continue
+
             tx_hash = transaction_hash(transaction)
             logger.info(
                 "Matched TON payment deal=%s tx=%s amount_atomic=%s account_aborted=%s",
@@ -212,7 +225,6 @@ class TonEscrowClient:
                 credited_atomic,
                 getattr(description, "aborted", False),
             )
-            sender = info.src.to_str(is_bounceable=False) if info.src else None
             return PaymentObservation(
                 tx_hash=tx_hash,
                 tx_lt=transaction.lt,
@@ -222,6 +234,57 @@ class TonEscrowClient:
                 observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
             )
         return None
+
+    async def scan_usdt_deposits(
+        self, last_lt: int | None, last_hash: str | None
+    ) -> DepositScanBatch:
+        return await self._jettons.scan_deposits_since(last_lt, last_hash)
+
+    async def scan_ton_deposits(
+        self,
+        deal: Deal,
+        last_lt: int | None,
+        last_hash: str | None,
+    ) -> DepositScanBatch:
+        """Index every inbound TON transfer to a deal wallet, not only matches."""
+        del last_hash  # Account LT is the durable ordering cursor used by this scanner.
+        wallet = self._wallet(deal)
+        transactions = await wallet.get_transactions(
+            limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
+        )
+        observations: list[PaymentObservation] = []
+        newest_lt: int | None = None
+        newest_hash: str | None = None
+        for transaction in transactions:
+            if newest_lt is None:
+                newest_lt = int(transaction.lt)
+                newest_hash = transaction_hash(transaction)
+            if last_lt is not None and int(transaction.lt) <= last_lt:
+                break
+            incoming = transaction.in_msg
+            info = getattr(incoming, "info", None) if incoming else None
+            if not isinstance(info, InternalMsgInfo) or info.bounced or info.value_coins <= 0:
+                continue
+            description = transaction.description
+            credited_atomic = _credited_amount_atomic(description)
+            if credited_atomic is None or credited_atomic <= 0:
+                continue
+            observations.append(
+                PaymentObservation(
+                    tx_hash=transaction_hash(transaction),
+                    tx_lt=int(transaction.lt),
+                    amount_atomic=int(info.value_coins),
+                    sender=info.src.to_str(is_bounceable=False) if info.src else None,
+                    memo=decode_text_comment(incoming.body),
+                    observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
+                )
+            )
+        observations.sort(key=lambda item: item.tx_lt)
+        return DepositScanBatch(
+            deposits=observations,
+            newest_lt=newest_lt,
+            newest_hash=newest_hash,
+        )
 
     async def prepare_batch_payout(
         self,
@@ -342,51 +405,6 @@ class TonEscrowClient:
     async def broadcast(self, signed_boc: str) -> None:
         await self._client.send_message(signed_boc)
 
-    async def get_payout_trace_status(self, attempt: PayoutAttempt) -> TraceStatus:
-        if not attempt.external_message_hash:
-            raise TonGatewayError("Payout attempt has no external message hash")
-        try:
-            trace = await self._client.provider.send_http_request(
-                "GET",
-                f"/traces/{attempt.external_message_hash}",
-            )
-        except ProviderResponseError as exc:
-            if exc.code == 404:
-                return TraceStatus.NOT_FOUND
-            raise
-        if not isinstance(trace, dict):
-            raise TonGatewayError("TonAPI returned an invalid trace payload")
-        seller_destination = Address(attempt.destination).to_str(is_user_friendly=False)
-        reward_destination = (
-            Address(attempt.reward_destination).to_str(is_user_friendly=False)
-            if attempt.reward_destination
-            else None
-        )
-        if trace.get("is_incomplete") is True:
-            return TraceStatus.PENDING
-        if attempt.currency is Currency.USDT:
-            matched = await self._jettons.payout_trace_matches(trace, attempt)
-        else:
-            matched = trace_contains_payout(
-            trace,
-            seller_destination=seller_destination,
-            seller_amount_atomic=attempt.amount_atomic,
-            seller_comment=attempt.comment,
-            reward_destination=reward_destination,
-            reward_amount_atomic=attempt.reward_nominal_amount_atomic,
-            reward_comment=attempt.reward_comment,
-            )
-        if matched:
-            return TraceStatus.CONFIRMED
-        status = classify_trace(trace)
-        if status is TraceStatus.CONFIRMED:
-            logger.error(
-                "Confirmed trace does not contain the complete payout batch attempt=%s",
-                attempt.id,
-            )
-            return TraceStatus.FAILED
-        return status
-
     async def get_collection_trace_status(
         self,
         attempt: CollectionAttempt,
@@ -416,9 +434,11 @@ class TonEscrowClient:
         status = classify_trace(trace)
         return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
 
-    async def get_refund_trace_status(self, attempt: RefundAttempt) -> TraceStatus:
-        if not attempt.external_message_hash:
-            raise TonGatewayError("Refund attempt has no external message hash")
+    async def get_financial_operation_trace_status(
+        self,
+        operation: FinancialOperation,
+        attempt: FinancialOperationAttempt,
+    ) -> TraceResult:
         try:
             trace = await self._client.provider.send_http_request(
                 "GET",
@@ -426,63 +446,53 @@ class TonEscrowClient:
             )
         except ProviderResponseError as exc:
             if exc.code == 404:
-                return TraceStatus.NOT_FOUND
+                return TraceResult(TraceStatus.NOT_FOUND)
             raise
         if not isinstance(trace, dict):
-            raise TonGatewayError("TonAPI returned an invalid refund trace")
-        destination = Address(attempt.destination).to_str(is_user_friendly=False)
+            raise TonGatewayError("TonAPI returned an invalid financial operation trace")
         if trace.get("is_incomplete") is True:
-            return TraceStatus.PENDING
-        if attempt.currency is Currency.USDT:
-            matched = await self._jettons.refund_trace_matches(trace, attempt)
-        else:
-            matched = trace_contains_payout(
-            trace,
-            seller_destination=destination,
-            seller_amount_atomic=attempt.amount_atomic,
-            seller_comment=attempt.comment,
-            reward_destination=(Address(attempt.reward_destination).to_str(is_user_friendly=False) if attempt.reward_destination else None),
-            reward_amount_atomic=attempt.reward_nominal_amount_atomic,
-            reward_comment=attempt.reward_comment,
-            )
-        if matched:
-            return TraceStatus.CONFIRMED
-        status = classify_trace(trace)
-        return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
+            return TraceResult(TraceStatus.PENDING)
 
-    async def get_referral_withdrawal_trace_status(
-        self, withdrawal: ReferralWithdrawal
-    ) -> TraceStatus:
-        if not withdrawal.external_message_hash:
-            raise TonGatewayError("Referral withdrawal has no external message hash")
-        try:
-            trace = await self._client.provider.send_http_request(
-                "GET", f"/traces/{withdrawal.external_message_hash}"
+        if operation.flow.value == "collection":
+            minimum = 1
+            if operation.metadata.get("purpose") == "deal_custody":
+                minimum = max(
+                    1,
+                    operation.amount_atomic
+                    - payout_amount_atomic(self._settings.TON_PAYOUT_FEE_RESERVE),
+                )
+            matched = trace_contains_transfer(
+                trace,
+                destination=Address(operation.destination).to_str(is_user_friendly=False),
+                comment=operation.comment,
+                minimum_amount_atomic=minimum,
             )
-        except ProviderResponseError as exc:
-            if exc.code == 404:
-                return TraceStatus.NOT_FOUND
-            raise
-        if not isinstance(trace, dict):
-            raise TonGatewayError("TonAPI returned an invalid referral withdrawal trace")
-        if trace.get("is_incomplete") is True:
-            return TraceStatus.PENDING
-        destination = Address(withdrawal.destination).to_str(is_user_friendly=False)
-        if withdrawal.currency is Currency.USDT:
-            matched = await self._jettons.transfer_trace_matches(
-                trace, withdrawal.destination, withdrawal.amount_atomic, withdrawal.comment
+        elif operation.currency is Currency.USDT:
+            matched = await self._jettons.operation_trace_matches(
+                trace,
+                operation.destination,
+                operation.amount_atomic,
+                operation.comment,
             )
         else:
             matched = trace_contains_payout(
                 trace,
-                seller_destination=destination,
-                seller_amount_atomic=withdrawal.amount_atomic,
-                seller_comment=withdrawal.comment,
+                seller_destination=Address(operation.destination).to_str(
+                    is_user_friendly=False
+                ),
+                seller_amount_atomic=operation.amount_atomic,
+                seller_comment=operation.comment,
                 reward_destination=None,
                 reward_amount_atomic=None,
                 reward_comment=None,
             )
         if matched:
-            return TraceStatus.CONFIRMED
+            transaction = trace.get("transaction")
+            tx_hash = transaction.get("hash") if isinstance(transaction, dict) else None
+            if not isinstance(tx_hash, str) or not tx_hash:
+                raise TonGatewayError("Confirmed operation trace has no root transaction hash")
+            return TraceResult(TraceStatus.CONFIRMED, tx_hash)
         status = classify_trace(trace)
-        return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
+        return TraceResult(
+            TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
+        )

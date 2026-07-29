@@ -46,9 +46,14 @@ def back_keyboard(locale: Language) -> InlineKeyboardMarkup:
 def payment_keyboard(
     locale: Language,
     payment_url: str,
+    seller_id: int,
     channel_invite_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     rows = [[InlineKeyboardButton(text=translate(locale, TextKey.DEAL_PAY_BUTTON), url=payment_url)]]
+    rows.insert(0, [InlineKeyboardButton(
+        text="Профиль продавца" if locale is Language.RU else "Seller profile",
+        url=f"tg://user?id={seller_id}",
+    )])
     if channel_invite_url:
         rows.insert(0, [InlineKeyboardButton(
             text=translate(locale, TextKey.DEAL_CHANNEL_JOIN_BUTTON),
@@ -87,19 +92,19 @@ def deals_list(locale: Language, deals: list[Deal], page: int, total_pages: int)
 
 def deal_actions(locale: Language, deal: Deal, viewer_id: int) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
-    if deal.resolution != "refund" and viewer_id in {deal.creator_id, deal.buyer_id} and deal.status in {
-        DealStatus.PENDING,
-        DealStatus.COLLECTING,
-        DealStatus.COLLECTION_SUBMITTED,
-        DealStatus.DELIVERY_PENDING,
-        DealStatus.DELIVERED,
-    }:
+    if (
+        deal.resolution != "refund"
+        and viewer_id in {deal.creator_id, deal.buyer_id}
+        and deal.status is DealStatus.PENDING
+    ):
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CANCEL_BUTTON), callback_data=DealCallback(action=DealAction.CANCEL, deal_id=deal.id).pack())])
     if deal.creator_id == viewer_id and deal.status is DealStatus.DELIVERY_PENDING and deal.deal_type is not DealType.CHANNEL:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_DELIVER_BUTTON), callback_data=DealCallback(action=DealAction.DELIVER, deal_id=deal.id).pack())])
     if deal.buyer_id == viewer_id and deal.status is DealStatus.DELIVERED:
         rows.append([InlineKeyboardButton(text=translate(locale, TextKey.DEAL_CONFIRM_BUTTON), callback_data=DealCallback(action=DealAction.CONFIRM, deal_id=deal.id).pack())])
     if viewer_id in {deal.creator_id, deal.buyer_id} and deal.status in {
+        DealStatus.COLLECTING,
+        DealStatus.COLLECTION_SUBMITTED,
         DealStatus.DELIVERY_PENDING,
         DealStatus.DELIVERED,
     }:

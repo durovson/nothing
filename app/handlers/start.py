@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 
 from app.config import Settings
 from app.core.enums import DealStatus, DealType
-from app.core.exceptions import MissingLinkedWalletError
+from app.core.exceptions import MissingLinkedWalletError, ServiceUnavailableError
 from app.keyboards import MenuCallback, main_menu, payment_keyboard
 from app.keyboards.callbacks import MenuAction
 from app.locales import TextKey, translate
@@ -46,6 +46,9 @@ async def start_with_args(
         except MissingLinkedWalletError:
             await message.answer(translate(db_user.language, TextKey.DEAL_BUYER_WALLET_REQUIRED))
             return
+        except ServiceUnavailableError as exc:
+            await message.answer(str(exc), reply_markup=main_menu(db_user.language))
+            return
         if not deal:
             await message.answer(
                 translate(db_user.language, TextKey.DEAL_NOT_FOUND),
@@ -79,6 +82,7 @@ async def start_with_args(
                 deal_id=deal.public_id,
                 deal_type=deal_type_label(deal.deal_type, db_user.language),
                 description=deal.description,
+                seller_deals=await deal_service.seller_completed_deals(deal.creator_id),
                 amount=format_amount(deal_service.buyer_payment_amount(deal)),
                 currency=currency_label(deal.currency),
                 wallet_address=deal.wallet_address or "-",
@@ -86,6 +90,7 @@ async def start_with_args(
             payment_keyboard(
                 db_user.language,
                 deal_service.tonkeeper_payment_link(deal),
+                deal.creator_id,
                 channel_invite,
             ),
             screen="deal_join",

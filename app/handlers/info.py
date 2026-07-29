@@ -45,6 +45,7 @@ async def show_documents(callback: types.CallbackQuery, db_user: User, settings:
         rows.extend([
             [InlineKeyboardButton(text=translate(db_user.language, TextKey.PRIVACY_BUTTON), url=f"{base_url}/documents/privacy")],
             [InlineKeyboardButton(text=translate(db_user.language, TextKey.TERMS_BUTTON), url=f"{base_url}/documents/terms")],
+            [InlineKeyboardButton(text=translate(db_user.language, TextKey.SERVICE_DESCRIPTION_BUTTON), url=f"{base_url}/documents/service")],
         ])
     rows.extend(_home_keyboard(db_user.language).inline_keyboard)
     if callback.message:

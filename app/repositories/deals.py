@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 
@@ -26,6 +26,7 @@ class DealRepository:
             .insert(
                 {
                     "creator_id": command.creator_id,
+                    "seller_wallet_address": command.seller_wallet_address,
                     "public_id": command.public_id,
                     "deal_type": command.deal_type.value,
                     "description": command.description,
@@ -113,11 +114,45 @@ class DealRepository:
         )
         return Deal(**response.data[0]) if response.data else None
 
+    async def claim_success_feed_notification(self, deal_id: int) -> Deal | None:
+        response = await self._database.rpc(
+            "claim_success_feed_notification", {"p_deal_id": deal_id}
+        )
+        return Deal(**response.data[0]) if response.data else None
+
+    async def release_success_feed_notification(self, deal_id: int) -> None:
+        await self._database.rpc(
+            "release_success_feed_notification", {"p_deal_id": deal_id}
+        )
+
+    async def list_completed_without_success_feed(self, limit: int = 20) -> list[Deal]:
+        response = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.COMPLETED.value)
+            .is_("success_feed_notified_at", "null")
+            .order("id")
+            .limit(limit)
+            .execute()
+        )
+        return [Deal(**item) for item in response.data]
+
     async def count_as_buyer(self, buyer_id: int) -> int:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("id", count="exact")
             .eq("buyer_id", buyer_id)
+            .eq("status", DealStatus.COMPLETED.value)
+            .execute()
+        )
+        return int(response.count or 0)
+
+    async def count_as_seller(self, seller_id: int) -> int:
+        response = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("id", count="exact")
+            .eq("creator_id", seller_id)
+            .eq("status", DealStatus.COMPLETED.value)
             .execute()
         )
         return int(response.count or 0)
@@ -261,6 +296,7 @@ class DealRepository:
             lambda: self._database.client.table("deals")
             .select("*", count="exact")
             .or_(f"creator_id.eq.{telegram_id},buyer_id.eq.{telegram_id}")
+            .is_("archived_at", "null")
             .order("id", desc=True)
             .range(offset, offset + page_size - 1)
             .execute()
@@ -271,14 +307,25 @@ class DealRepository:
         return rows, total_pages
 
     async def list_pending(self) -> list[Deal]:
-        response = await self._database.read(
+        pending = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
-            .in_("status", [DealStatus.PENDING.value, DealStatus.CANCELLED.value])
+            .eq("status", DealStatus.PENDING.value)
             .not_.is_("buyer_id", "null")
+            .is_("archived_at", "null")
             .execute()
         )
-        return [Deal(**item) for item in response.data]
+        late_cutoff = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        cancelled = await self._database.read(
+            lambda: self._database.client.table("deals")
+            .select("*")
+            .eq("status", DealStatus.CANCELLED.value)
+            .gte("updated_at", late_cutoff)
+            .not_.is_("buyer_id", "null")
+            .is_("archived_at", "null")
+            .execute()
+        )
+        return [Deal(**item) for item in [*pending.data, *cancelled.data]]
 
     async def request_cancellation(self, deal_id: int, actor_id: int) -> Deal | None:
         response = await self._database.rpc(
@@ -287,11 +334,17 @@ class DealRepository:
         )
         return Deal(**response.data[0]) if response.data else None
 
-    async def purge_unsuccessful(self, retention_days: int) -> int:
+    async def archive_unsuccessful(self, retention_days: int) -> int:
         response = await self._database.rpc(
-            "purge_expired_unsuccessful_deals",
+            "archive_expired_unsuccessful_deals",
             {"p_retention_days": retention_days},
         )
+        if isinstance(response.data, list):
+            return int(response.data[0]) if response.data else 0
+        return int(response.data or 0)
+
+    async def cancel_expired_pending(self) -> int:
+        response = await self._database.rpc("cancel_expired_pending_deals", {})
         if isinstance(response.data, list):
             return int(response.data[0]) if response.data else 0
         return int(response.data or 0)

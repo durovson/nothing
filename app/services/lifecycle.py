@@ -69,6 +69,7 @@ class DealLifecycleService:
         return ticket
 
     async def process_deadlines(self) -> None:
+        await self._deals.cancel_expired_pending()
         for deal in await self._deals.list_delivery_expired():
             await self._deals.request_expired_refund(deal.id)
         for deal in await self._deals.list_inspection_expired():

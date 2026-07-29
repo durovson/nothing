@@ -11,9 +11,8 @@ from tonutils.contracts import (
 from app.config import Settings
 from app.core.enums import TonNetwork
 from app.core.exceptions import TonGatewayError
-from app.models.dto import PaymentObservation
-from app.models.entities import Deal, PayoutAttempt, RefundAttempt
-from app.ton.amounts import asset_payment_amount_atomic, payout_amount_atomic
+from app.models.dto import DepositScanBatch, PaymentObservation
+from app.ton.amounts import payout_amount_atomic
 from app.ton.models import PayoutMessage
 from app.ton.parsing import (
     decode_jetton_notification,
@@ -43,44 +42,76 @@ class JettonEscrowGateway:
             self._guarant_wallet.address
         )
 
-    async def find_incoming_payment(self, deal: Deal) -> PaymentObservation | None:
+    async def scan_deposits_since(
+        self, last_lt: int | None, last_hash: str | None
+    ) -> DepositScanBatch:
+        """Read every transaction newer than last_lt without a fixed history window."""
         await self.start()
         assert self._guarant_jetton_wallet is not None
-        expected_atomic = asset_payment_amount_atomic(
-            deal.amount,
-            deal.currency,
-            self._settings.ESCROW_FEE_RATE,
-            self._settings.TON_PAYOUT_FEE_RESERVE,
-        )
-        created_timestamp = int(deal.created_at.timestamp()) if deal.created_at else 0
-        transactions = await self._guarant_wallet.get_transactions(
-            limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
-        )
         expected_source = self._guarant_jetton_wallet.to_str(is_user_friendly=False)
-        for transaction in transactions:
-            if transaction.now < created_timestamp:
-                continue
-            incoming = transaction.in_msg
-            info = getattr(incoming, "info", None) if incoming else None
-            if not isinstance(info, InternalMsgInfo) or info.bounced or not info.src:
-                continue
-            if info.src.to_str(is_user_friendly=False) != expected_source:
-                continue
-            decoded = decode_jetton_notification(incoming.body)
-            if decoded is None:
-                continue
-            amount_atomic, sender, memo = decoded
-            if amount_atomic != expected_atomic or memo != deal.public_id:
-                continue
-            return PaymentObservation(
-                tx_hash=transaction_hash(transaction),
-                tx_lt=transaction.lt,
-                amount_atomic=amount_atomic,
-                sender=sender,
-                memo=memo,
-                observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
+        from_lt: int | None = None
+        newest_lt: int | None = None
+        newest_hash: str | None = None
+        deposits: list[PaymentObservation] = []
+        reached_cursor = False
+
+        while not reached_cursor:
+            transactions = await self._guarant_wallet.get_transactions(
+                limit=100,
+                from_lt=from_lt,
             )
-        return None
+            if not transactions:
+                break
+            if newest_lt is None:
+                newest_lt = int(transactions[0].lt)
+                newest_hash = transaction_hash(transactions[0])
+            for transaction in transactions:
+                if last_lt is not None and int(transaction.lt) == last_lt:
+                    if last_hash and transaction_hash(transaction) != last_hash:
+                        raise TonGatewayError(
+                            "USDT deposit cursor hash does not match on-chain history"
+                        )
+                    reached_cursor = True
+                    break
+                if last_lt is not None and int(transaction.lt) < last_lt:
+                    raise TonGatewayError(
+                        "USDT deposit cursor is missing from sequential account history"
+                    )
+                incoming = transaction.in_msg
+                info = getattr(incoming, "info", None) if incoming else None
+                if not isinstance(info, InternalMsgInfo) or info.bounced or not info.src:
+                    continue
+                if info.src.to_str(is_user_friendly=False) != expected_source:
+                    continue
+                decoded = decode_jetton_notification(incoming.body)
+                if decoded is None:
+                    continue
+                amount_atomic, sender, memo = decoded
+                if amount_atomic <= 0:
+                    continue
+                deposits.append(
+                    PaymentObservation(
+                        tx_hash=transaction_hash(transaction),
+                        tx_lt=transaction.lt,
+                        amount_atomic=amount_atomic,
+                        sender=sender,
+                        memo=memo,
+                        jetton_wallet_address=self._guarant_jetton_wallet.to_str(
+                            is_bounceable=False
+                        ),
+                        observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
+                    )
+                )
+            if reached_cursor or len(transactions) < 100:
+                break
+            from_lt = int(transactions[-1].lt) - 1
+
+        deposits.sort(key=lambda item: item.tx_lt)
+        return DepositScanBatch(
+            deposits=deposits,
+            newest_lt=newest_lt,
+            newest_hash=newest_hash,
+        )
 
     def transfer_builder(self, message: PayoutMessage) -> JettonTransferBuilder:
         self._ensure_mainnet()
@@ -104,38 +135,20 @@ class JettonEscrowGateway:
         data = await wallet.get_wallet_data()
         return int(data[0])
 
-    async def payout_trace_matches(self, trace: dict, attempt: PayoutAttempt) -> bool:
-        seller_ok = await self._notification_matches(
-            trace, attempt.destination, attempt.amount_atomic, attempt.comment
-        )
-        if not seller_ok:
-            return False
-        if not attempt.reward_destination or not attempt.reward_comment:
-            return True
-        return await self._notification_matches(
-            trace,
-            attempt.reward_destination,
-            int(attempt.reward_nominal_amount_atomic or 0),
-            attempt.reward_comment,
-        )
-
-    async def refund_trace_matches(self, trace: dict, attempt: RefundAttempt) -> bool:
-        buyer_ok = await self._notification_matches(
-            trace, attempt.destination, attempt.amount_atomic, attempt.comment
-        )
-        if not buyer_ok or not attempt.reward_destination or not attempt.reward_comment:
-            return False
-        return await self._notification_matches(
-            trace,
-            attempt.reward_destination,
-            int(attempt.reward_nominal_amount_atomic or 0),
-            attempt.reward_comment,
-        )
-
-    async def transfer_trace_matches(
-        self, trace: dict, destination: str, amount_atomic: int, comment: str
+    async def operation_trace_matches(
+        self,
+        trace: dict,
+        destination: str,
+        amount_atomic: int,
+        comment: str,
     ) -> bool:
-        return await self._notification_matches(trace, destination, amount_atomic, comment)
+        """Validate one USDT ledger leg against its transfer notification."""
+        return await self._notification_matches(
+            trace,
+            destination,
+            amount_atomic,
+            comment,
+        )
 
     async def _notification_matches(
         self, trace: dict, owner: str, amount_atomic: int, comment: str

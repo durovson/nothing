@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import secrets
 from decimal import Decimal
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from app.config import Settings
 from app.core.constants import PUBLIC_DEAL_ID_BYTES
@@ -16,8 +16,9 @@ from app.core.exceptions import (
 )
 from app.core.types import DealRepositoryProtocol, TonGatewayProtocol, UserRepositoryProtocol
 from app.models.dto import CreateDealCommand
-from app.models.entities import Deal
+from app.models.entities import Deal, User
 from app.ton.amounts import asset_payment_amount, asset_payment_amount_atomic, asset_quantum
+from app.services.system_mode import SystemModeService
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,13 @@ class DealService:
         deals: DealRepositoryProtocol,
         users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
+        system_mode: SystemModeService,
     ):
         self._settings = settings
         self._deals = deals
         self._users = users
         self._ton = ton
+        self._system_mode = system_mode
 
     async def create_deal(
         self,
@@ -46,6 +49,7 @@ class DealService:
         channel_title: str | None = None,
         channel_username: str | None = None,
     ) -> Deal:
+        await self._system_mode.ensure_new_business_allowed()
         if deal_type is DealType.CHANNEL and (channel_id is None or not channel_title):
             raise ChannelConfigurationError("Channel deal requires a verified channel")
         if deal_type is not DealType.CHANNEL:
@@ -61,6 +65,7 @@ class DealService:
         command = CreateDealCommand(
             public_id=secrets.token_hex(PUBLIC_DEAL_ID_BYTES),
             creator_id=creator_id,
+            seller_wallet_address=creator.wallet_address,
             deal_type=deal_type,
             description=description.strip(),
             currency=currency,
@@ -79,6 +84,7 @@ class DealService:
             raise
 
     async def join_deal(self, public_id: str, buyer_id: int) -> Deal | None:
+        await self._system_mode.ensure_new_business_allowed()
         buyer = await self._users.get(buyer_id)
         if not buyer or not buyer.wallet_address:
             raise MissingLinkedWalletError("Buyer must link a wallet before joining a deal")
@@ -95,14 +101,14 @@ class DealService:
         current = await self._deals.get_by_public_id(public_id)
         return current if current and current.buyer_id == buyer_id else None
 
-    async def cancel_deal(self, deal_id: int, actor_id: int) -> Deal:
+    async def cancel_deal(self, deal_id: int, actor_id: int) -> tuple[Deal, bool]:
         deal = await self._deals.get(deal_id)
         if not deal:
             raise DealNotFoundError(f"Deal {deal_id} not found")
         if actor_id not in {deal.creator_id, deal.buyer_id}:
-            return deal
+            return deal, False
         cancelled = await self._deals.request_cancellation(deal_id, actor_id)
-        return cancelled or deal
+        return (cancelled, True) if cancelled else (deal, False)
 
     async def get_deal(self, deal_id: int) -> Deal | None:
         return await self._deals.get(deal_id)
@@ -122,6 +128,9 @@ class DealService:
         seller = await self._users.get(deal.creator_id)
         return buyer, seller
 
+    async def seller_completed_deals(self, seller_id: int) -> int:
+        return await self._deals.count_as_seller(seller_id)
+
     async def list_user_deals(self, telegram_id: int, page: int = 0) -> tuple[list[Deal], int]:
         return await self._deals.list_for_user(
             telegram_id,
@@ -140,11 +149,20 @@ class DealService:
     def tonkeeper_payment_link(self, deal: Deal) -> str:
         if not deal.wallet_address:
             raise ValueError("Deal payment address is missing")
+        amount_atomic = asset_payment_amount_atomic(
+            deal.amount,
+            deal.currency,
+            self._settings.ESCROW_FEE_RATE,
+            self._settings.TON_PAYOUT_FEE_RESERVE,
+        )
+        memo = quote(deal.public_id, safe="")
+        if deal.currency is Currency.TON:
+            return (
+                f"https://app.tonkeeper.com/transfer/{deal.wallet_address}"
+                f"?amount={amount_atomic}&text={memo}"
+            )
         params: dict[str, str] = {
-            "amount": str(asset_payment_amount_atomic(
-                deal.amount, deal.currency, self._settings.ESCROW_FEE_RATE,
-                self._settings.TON_PAYOUT_FEE_RESERVE,
-            )),
+            "amount": str(amount_atomic),
             "text": deal.public_id,
         }
         if deal.currency is Currency.USDT:
@@ -160,7 +178,9 @@ class DealService:
         return configured.quantize(asset_quantum(currency))
 
     async def cleanup_retention(self) -> int:
-        deleted = await self._deals.purge_unsuccessful(self._settings.FAILED_DEAL_RETENTION_DAYS)
-        if deleted:
-            logger.info("Deleted %s unsuccessful deals past retention", deleted)
-        return deleted
+        archived = await self._deals.archive_unsuccessful(
+            self._settings.FAILED_DEAL_RETENTION_DAYS
+        )
+        if archived:
+            logger.info("Archived %s unpaid unsuccessful deals past retention", archived)
+        return archived

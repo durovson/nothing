@@ -181,6 +181,7 @@ def trace_contains_transfer(
     *,
     destination: str,
     comment: str,
+    minimum_amount_atomic: int = 1,
 ) -> bool:
     for child in trace.get("children", []):
         if not isinstance(child, dict):
@@ -200,7 +201,7 @@ def trace_contains_transfer(
             and isinstance(decoded_body, dict)
             and decoded_body.get("text") == comment
             and isinstance(value, int)
-            and value > 0
+            and value >= minimum_amount_atomic
             and _credited_without_bounce(transaction, incoming, value)
         ):
             return True

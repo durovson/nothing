@@ -93,3 +93,10 @@ class ReferralRepository:
             ).order("id").execute()
         )
         return [ReferralWithdrawal(**row) for row in response.data or []]
+
+    async def get_withdrawal(self, withdrawal_id: int) -> ReferralWithdrawal | None:
+        response = await self._database.read(
+            lambda: self._database.client.table("referral_withdrawals")
+            .select("*").eq("id", withdrawal_id).limit(1).execute()
+        )
+        return ReferralWithdrawal(**response.data[0]) if response.data else None

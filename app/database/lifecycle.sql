@@ -84,7 +84,10 @@ begin
         raise exception 'dispute description must contain 10 to 1000 characters';
     end if;
     select * into v_deal from deals where id = p_deal_id for update;
-    if not found or p_actor_id not in (v_deal.creator_id, v_deal.buyer_id) then
+    if not found or (
+        p_actor_id <> v_deal.creator_id
+        and p_actor_id is distinct from v_deal.buyer_id
+    ) then
         return;
     end if;
     if v_deal.status = 'delivered'

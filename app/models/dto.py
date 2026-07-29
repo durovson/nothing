@@ -9,6 +9,7 @@ from app.core.enums import Currency, DealType
 class CreateDealCommand(BaseModel):
     public_id: str = Field(min_length=10, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")
     creator_id: int
+    seller_wallet_address: str
     deal_type: DealType
     description: str = Field(min_length=1, max_length=2_000)
     currency: Currency
@@ -30,7 +31,14 @@ class PaymentObservation(BaseModel):
     amount_atomic: int
     sender: str | None = None
     memo: str | None = None
+    jetton_wallet_address: str | None = None
     observed_at: datetime
+
+
+class DepositScanBatch(BaseModel):
+    deposits: list[PaymentObservation]
+    newest_lt: int | None = None
+    newest_hash: str | None = None
 
 
 class ReferralStats(BaseModel):

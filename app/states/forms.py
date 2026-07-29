@@ -26,3 +26,4 @@ class AdminStates(StatesGroup):
     waiting_for_resolution_reason = State()
     waiting_for_broadcast = State()
     waiting_for_maintenance_message = State()
+    waiting_for_force_complete_evidence = State()

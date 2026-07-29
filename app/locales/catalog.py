@@ -20,6 +20,7 @@ class TextKey(StrEnum):
     WALLET_DELETE = "wallet_delete"
     WALLET_DELETED = "wallet_deleted"
     WALLET_PROMPT = "wallet_prompt"
+    WALLET_ACTIVE_PROMPT = "wallet_active_prompt"
     WALLET_SAVED = "wallet_saved"
     WALLET_INVALID = "wallet_invalid"
     WALLET_OPEN = "wallet_open"
@@ -67,6 +68,8 @@ class TextKey(StrEnum):
     DEAL_DISPUTE_INVALID = "deal_dispute_invalid"
     DEAL_DISPUTE_CREATED = "deal_dispute_created"
     DEAL_REFUNDED = "deal_refunded"
+    DEAL_CANCELLED_BY_SELLER = "deal_cancelled_by_seller"
+    DEAL_PAYOUT_RECEIVED = "deal_payout_received"
     SETTINGS_CAPTION = "settings_caption"
     SETTINGS_REFERRALS = "settings_referrals"
     SETTINGS_LANGUAGE = "settings_language"
@@ -81,6 +84,7 @@ class TextKey(StrEnum):
     DOCUMENTS_CAPTION = "documents_caption"
     PRIVACY_BUTTON = "privacy_button"
     TERMS_BUTTON = "terms_button"
+    SERVICE_DESCRIPTION_BUTTON = "service_description_button"
     LANG_RU = "lang_ru"
     LANG_EN = "lang_en"
 
@@ -110,7 +114,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_CHANGE: "Изменить кошелек",
         TextKey.WALLET_DELETE: "Удалить кошелек",
         TextKey.WALLET_DELETED: "Кошелек удален.",
-        TextKey.WALLET_PROMPT: "Отправьте TON-адрес, который нужно привязать к профилю.",
+        TextKey.WALLET_PROMPT: "💰 <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
+        TextKey.WALLET_ACTIVE_PROMPT: (
+            "💰 <b>Мой кошелёк</b>\n\nТекущий адрес:\n<code>{wallet}</code>\n\n"
+            "Хотите изменить? Отправьте новый адрес."
+        ),
         TextKey.WALLET_SAVED: "Кошелек сохранен: {wallet}",
         TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
         TextKey.WALLET_OPEN: "Открыть кошелёк",
@@ -147,27 +155,26 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Комиссия сервиса добавляется к счёту; сетевой gas оплачивается отдельно."
         ),
         TextKey.DEAL_CREATED: (
-            "✅ <b>Сделка #{deal_id} создана</b>\n\n<b>Тип:</b> {deal_type}\n<b>Описание:</b> {description}\n"
-            "<b>Продавец получит:</b> {amount} {currency}\n<b>Покупатель оплатит:</b> {payment_amount} {currency}\n\n"
-            "💰 <b>Escrow-адрес:</b>\n<code>{wallet_address}</code>\n"
-            "📝 <b>Обязательный комментарий:</b> <code>{deal_id}</code>\n"
-            "🔗 <a href=\"{deep_link}\">Ссылка для покупателя</a>\n\n"
-            "Для оффера после оплаты у продавца 24 часа на исполнение, затем у покупателя 24 часа на подтверждение либо спор. "
-            "Для канала продавец вручную передаёт покупателю статус владельца; бот проверяет его автоматически. "
-            "Молчание продавца по офферу означает возврат, молчание покупателя — автоматическую выплату. "
-            "Комиссия сервиса 1% удерживается при любом исходе; при возврате покупатель получает сумму сделки D."
+            "✅ <b>Сделка #{deal_id} создана</b>\n\n<b>Детали сделки:</b>\n"
+            "• Описание: {description}\n• Продавец получит: {amount} {currency}\n"
+            "• Покупатель оплатит: {payment_amount} {currency}\n\n"
+            "<blockquote>При возврате покупателю возвращается сумма сделки D; комиссия сервиса 1% удерживается.</blockquote>\n\n"
+            "Для присоединения покупателя отправьте ему ссылку:\n{deep_link}"
         ),
         TextKey.DEAL_CANCEL_BUTTON: "Отменить сделку",
-        TextKey.DEAL_CONFIRM_BUTTON: "Подтвердить получение",
+        TextKey.DEAL_CONFIRM_BUTTON: "Завершить сделку",
         TextKey.DEAL_DELIVER_BUTTON: "Услуга оказана",
         TextKey.DEAL_DISPUTE_BUTTON: "Открыть спор",
         TextKey.DEAL_JOINED: (
-            "💼 <b>Сделка #{deal_id}</b>\n\n<b>Тип:</b> {deal_type}\n<b>Описание:</b> {description}\n"
-            "💎 <b>Сумма к оплате:</b> {amount} {currency}\n\n💰 <b>Адрес оплаты:</b>\n<code>{wallet_address}</code>\n"
-            "📝 <b>Обязательный комментарий:</b> <code>{deal_id}</code>\n\n"
-            "<blockquote>Укажите точную сумму и обязательный комментарий. После оплаты бот автоматически проверит перевод.</blockquote> "
-            "Привязанный TON-кошелёк используется для безопасного возврата. "
-            "Комиссия сервиса 1% невозвратная; при refund возвращается сумма сделки D."
+            "💼 <b>Сделка #{deal_id}</b>\n\n👤 Вы покупатель.\n\n"
+            "• Завершённых сделок продавца: {seller_deals}\n\n<b>Детали сделки:</b>\n"
+            "• Код сделки: #{deal_id}\n• Описание: {description}\n\n"
+            "<b>Адрес оплаты:</b>\n<code>{wallet_address}</code>\n\n"
+            "<b>Сумма к оплате:</b>\n{amount} {currency}\n\n"
+            "<b>Обязательный комментарий:</b>\n<code>{deal_id}</code>\n\n"
+            "<blockquote>‼️ Пожалуйста, убедитесь, что при оплате указываете обязательный комментарий (memo) и точную сумму!</blockquote>\n"
+            "<blockquote>При возврате возвращается сумма сделки D; комиссия сервиса 1% удерживается.</blockquote>\n"
+            "После оплаты бот автоматически проверит перевод."
         ),
         TextKey.DEAL_NOT_FOUND: "Сделка не найдена.",
         TextKey.DEAL_FORBIDDEN: "У вас нет доступа к этой сделке.",
@@ -176,10 +183,18 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_EMPTY: "Здесь пока ничего нет",
         TextKey.DEAL_LIST_CAPTION: "<b>Мои сделки:</b>",
         TextKey.DEAL_CARD: (
-            "📋 <b>Сделка #{deal_id}</b>\n\n<b>Описание:</b> {description}\n<b>Сумма:</b> {amount} {currency}\n"
-            "<b>Статус:</b> {status}\n\n<b>Продавец:</b> {seller}\n<b>Покупатель:</b> {buyer}{channel_details}\n\n{status_note}"
+            "📋 <b>Сделка #{deal_id}</b>\n\n<b>Детали сделки:</b>\n"
+            "• Описание: {description}\n• Продавец получит: {amount} {currency}\n"
+            "• Покупатель оплатит: {payment_amount} {currency}\n\n"
+            "<b>Продавец:</b> {seller}\n<b>Покупатель:</b> {buyer}{channel_details}\n\n"
+            "<b>Статус:</b> {status}"
         ),
-        TextKey.DEAL_PAID_BUYER: "💰 <b>Оплата подтверждена!</b>\n\nСредства зачислены на кошелёк бота и заморожены до завершения сделки.",
+        TextKey.DEAL_PAID_BUYER: (
+            "✅ <b>Оплата найдена и подтверждена!</b>\n\nВаш платеж по сделке #{deal_id} успешно обработан.\n\n"
+            "<b>Детали сделки:</b>\n• Описание: {description}\n• Продавец: {seller}\n\n"
+            "Транзакция:\n<a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
+            "⏳ Ожидайте подтверждения оказания услуги от продавца."
+        ),
         TextKey.DEAL_PAID_SELLER: (
             "💰 <b>Оплата подтверждена!</b>\n\nПокупатель оплатил сделку #{deal_id}\n\n"
             "<a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
@@ -194,10 +209,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "бота из администраторов. После статуса creator бот автоматически запустит выплату.\n\nТранзакция:\n{transaction_url}"
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
-            "Получение подтверждено. Выплата продавцу поставлена в очередь; "
-            "окончательное уведомление придёт после подтверждения сети TON."
+            "✅ <b>Сделка завершена!</b>\n\n<b>Детали сделки:</b>\nОписание: {description}\n"
+            "Продавец получил: {seller_amount} {currency}\nПокупатель оплатил: {payment_amount} {currency}\n\n"
+            "Выплата продавцу обрабатывается. Он получит уведомление после завершения транзакции.\n\n"
+            "Спасибо за использование нашего сервиса! 🙏"
         ),
-        TextKey.DEAL_CONFIRMED: "Сделка завершена, выплата продавцу подтверждена сетью TON.",
+        TextKey.DEAL_CONFIRMED: "✅ Сделка успешно завершена",
         TextKey.DEAL_WAIT_WALLET: "У продавца не привязан кошелек для выплаты.",
         TextKey.DEAL_BUYER_WALLET_REQUIRED: (
             "Перед вступлением в сделку привяжите TON-кошелёк в разделе «Мой кошелёк». "
@@ -210,9 +227,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DELIVERED: "✅ <b>Услуга отмечена как оказанная!</b>\n\nПокупатель получил уведомление и может подтвердить получение.",
         TextKey.DEAL_DELIVERY_NOTICE: (
             "✅ <b>Продавец оказал услугу!</b>\n\nПродавец подтвердил, что оказал услугу по сделке:\n"
-            "🆔 Код сделки: #{deal_id}\n💵 Сумма: {amount} {currency}\n\n"
+            "• Код сделки: #{deal_id}\n• Описание: {description}\n• Сумма к оплате: {payment_amount} {currency}\n\n"
             "Пожалуйста, проверьте качество выполненной работы.\n\n"
-            "⚠️ После вашего подтверждения средства будут переведены продавцу."
+            "⚠️ После вашего подтверждения средства будут переведены продавцу.\n\n"
+            "Если в течение 1 часа вы не подтвердите получение товара и не откроете спор, "
+            "сделка будет завершена автоматически."
         ),
         TextKey.DEAL_DISPUTE_PROMPT: (
             "Опишите проблему одним сообщением (10–1000 символов). Скриншоты в боте не хранятся; "
@@ -224,6 +243,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Для разбора напишите в службу поддержки и укажите ID сделки."
         ),
         TextKey.DEAL_REFUNDED: "Возврат покупателю подтверждён сетью TON.",
+        TextKey.DEAL_CANCELLED_BY_SELLER: "Сделка отменена продавцом\nКод сделки: #{deal_id}",
+        TextKey.DEAL_PAYOUT_RECEIVED: (
+            "💰 <b>Выплата получена!</b>\n\n<b>Детали сделки:</b>\n• Описание: {description}\n"
+            "• Сумма: {amount} {currency}\n• Статус: ✅ Сделка успешно завершена\n"
+            "• Кошелек: <code>{wallet}</code>\n\n"
+            "🔗 <a href=\"{transaction_url}\">Посмотреть транзакцию</a>\n\n"
+            "Спасибо за использование нашего сервиса! 🙏"
+        ),
         TextKey.SETTINGS_CAPTION: "⚙️ <b>Настройки</b>",
         TextKey.SETTINGS_REFERRALS: "Рефералы",
         TextKey.SETTINGS_LANGUAGE: "Язык",
@@ -253,12 +280,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<b>Сколько стоит комиссия?</b>\nФиксировано 1% от суммы сделки.\n\n"
             "<b>Можно ли торговать криптовалютой, товарами или услугами?</b>\nДа, любые сделки между двумя пользователями.\n\n"
             "<b>Что делать, если возник спор?</b>\nНапишите в поддержку {support_username}.\n\n"
-            "<b>Как работает реферальная система?</b>\nВы получаете 1% от комиссии сделок приглашённых пользователей.\n\n"
+            "<b>Как работает реферальная система?</b>\nВы получаете 10% от комиссии сервиса по завершённым сделкам приглашённых пользователей.\n\n"
             "<b>Нужна помощь?</b> Свяжитесь с поддержкой: {support_username}"
         ),
         TextKey.DOCUMENTS_CAPTION: "📄 <b>Документы</b>\n\nВыберите документ:",
         TextKey.PRIVACY_BUTTON: "Политика конфиденциальности",
         TextKey.TERMS_BUTTON: "Пользовательское соглашение",
+        TextKey.SERVICE_DESCRIPTION_BUTTON: "Описание и условия сервиса",
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
     },
@@ -284,7 +312,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.WALLET_CHANGE: "Change wallet",
         TextKey.WALLET_DELETE: "Delete wallet",
         TextKey.WALLET_DELETED: "Wallet deleted.",
-        TextKey.WALLET_PROMPT: "Send the TON address you want to link to your profile.",
+        TextKey.WALLET_PROMPT: "💰 <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
+        TextKey.WALLET_ACTIVE_PROMPT: (
+            "💰 <b>My wallet</b>\n\nCurrent address:\n<code>{wallet}</code>\n\n"
+            "Want to change it? Send a new address."
+        ),
         TextKey.WALLET_SAVED: "Wallet saved: {wallet}",
         TextKey.WALLET_INVALID: "This does not look like a TON address. Please try again.",
         TextKey.WALLET_OPEN: "Open wallet",
@@ -325,22 +357,24 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "💰 <b>Escrow address:</b>\n<code>{wallet_address}</code>\n"
             "📝 <b>Required comment:</b> <code>{deal_id}</code>\n"
             "🔗 <a href=\"{deep_link}\">Buyer link</a>\n\n"
-            "For an offer, the seller has 24 hours after payment to deliver and the buyer has 24 hours to confirm or dispute. "
+            "For an offer, the seller has 1 hour after payment to deliver and the buyer has 1 hour to confirm or dispute. "
             "For a channel, the seller manually transfers ownership and the bot verifies it automatically. Seller silence means refund; "
             "buyer silence after delivery means automatic release. The 1% service fee is retained in every outcome; "
             "a refund returns the deal principal D."
         ),
         TextKey.DEAL_CANCEL_BUTTON: "Cancel deal",
-        TextKey.DEAL_CONFIRM_BUTTON: "Confirm receipt",
+        TextKey.DEAL_CONFIRM_BUTTON: "Complete deal",
         TextKey.DEAL_DELIVER_BUTTON: "Service delivered",
         TextKey.DEAL_DISPUTE_BUTTON: "Open dispute",
         TextKey.DEAL_JOINED: (
-            "💼 <b>Deal #{deal_id}</b>\n\n<b>Type:</b> {deal_type}\n<b>Description:</b> {description}\n"
-            "💎 <b>Amount due:</b> {amount} {currency}\n\n💰 <b>Payment address:</b>\n<code>{wallet_address}</code>\n"
-            "📝 <b>Required comment:</b> <code>{deal_id}</code>\n\n"
-            "<blockquote>Use the exact amount and required comment. The bot verifies payment automatically.</blockquote> "
-            "Link your TON wallet first; "
-            "it is used as the safe refund destination. The 1% service fee is non-refundable; a refund returns D."
+            "💼 <b>Deal #{deal_id}</b>\n\n👤 You are the buyer.\n\n"
+            "• Seller completed deals: {seller_deals}\n\n<b>Deal details:</b>\n"
+            "• Deal code: #{deal_id}\n• Description: {description}\n\n"
+            "<b>Payment address:</b>\n<code>{wallet_address}</code>\n\n"
+            "<b>Amount due:</b>\n{amount} {currency}\n\n"
+            "<b>Required comment:</b>\n<code>{deal_id}</code>\n\n"
+            "<blockquote>‼️ Use the exact amount and required comment (memo).</blockquote>\n"
+            "The bot verifies payment automatically. A refund returns D; the 1% service fee is retained."
         ),
         TextKey.DEAL_NOT_FOUND: "Deal not found.",
         TextKey.DEAL_FORBIDDEN: "You do not have access to this deal.",
@@ -349,8 +383,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_EMPTY: "Nothing here yet",
         TextKey.DEAL_LIST_CAPTION: "<b>My deals:</b>",
         TextKey.DEAL_CARD: (
-            "📋 <b>Deal #{deal_id}</b>\n\n<b>Description:</b> {description}\n<b>Amount:</b> {amount} {currency}\n"
-            "<b>Status:</b> {status}\n\n<b>Seller:</b> {seller}\n<b>Buyer:</b> {buyer}{channel_details}\n\n{status_note}"
+            "📋 <b>Deal #{deal_id}</b>\n\n<b>Deal details:</b>\n"
+            "• Description: {description}\n• Seller receives: {amount} {currency}\n"
+            "• Buyer pays: {payment_amount} {currency}\n\n"
+            "<b>Seller:</b> {seller}\n<b>Buyer:</b> {buyer}{channel_details}\n\n"
+            "<b>Status:</b> {status}"
         ),
         TextKey.DEAL_PAID_BUYER: "Funds reached the guarant wallet. Please wait for the item transfer.",
         TextKey.DEAL_PAID_SELLER: (
@@ -394,6 +431,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Contact support and include the deal ID."
         ),
         TextKey.DEAL_REFUNDED: "The TON network confirmed the buyer refund.",
+        TextKey.DEAL_CANCELLED_BY_SELLER: "The seller cancelled deal #{deal_id}.",
+        TextKey.DEAL_PAYOUT_RECEIVED: (
+            "💰 <b>Payout received!</b>\n\n<b>Deal details:</b>\n• Description: {description}\n"
+            "• Amount: {amount} {currency}\n• Status: ✅ Successfully completed\n"
+            "• Wallet: <code>{wallet}</code>\n\n"
+            "🔗 <a href=\"{transaction_url}\">View transaction</a>\n\nThank you for using our service! 🙏"
+        ),
         TextKey.SETTINGS_CAPTION: "⚙️ <b>Settings</b>",
         TextKey.SETTINGS_REFERRALS: "Referrals",
         TextKey.SETTINGS_LANGUAGE: "Language",
@@ -421,11 +465,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Add a TON wallet, create or join a deal, fund escrow, and confirm delivery to release funds.\n\n"
             "<b>How long are funds frozen?</b> Until buyer confirmation or cancellation.\n\n"
             "<b>Service fee:</b> fixed 1%.\n\n<b>Disputes:</b> contact {support_username}.\n\n"
-            "Referral reward is 1% of the service fee generated by invited users."
+            "Referral reward is 10% of the service fee generated by completed deals of invited users."
         ),
         TextKey.DOCUMENTS_CAPTION: "📄 <b>Documents</b>\n\nChoose a document:",
         TextKey.PRIVACY_BUTTON: "Privacy policy",
         TextKey.TERMS_BUTTON: "Terms of service",
+        TextKey.SERVICE_DESCRIPTION_BUTTON: "Service description and conditions",
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
     },

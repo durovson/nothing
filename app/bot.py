@@ -22,7 +22,6 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher["wallet_service"] = services.wallets
     dispatcher["referral_service"] = services.referrals
     dispatcher["deal_service"] = services.deals
-    dispatcher["payment_service"] = services.payments
     dispatcher["payout_service"] = services.payouts
     dispatcher["lifecycle_service"] = services.lifecycle
     dispatcher["admin_service"] = services.admin

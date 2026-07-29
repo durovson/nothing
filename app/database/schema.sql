@@ -20,8 +20,11 @@ create table if not exists deals (
     public_id text not null unique,
     subwallet_id bigint not null,
     wallet_version text not null default 'v5r1',
-    creator_id bigint not null references users(telegram_id) on delete cascade,
-    buyer_id bigint references users(telegram_id) on delete set null,
+    creator_id bigint not null references users(telegram_id) on delete restrict,
+    buyer_id bigint references users(telegram_id) on delete restrict,
+    seller_wallet_address text,
+    buyer_wallet_address text,
+    buyer_wallet_snapshot text,
     deal_type text not null check (deal_type in ('offer', 'gifts', 'channel', 'account')),
     description text not null,
     currency text not null check (currency in ('TON', 'USDT')),
@@ -29,6 +32,7 @@ create table if not exists deals (
     status text not null default 'creating',
     wallet_address text,
     paid_tx_hash text,
+    payout_tx_hash text,
     paid_tx_lt numeric(20, 0),
     paid_amount_atomic numeric(30, 0),
     payment_sender text,
@@ -44,6 +48,7 @@ alter table deals add column if not exists public_id text;
 alter table deals add column if not exists subwallet_id bigint;
 alter table deals add column if not exists wallet_version text;
 alter table deals add column if not exists paid_tx_hash text;
+alter table deals add column if not exists payout_tx_hash text;
 alter table deals add column if not exists paid_tx_lt numeric(20, 0);
 alter table deals add column if not exists paid_amount_atomic numeric(30, 0);
 alter table deals add column if not exists payment_sender text;
@@ -67,6 +72,27 @@ alter table deals add column if not exists channel_last_member_status text;
 alter table deals add column if not exists channel_last_checked_at timestamptz;
 alter table deals add column if not exists buyer_join_notified_at timestamptz;
 alter table deals add column if not exists cancellation_requested_at timestamptz;
+alter table deals add column if not exists seller_wallet_address text;
+alter table deals add column if not exists buyer_wallet_address text;
+alter table deals add column if not exists buyer_wallet_snapshot text;
+alter table deals add column if not exists archived_at timestamptz;
+alter table deals add column if not exists archived_reason text;
+alter table deals add column if not exists success_feed_notified_at timestamptz;
+create index if not exists deals_success_feed_pending_idx on deals(id)
+where status = 'completed' and success_feed_notified_at is null;
+
+update deals as d
+set seller_wallet_address = u.wallet_address
+from users as u
+where d.creator_id = u.telegram_id and d.seller_wallet_address is null;
+
+update deals as d
+set buyer_wallet_address = u.wallet_address
+from users as u
+where d.buyer_id = u.telegram_id and d.buyer_wallet_address is null;
+
+update deals set buyer_wallet_snapshot=buyer_wallet_address
+where buyer_wallet_snapshot is null and buyer_wallet_address is not null;
 
 update deals
 set public_id = substring(md5(id::text || clock_timestamp()::text || random()::text), 1, 10)
@@ -334,7 +360,7 @@ alter table refund_attempts add constraint refund_attempts_text_check check (
 
 create table if not exists dispute_tickets (
     id bigint generated always as identity primary key,
-    deal_id bigint not null references deals(id) on delete cascade,
+    deal_id bigint not null references deals(id) on delete restrict,
     opened_by bigint not null references users(telegram_id) on delete restrict,
     status text not null default 'open'
         check (status in ('open', 'resolved_release', 'resolved_refund', 'closed')),
@@ -378,7 +404,7 @@ set
     custody_confirmed_at = coalesce(d.custody_confirmed_at, c.confirmed_at, d.updated_at),
     delivery_deadline_at = coalesce(
         d.delivery_deadline_at,
-        timezone('utc', now()) + interval '24 hours'
+        timezone('utc', now()) + interval '1 hour'
     ),
     updated_at = timezone('utc', now())
 from collection_attempts as c
@@ -386,25 +412,24 @@ where d.status = 'paid'
   and c.deal_id = d.id
   and c.status = 'confirmed';
 
--- Unsuccessful deals are removed by the retention RPC. Dependent financial
--- rows must be removed in the same atomic transaction.
+-- Financial evidence must survive forever; deal deletion is restricted.
 alter table deal_payments drop constraint if exists deal_payments_deal_id_fkey;
 alter table deal_payments add constraint deal_payments_deal_id_fkey
-    foreign key (deal_id) references deals(id) on delete cascade;
+    foreign key (deal_id) references deals(id) on delete restrict;
 alter table collection_attempts drop constraint if exists collection_attempts_deal_id_fkey;
 alter table collection_attempts add constraint collection_attempts_deal_id_fkey
-    foreign key (deal_id) references deals(id) on delete cascade;
+    foreign key (deal_id) references deals(id) on delete restrict;
 alter table payout_attempts drop constraint if exists payout_attempts_deal_id_fkey;
 alter table payout_attempts add constraint payout_attempts_deal_id_fkey
-    foreign key (deal_id) references deals(id) on delete cascade;
+    foreign key (deal_id) references deals(id) on delete restrict;
 alter table refund_attempts drop constraint if exists refund_attempts_deal_id_fkey;
 alter table refund_attempts add constraint refund_attempts_deal_id_fkey
-    foreign key (deal_id) references deals(id) on delete cascade;
+    foreign key (deal_id) references deals(id) on delete restrict;
 
 create table if not exists referrals (
     id bigint generated always as identity primary key,
-    referrer_id bigint not null references users(telegram_id) on delete cascade,
-    referred_id bigint not null references users(telegram_id) on delete cascade,
+    referrer_id bigint not null references users(telegram_id) on delete restrict,
+    referred_id bigint not null references users(telegram_id) on delete restrict,
     earned_ton numeric(36, 9) not null default 0,
     earned_usdt numeric(36, 6) not null default 0,
     created_at timestamptz not null default timezone('utc', now()),
@@ -447,7 +472,7 @@ create table if not exists referral_rewards (
 );
 
 create table if not exists referral_balances (
-    user_id bigint not null references users(telegram_id) on delete cascade,
+    user_id bigint not null references users(telegram_id) on delete restrict,
     currency text not null check (currency in ('TON', 'USDT')),
     balance numeric(36, 9) not null default 0 check (balance >= 0),
     updated_at timestamptz not null default timezone('utc', now()),

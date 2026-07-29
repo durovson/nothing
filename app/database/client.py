@@ -69,6 +69,12 @@ class SupabaseDatabase:
     async def rpc(self, name: str, params: dict[str, object]):
         return await self.run(lambda: self.client.rpc(name, params).execute())
 
+    async def ping(self) -> bool:
+        response = await self.read(
+            lambda: self.client.table("bot_settings").select("id").limit(1).execute()
+        )
+        return response.data is not None
+
     def _create_client(self) -> Client:
         return create_client(self._settings.SUPABASE_URL, self._settings.SUPABASE_KEY)
 
