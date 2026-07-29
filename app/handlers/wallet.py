@@ -65,7 +65,6 @@ async def open_wallet_callback(
             _list_keyboard(db_user),
             screen="wallet",
         )
-    await callback.answer()
 
 
 @router.callback_query(WalletCallback.filter(F.action == WalletAction.OPEN))
@@ -99,7 +98,6 @@ async def wallet_back(callback: types.CallbackQuery, db_user: User) -> None:
             _list_keyboard(db_user),
             screen="wallet",
         )
-    await callback.answer()
 
 
 @router.callback_query(WalletCallback.filter(F.action == WalletAction.EDIT))
@@ -112,7 +110,6 @@ async def edit_wallet(
     if callback.message:
         await remember_menu(state, callback.message)
         await render_menu(callback.message, translate(db_user.language, TextKey.WALLET_PROMPT), wallet_actions(db_user.language, bool(db_user.wallet_address)))
-    await callback.answer()
 
 
 @router.callback_query(WalletCallback.filter(F.action == WalletAction.DELETE))

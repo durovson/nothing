@@ -1,5 +1,8 @@
+import re
 from enum import StrEnum
 from html import escape
+from pathlib import Path
+from string import Formatter
 from typing import Any
 
 from app.core.enums import Language
@@ -128,14 +131,16 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_TYPE_CHANNEL: "Канал",
         TextKey.DEAL_TYPE_ACCOUNT: "Оффер",
         TextKey.DEAL_CHANNEL_WARNING: (
-            "📢 <b>Сделка по каналу</b>\n\nДобавьте бота администратором канала и выдайте ему <b>полные права</b>, включая "
+            "⭐️ <b>Сделка по каналу</b>\n\nДобавьте бота администратором канала и выдайте ему полные права, включая "
             "приглашение пользователей и назначение администраторов. Затем отправьте @username, ID канала "
             "или перешлите сообщение из канала.\n\nПокупатель вступит по инвайт-ссылке. После оплаты продавец вручную "
-            "передаёт ему статус владельца. Бот автоматически проверяет статус <code>creator</code> и только после "
-            "этого запускает выплату.\n\n"
-            "<blockquote>Не удаляйте бота из администраторов до завершения сделки.</blockquote>"
+            "передаёт ему статус владельца. Бот автоматически проверяет статус и только после этого запускает выплату.\n\n"
+            "<b>⚠️ Не удаляйте бота из администраторов до завершения сделки!</b>"
         ),
-        TextKey.DEAL_CHANNEL_INVALID: "Канал не прошёл проверку: {reason}\n\nИсправьте права и отправьте канал ещё раз.",
+        TextKey.DEAL_CHANNEL_INVALID: (
+            "⚠️ <b>Канал не прошёл проверку</b>\n\n{reason}\n\n"
+            "<b>Исправьте права и отправьте канал ещё раз.</b>"
+        ),
         TextKey.DEAL_CHANNEL_VERIFIED: "Канал «{title}» проверен.",
         TextKey.DEAL_CHANNEL_INVITE_UNAVAILABLE: (
             "Не удалось создать безопасную ссылку для входа в канал. Оплата пока недоступна. "
@@ -197,15 +202,17 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_SELLER: (
             "💰 <b>Оплата подтверждена!</b>\n\nПокупатель оплатил сделку #{deal_id}\n\n"
+            "<b>Детали сделки:</b>\n• Описание: {description}\n• Покупатель: {buyer}\n\n"
             "<a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "✅ Средства зачислены на кошелёк бота.\n📦 Теперь вы можете приступить к оказанию услуги. Не забудьте нажать кнопку ниже!"
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
-            "✅ Оплата канала подтверждена и удерживается гарантом. Вступите в канал по кнопке сделки и дождитесь, "
+            "✅ Оплата сделки #{deal_id} подтверждена и удерживается гарантом.\nТранзакция:\n{transaction_url}\n\n"
+            "Вступите в канал по кнопке сделки и дождитесь, "
             "пока продавец вручную передаст вам статус владельца. Бот проверит это автоматически."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
-            "✅ Покупатель оплатил канал. Вручную передайте ему статус владельца в настройках Telegram и не удаляйте "
+            "✅ Покупатель оплатил сделку #{deal_id}. Вручную передайте ему статус владельца в настройках Telegram и не удаляйте "
             "бота из администраторов. После статуса creator бот автоматически запустит выплату.\n\nТранзакция:\n{transaction_url}"
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
@@ -391,16 +398,17 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_BUYER: "Funds reached the guarant wallet. Please wait for the item transfer.",
         TextKey.DEAL_PAID_SELLER: (
-            "The buyer paid the deal.\n"
+            "The buyer paid deal #{deal_id}.\nDescription: {description}\nBuyer: {buyer}\n"
             "Transaction:\n{transaction_url}\n\n"
             "Transfer the item and press ‘Item delivered’ in the deal card."
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
-            "✅ Channel payment is confirmed and held by the guarant. Join through the deal button and wait for the seller "
+            "✅ Channel deal #{deal_id} payment is confirmed and held by the guarant.\nTransaction:\n{transaction_url}\n\n"
+            "Join through the deal button and wait for the seller "
             "to transfer ownership. The bot verifies it automatically."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
-            "✅ The buyer paid for the channel. Transfer ownership manually in Telegram and keep the bot as administrator. "
+            "✅ The buyer paid channel deal #{deal_id}. Transfer ownership manually in Telegram and keep the bot as administrator. "
             "Payout is queued automatically only after creator status is verified.\n\nTransaction:\n{transaction_url}"
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
@@ -475,6 +483,85 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANG_EN: "English",
     },
 }
+
+
+_EDITABLE_TEXTS_PATH = Path(__file__).resolve().parents[2] / "BOT_TEXTS_EDITABLE.txt"
+_BLOCK_START = re.compile(r"^\[\[(ru|en)\.([a-z0-9_]+)\]\]$")
+_BLOCK_END = "[[/]]"
+
+
+def _load_editable_texts(path: Path = _EDITABLE_TEXTS_PATH) -> None:
+    """Overlay the built-in fallback catalog with UTF-8 editorial content."""
+    if not path.is_file():
+        return
+
+    overrides: dict[tuple[Language, TextKey], str] = {}
+    current: tuple[Language, TextKey] | None = None
+    lines: list[str] = []
+
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = _BLOCK_START.fullmatch(line)
+        if match:
+            if current is not None:
+                raise RuntimeError(f"Nested text block at line {line_number}")
+            try:
+                current = (Language(match.group(1)), TextKey(match.group(2)))
+            except ValueError as exc:
+                raise RuntimeError(f"Unknown text key at line {line_number}: {line}") from exc
+            if current in overrides:
+                raise RuntimeError(f"Duplicate text block at line {line_number}: {line}")
+            lines = []
+            continue
+        if line == _BLOCK_END:
+            if current is None:
+                raise RuntimeError(f"Unexpected text block end at line {line_number}")
+            overrides[current] = "\n".join(lines)
+            current = None
+            lines = []
+            continue
+        if current is not None:
+            lines.append(line)
+
+    if current is not None:
+        raise RuntimeError(f"Unclosed text block: {current[0].value}.{current[1].value}")
+
+    expected = {(language, key) for language in Language for key in TextKey}
+    missing = expected.difference(overrides)
+    if missing:
+        names = ", ".join(
+            f"{language.value}.{key.value}"
+            for language, key in sorted(
+                missing, key=lambda item: (item[0].value, item[1].value)
+            )
+        )
+        raise RuntimeError(f"BOT_TEXTS_EDITABLE.txt is missing blocks: {names}")
+
+    for (language, key), value in overrides.items():
+        try:
+            supplied_fields = {
+                field_name
+                for _, field_name, _, _ in Formatter().parse(value)
+                if field_name is not None
+            }
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Invalid braces in text block {language.value}.{key.value}"
+            ) from exc
+        allowed_fields = {
+            field_name
+            for _, field_name, _, _ in Formatter().parse(TEXTS[language][key])
+            if field_name is not None
+        }
+        unknown_fields = supplied_fields.difference(allowed_fields)
+        if unknown_fields:
+            names = ", ".join(sorted(unknown_fields))
+            raise RuntimeError(
+                f"Unknown placeholders in {language.value}.{key.value}: {names}"
+            )
+        TEXTS[language][key] = value
+
+
+_load_editable_texts()
 
 
 def translate(locale: Language | str, key: TextKey, **kwargs: Any) -> str:

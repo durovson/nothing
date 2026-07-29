@@ -6,17 +6,26 @@ from collections.abc import Awaitable, Callable
 from time import monotonic
 
 from app.config import Settings
+from app.core.exceptions import TonProviderTemporaryError
 from app.services.channels import ChannelDealService
 from app.services.deals import DealService
 from app.services.financial_processor import FinancialOperationProcessor
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.services.refunds import RefundService
-from app.services.usdt_indexer import UsdtDepositIndexer
-from app.services.ton_indexer import TonDepositIndexer
 from app.services.system_mode import SystemModeService
+from app.services.ton_indexer import TonDepositIndexer
+from app.services.usdt_indexer import UsdtDepositIndexer
 
 logger = logging.getLogger(__name__)
+
+MAX_PROVIDER_RETRY_SECONDS = 300
+
+
+def provider_retry_delay(base_interval: int, consecutive_failures: int) -> int:
+    """Return a bounded exponential delay for a transient provider outage."""
+    exponent = max(0, consecutive_failures - 1)
+    return min(base_interval * (2**exponent), MAX_PROVIDER_RETRY_SECONDS)
 
 
 class DealMonitor:
@@ -127,13 +136,7 @@ class DealMonitor:
     async def _processor_loop(
         self, name: str, processor: FinancialOperationProcessor
     ) -> None:
-        while not self._stop_event.is_set():
-            try:
-                await processor.run_once()
-                self._last_success[name] = monotonic()
-            except Exception:
-                logger.exception("%s iteration failed", name)
-            await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
+        await self._repeat(name, processor.run_once)
 
     async def _lifecycle_loop(self) -> None:
         while not self._stop_event.is_set():
@@ -175,15 +178,31 @@ class DealMonitor:
         callback: Callable[[], Awaitable[object]],
         interval: int | None = None,
     ) -> None:
+        failures = 0
+        base_interval = interval or self._settings.DEAL_POLL_INTERVAL_SECONDS
         while not self._stop_event.is_set():
+            delay = base_interval
             try:
                 await callback()
                 task = asyncio.current_task()
                 if task is not None:
                     self._last_success[task.get_name()] = monotonic()
+                if failures:
+                    logger.info("%s recovered after %s transient failure(s)", name, failures)
+                failures = 0
+            except TonProviderTemporaryError as exc:
+                failures += 1
+                delay = provider_retry_delay(base_interval, failures)
+                logger.warning(
+                    "%s temporarily unavailable: HTTP %s endpoint=%s; retry in %ss",
+                    name,
+                    exc.code,
+                    exc.endpoint,
+                    delay,
+                )
             except Exception:
                 logger.exception("%s iteration failed", name)
-            await self._wait(interval or self._settings.DEAL_POLL_INTERVAL_SECONDS)
+            await self._wait(delay)
 
     async def _wait(self, timeout: int) -> None:
         try:

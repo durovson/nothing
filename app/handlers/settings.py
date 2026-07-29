@@ -35,7 +35,6 @@ async def settings_menu(message: types.Message, db_user: User) -> None:
 async def settings_menu_callback(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
         await render_menu(callback.message, translate(db_user.language, TextKey.SETTINGS_CAPTION), settings_keyboard(db_user.language), screen="settings")
-    await callback.answer()
 
 
 @router.callback_query(SettingsCallback.filter(F.action == SettingsAction.BACK))
@@ -45,7 +44,6 @@ async def settings_back(callback: types.CallbackQuery, db_user: User) -> None:
             translate(db_user.language, TextKey.SETTINGS_CAPTION),
             settings_keyboard(db_user.language),
         )
-    await callback.answer()
 
 
 @router.callback_query(SettingsCallback.filter(F.action == SettingsAction.LANGUAGE))
@@ -56,7 +54,6 @@ async def choose_language(callback: types.CallbackQuery, db_user: User) -> None:
             language_keyboard(db_user.language),
             screen="language",
         )
-    await callback.answer()
 
 
 @router.callback_query(LanguageCallback.filter())
@@ -73,7 +70,6 @@ async def save_language(
             home_keyboard(user.language),
             screen="language",
         )
-    await callback.answer()
 
 
 @router.callback_query(SettingsCallback.filter(F.action == SettingsAction.SUPPORT))
@@ -90,7 +86,6 @@ async def support_info(
                 support_username=settings.SUPPORT_USERNAME,
             ), settings_keyboard(db_user.language)
         )
-    await callback.answer()
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.REFERRALS))
@@ -122,7 +117,6 @@ async def referral_info(
             ),
             screen="referrals",
         )
-    await callback.answer()
 
 
 @router.callback_query(ReferralCallback.filter(F.action == ReferralAction.WITHDRAW))

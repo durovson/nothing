@@ -5,7 +5,11 @@ from aiogram import Bot, Dispatcher
 
 from app.config import Settings
 from app.handlers import create_router
-from app.middleware import CurrentUserMiddleware, MaintenanceMiddleware
+from app.middleware import (
+    CurrentUserMiddleware,
+    FastCallbackMiddleware,
+    MaintenanceMiddleware,
+)
 from app.services import Services
 
 logger = logging.getLogger(__name__)
@@ -13,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher = Dispatcher()
+    dispatcher.update.outer_middleware(FastCallbackMiddleware())
     dispatcher.update.outer_middleware(MaintenanceMiddleware(services.admin))
     dispatcher.update.middleware(
         CurrentUserMiddleware(services.users, settings.DEFAULT_LANGUAGE)

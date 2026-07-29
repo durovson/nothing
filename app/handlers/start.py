@@ -118,7 +118,6 @@ async def menu_back(
     await state.clear()
     if callback.message:
         await show_main_menu(callback.message, db_user, settings)
-    await callback.answer()
 
 
 async def show_main_menu(message: types.Message, user: User, settings: Settings) -> None:

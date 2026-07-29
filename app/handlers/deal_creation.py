@@ -96,7 +96,6 @@ async def choose_deal_type(
                 back_keyboard(db_user.language),
                 screen="deal_create",
             )
-    await callback.answer()
 
 
 @router.message(ChannelDealStates.waiting_for_channel)
@@ -196,7 +195,6 @@ async def choose_currency(
             currency_keyboard(db_user.language),
             screen="deal_create",
         )
-    await callback.answer()
 
 
 @router.message(DealCreationStates.waiting_for_amount)

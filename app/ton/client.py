@@ -4,6 +4,7 @@ import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import time
+from typing import Never
 
 from ton_core import (
     Address,
@@ -29,9 +30,18 @@ from app.core.constants import (
     WALLET_V5_MAX_SUBWALLET_NUMBER,
 )
 from app.core.enums import Currency, TonNetwork, TraceStatus, WalletVersion
-from app.core.exceptions import InvalidWalletError, TonGatewayError
+from app.core.exceptions import (
+    InvalidWalletError,
+    TonGatewayError,
+    TonProviderTemporaryError,
+)
 from app.models.dto import DepositScanBatch, PaymentObservation
-from app.models.entities import CollectionAttempt, Deal, FinancialOperation, FinancialOperationAttempt
+from app.models.entities import (
+    CollectionAttempt,
+    Deal,
+    FinancialOperation,
+    FinancialOperationAttempt,
+)
 from app.ton.amounts import asset_payment_amount_atomic, payout_amount_atomic
 from app.ton.jettons import JettonEscrowGateway
 from app.ton.models import PayoutMessage, PreparedPayout, TraceResult
@@ -44,6 +54,15 @@ from app.ton.parsing import (
 )
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_PROVIDER_CODES = frozenset({408, 425, 429, 500, 502, 503, 504, 542})
+
+
+def _raise_temporary_provider_error(exc: ProviderResponseError) -> Never:
+    """Translate only retryable HTTP failures at the TON adapter boundary."""
+    if exc.code in _RETRYABLE_PROVIDER_CODES:
+        raise TonProviderTemporaryError(exc.code, exc.endpoint) from None
+    raise exc
 
 
 def _network(value: TonNetwork) -> NetworkGlobalID:
@@ -238,7 +257,10 @@ class TonEscrowClient:
     async def scan_usdt_deposits(
         self, last_lt: int | None, last_hash: str | None
     ) -> DepositScanBatch:
-        return await self._jettons.scan_deposits_since(last_lt, last_hash)
+        try:
+            return await self._jettons.scan_deposits_since(last_lt, last_hash)
+        except ProviderResponseError as exc:
+            _raise_temporary_provider_error(exc)
 
     async def scan_ton_deposits(
         self,
@@ -249,9 +271,12 @@ class TonEscrowClient:
         """Index every inbound TON transfer to a deal wallet, not only matches."""
         del last_hash  # Account LT is the durable ordering cursor used by this scanner.
         wallet = self._wallet(deal)
-        transactions = await wallet.get_transactions(
-            limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
-        )
+        try:
+            transactions = await wallet.get_transactions(
+                limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
+            )
+        except ProviderResponseError as exc:
+            _raise_temporary_provider_error(exc)
         observations: list[PaymentObservation] = []
         newest_lt: int | None = None
         newest_hash: str | None = None
@@ -419,7 +444,7 @@ class TonEscrowClient:
         except ProviderResponseError as exc:
             if exc.code == 404:
                 return TraceStatus.NOT_FOUND
-            raise
+            _raise_temporary_provider_error(exc)
         if not isinstance(trace, dict):
             raise TonGatewayError("TonAPI returned an invalid collection trace")
         if trace.get("is_incomplete") is True:
@@ -447,7 +472,7 @@ class TonEscrowClient:
         except ProviderResponseError as exc:
             if exc.code == 404:
                 return TraceResult(TraceStatus.NOT_FOUND)
-            raise
+            _raise_temporary_provider_error(exc)
         if not isinstance(trace, dict):
             raise TonGatewayError("TonAPI returned an invalid financial operation trace")
         if trace.get("is_incomplete") is True:

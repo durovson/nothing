@@ -11,7 +11,9 @@ from app.core.constants import (
     COMPLETED_DEALS_TOPIC_ID,
     PUBLIC_BOT_USERNAME,
 )
+from app.core.custom_emoji import CustomEmoji
 from app.core.enums import DealType, Language, TonNetwork
+from app.keyboards.buttons import premium_button
 from app.keyboards.callbacks import DealAction, DealCallback, MenuAction, MenuCallback
 from app.locales import TextKey, translate
 from app.models.entities import Deal, User
@@ -73,12 +75,15 @@ class TelegramNotificationGateway:
                 await self._send(
                     buyer,
                     TextKey.DEAL_CHANNEL_PAID_BUYER,
+                    deal_id=deal.public_id,
+                    transaction_url=transaction_url,
                     reply_markup=self._open_keyboard(deal, buyer.language),
                 )
             if seller:
                 await self._send(
                     seller,
                     TextKey.DEAL_CHANNEL_PAID_SELLER,
+                    deal_id=deal.public_id,
                     transaction_url=transaction_url,
                     reply_markup=self._transaction_keyboard(deal, seller.language, transaction_url),
                 )
@@ -99,10 +104,13 @@ class TelegramNotificationGateway:
                 seller,
                 TextKey.DEAL_PAID_SELLER,
                 deal_id=deal.public_id,
+                description=deal.description,
+                buyer=self._user_label(buyer),
                 transaction_url=transaction_url,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(
+                    [premium_button(
                         text="Услуга оказана" if seller.language is Language.RU else "Service delivered",
+                        icon=CustomEmoji.COMPLETE,
                         callback_data=DealCallback(action=DealAction.DELIVER, deal_id=deal.id).pack(),
                     )],
                     [self._transaction_button(seller.language, transaction_url)],
@@ -133,13 +141,15 @@ class TelegramNotificationGateway:
             payment_amount=format_amount(payment_amount),
             currency=currency_label(deal.currency),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
+                [premium_button(
                     text="Завершить сделку" if buyer.language is Language.RU else "Complete deal",
+                    icon=CustomEmoji.CONFIRM,
                     callback_data=DealCallback(action=DealAction.CONFIRM, deal_id=deal.id).pack(),
                 )],
                 [self._open_deal(deal, self._open_label(buyer.language))],
-                [InlineKeyboardButton(
+                [premium_button(
                     text="Открыть спор" if buyer.language is Language.RU else "Open dispute",
+                    icon=CustomEmoji.DISPUTE,
                     callback_data=DealCallback(action=DealAction.DISPUTE, deal_id=deal.id).pack(),
                 )],
             ]),
@@ -254,8 +264,9 @@ class TelegramNotificationGateway:
 
     @staticmethod
     def _open_deal(deal: Deal, text: str = "Открыть сделку") -> InlineKeyboardButton:
-        return InlineKeyboardButton(
+        return premium_button(
             text=text,
+            icon=CustomEmoji.CREATE_DEAL,
             callback_data=DealCallback(action=DealAction.OPEN, deal_id=deal.id).pack(),
         )
 
@@ -265,15 +276,17 @@ class TelegramNotificationGateway:
 
     @staticmethod
     def _transaction_button(language: Language, url: str) -> InlineKeyboardButton:
-        return InlineKeyboardButton(
+        return premium_button(
             text="Посмотреть транзакцию" if language is Language.RU else "View transaction",
+            icon=CustomEmoji.TON,
             url=url,
         )
 
     @staticmethod
     def _home_button(language: Language) -> InlineKeyboardButton:
-        return InlineKeyboardButton(
+        return premium_button(
             text="Главное меню" if language is Language.RU else "Main menu",
+            icon=CustomEmoji.HOME,
             callback_data=MenuCallback(action=MenuAction.BACK).pack(),
         )
 

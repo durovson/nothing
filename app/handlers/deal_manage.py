@@ -84,12 +84,11 @@ async def my_deals_callback(
     if callback.message:
         caption = translate(db_user.language, TextKey.DEAL_LIST_CAPTION) if items else translate(db_user.language, TextKey.DEAL_LIST_EMPTY)
         await render_menu(callback.message, caption, deals_list(db_user.language, items, 0, total_pages), screen="deals")
-    await callback.answer()
 
 
 @router.callback_query(PageCallback.filter(F.action == PageAction.CURRENT))
 async def current_page(callback: types.CallbackQuery) -> None:
-    await callback.answer()
+    return None
 
 
 @router.callback_query(PageCallback.filter(F.action == PageAction.OPEN))
@@ -110,7 +109,6 @@ async def open_page(
             deals_list(db_user.language, items, page, total_pages),
             screen="deals",
         )
-    await callback.answer()
 
 
 @router.callback_query(DealCallback.filter(F.action == DealAction.OPEN))
@@ -124,16 +122,13 @@ async def open_deal(
     if not deal:
         if callback.message:
             await callback.message.answer(translate(db_user.language, TextKey.DEAL_NOT_FOUND))
-        await callback.answer()
         return
     if db_user.telegram_id not in {deal.creator_id, deal.buyer_id}:
         if callback.message:
             await callback.message.answer(translate(db_user.language, TextKey.DEAL_FORBIDDEN))
-        await callback.answer()
         return
     if callback.message:
         await render_deal_card(callback.message, deal, db_user, deal_service)
-    await callback.answer()
 
 
 @router.callback_query(DealCallback.filter(F.action == DealAction.CANCEL))
