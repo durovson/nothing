@@ -49,7 +49,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
     async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
         settings = container.settings
         polling_task: asyncio.Task[None] | None = None
-        lag_task = asyncio.create_task(monitor_event_loop_lag(), name="event-loop-lag")
+        lag_task: asyncio.Task[None] | None = None
         if not settings.TELEGRAM_USE_POLLING:
             if not settings.APP_BASE_URL:
                 raise RuntimeError("APP_BASE_URL is required in webhook mode")
@@ -58,9 +58,11 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
 
         try:
             await container.ton.start()
+            logger.info("Startup phase completed: TON client")
             await container.database.warm_up()
+            logger.info("Startup phase completed: Supabase")
             await container.monitor.start()
-            await container.keepalive.start()
+            logger.info("Startup phase completed: background workers")
             if settings.TELEGRAM_USE_POLLING:
                 await container.bot.delete_webhook(drop_pending_updates=False)
                 polling_task = asyncio.create_task(
@@ -75,21 +77,26 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
                     secret_token=settings.TELEGRAM_WEBHOOK_SECRET,
                 )
                 logger.info("Telegram webhook configured: %s", webhook_url)
+            await container.keepalive.start()
+            lag_task = asyncio.create_task(
+                monitor_event_loop_lag(), name="event-loop-lag"
+            )
+            logger.info("Application runtime components started")
             yield
         finally:
-            lag_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await lag_task
             if polling_task:
                 polling_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await polling_task
-            if not settings.TELEGRAM_USE_POLLING:
-                await container.bot.delete_webhook(drop_pending_updates=False)
-            await container.keepalive.stop()
             await container.monitor.stop()
+            await container.keepalive.stop()
+            if lag_task:
+                lag_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await lag_task
             await container.ton.close()
             await container.database.close()
             await container.bot.session.close()
+            logger.info("Application runtime components stopped")
 
     return lifespan

@@ -94,6 +94,8 @@ class DealMonitor:
         if self.is_running:
             return
         self._stop_event.clear()
+        for processor in self._processors.values():
+            processor.health.running = True
         workers: list[tuple[str, Callable[[], Awaitable[None]]]] = [
             ("ton-deposit-indexer", self._ton_indexer_loop),
             ("usdt-deposit-indexer", self._usdt_indexer_loop),
