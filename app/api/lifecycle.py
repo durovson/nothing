@@ -9,9 +9,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.bot import run_polling
+from app.core.constants import EVENT_LOOP_LAG_WARNING_SECONDS
 from app.loader import AppContainer
 
 logger = logging.getLogger(__name__)
+
+
+async def monitor_event_loop_lag(interval: float = 1.0) -> None:
+    """Report blocking sync work, GIL contention, or long runtime pauses."""
+    loop = asyncio.get_running_loop()
+    expected = loop.time() + interval
+    while True:
+        await asyncio.sleep(interval)
+        now = loop.time()
+        lag = max(0.0, now - expected)
+        expected = now + interval
+        if lag >= EVENT_LOOP_LAG_WARNING_SECONDS:
+            logger.warning("Event loop lag detected lag_ms=%.1f", lag * 1_000)
 
 
 def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterator[None]]:
@@ -19,6 +33,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
     async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
         settings = container.settings
         polling_task: asyncio.Task[None] | None = None
+        lag_task = asyncio.create_task(monitor_event_loop_lag(), name="event-loop-lag")
         if not settings.TELEGRAM_USE_POLLING:
             if not settings.APP_BASE_URL:
                 raise RuntimeError("APP_BASE_URL is required in webhook mode")
@@ -45,6 +60,9 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
                 logger.info("Telegram webhook configured: %s", webhook_url)
             yield
         finally:
+            lag_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await lag_task
             if polling_task:
                 polling_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -54,6 +72,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
             await container.keepalive.stop()
             await container.monitor.stop()
             await container.ton.close()
+            await container.database.close()
             await container.bot.session.close()
 
     return lifespan

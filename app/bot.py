@@ -2,21 +2,37 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.utils.backoff import BackoffConfig
 
 from app.config import Settings
+from app.core.constants import (
+    TELEGRAM_POLLING_BACKOFF_FACTOR,
+    TELEGRAM_POLLING_BACKOFF_JITTER,
+    TELEGRAM_POLLING_MAX_BACKOFF_SECONDS,
+    TELEGRAM_POLLING_MIN_BACKOFF_SECONDS,
+)
 from app.handlers import create_router
 from app.middleware import (
     CurrentUserMiddleware,
     FastCallbackMiddleware,
     MaintenanceMiddleware,
+    PerformanceMiddleware,
 )
 from app.services import Services
 
 logger = logging.getLogger(__name__)
 
+POLLING_BACKOFF_CONFIG = BackoffConfig(
+    min_delay=TELEGRAM_POLLING_MIN_BACKOFF_SECONDS,
+    max_delay=TELEGRAM_POLLING_MAX_BACKOFF_SECONDS,
+    factor=TELEGRAM_POLLING_BACKOFF_FACTOR,
+    jitter=TELEGRAM_POLLING_BACKOFF_JITTER,
+)
+
 
 def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher = Dispatcher()
+    dispatcher.update.outer_middleware(PerformanceMiddleware())
     dispatcher.update.outer_middleware(FastCallbackMiddleware())
     dispatcher.update.outer_middleware(MaintenanceMiddleware(services.admin))
     dispatcher.update.middleware(
@@ -42,6 +58,7 @@ async def run_polling(bot: Bot, dispatcher: Dispatcher) -> None:
                 bot,
                 handle_signals=False,
                 close_bot_session=False,
+                backoff_config=POLLING_BACKOFF_CONFIG,
             )
         except asyncio.CancelledError:
             raise

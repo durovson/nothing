@@ -9,7 +9,6 @@ from app.config import Settings
 from app.core.constants import (
     COMPLETED_DEALS_CHANNEL,
     COMPLETED_DEALS_TOPIC_ID,
-    PUBLIC_BOT_USERNAME,
 )
 from app.core.custom_emoji import CustomEmoji
 from app.core.enums import DealType, Language, TonNetwork
@@ -182,13 +181,13 @@ class TelegramNotificationGateway:
 
     async def completed_deal_feed(self, deal: Deal) -> bool:
         """Publish one safely escaped summary after the payout is finalized."""
-        text = (
-            f"<b>Сделка:</b> <code>#{escape(deal.public_id)}</code>\n\n"
-            "<b>Детали сделки:</b>\n"
-            f"<b>•</b> <b>Описание:</b> <code>{escape(deal.description)}</code>\n"
-            f"<b>•</b> <b>Сумма:</b> "
-            f"<code>{format_amount(deal.amount)} {escape(currency_label(deal.currency))}</code>\n\n"
-            f"{PUBLIC_BOT_USERNAME}"
+        text = translate(
+            Language.RU,
+            TextKey.COMPLETED_DEAL_FEED,
+            deal_id=deal.public_id,
+            description=deal.description,
+            amount=format_amount(deal.amount),
+            currency=currency_label(deal.currency),
         )
         try:
             await self._bot.send_message(

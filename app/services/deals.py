@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 from decimal import Decimal
@@ -9,16 +10,24 @@ from app.config import Settings
 from app.core.constants import PUBLIC_DEAL_ID_BYTES
 from app.core.enums import Currency, DealStatus, DealType
 from app.core.exceptions import (
+    ChannelConfigurationError,
     DealAmountTooSmallError,
     DealNotFoundError,
     MissingLinkedWalletError,
-    ChannelConfigurationError,
 )
-from app.core.types import DealRepositoryProtocol, TonGatewayProtocol, UserRepositoryProtocol
+from app.core.types import (
+    DealRepositoryProtocol,
+    TonGatewayProtocol,
+    UserRepositoryProtocol,
+)
 from app.models.dto import CreateDealCommand
 from app.models.entities import Deal, User
-from app.ton.amounts import asset_payment_amount, asset_payment_amount_atomic, asset_quantum
 from app.services.system_mode import SystemModeService
+from app.ton.amounts import (
+    asset_payment_amount,
+    asset_payment_amount_atomic,
+    asset_quantum,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -117,15 +126,25 @@ class DealService:
         claimed = await self._deals.claim_join_notification(deal.id)
         if not claimed or not claimed.buyer_id:
             return None
-        buyer = await self._users.get(claimed.buyer_id)
-        seller = await self._users.get(claimed.creator_id)
+        buyer, seller, buyer_deals = await asyncio.gather(
+            self._users.get(claimed.buyer_id),
+            self._users.get(claimed.creator_id),
+            self._deals.count_as_buyer(claimed.buyer_id),
+        )
         if not buyer or not seller:
             return None
-        return buyer, seller, await self._deals.count_as_buyer(buyer.telegram_id)
+        return buyer, seller, buyer_deals
 
     async def participants(self, deal: Deal) -> tuple[User | None, User | None]:
-        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
-        seller = await self._users.get(deal.creator_id)
+        buyer_request = (
+            self._users.get(deal.buyer_id)
+            if deal.buyer_id
+            else asyncio.sleep(0, result=None)
+        )
+        buyer, seller = await asyncio.gather(
+            buyer_request,
+            self._users.get(deal.creator_id),
+        )
         return buyer, seller
 
     async def seller_completed_deals(self, seller_id: int) -> int:

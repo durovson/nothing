@@ -19,7 +19,6 @@ def settings_keyboard(locale: Language) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [premium_button(translate(locale, TextKey.SETTINGS_LANGUAGE), icon=CustomEmoji.LANGUAGE, callback_data=SettingsCallback(action=SettingsAction.LANGUAGE).pack())],
-            [premium_button(translate(locale, TextKey.SETTINGS_SUPPORT), icon=CustomEmoji.SUPPORT, callback_data=SettingsCallback(action=SettingsAction.SUPPORT).pack())],
             [premium_button(translate(locale, TextKey.MAIN_MENU_BUTTON), icon=CustomEmoji.HOME, callback_data=MenuCallback(action=MenuAction.BACK).pack())],
         ]
     )

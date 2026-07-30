@@ -1,12 +1,22 @@
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from time import perf_counter
 from typing import TypeVar
 
-from supabase import Client, create_client
+from supabase import AsyncClient, AsyncClientOptions
 
 from app.config import Settings
-from app.core.constants import DB_READ_RETRY_ATTEMPTS, DB_READ_RETRY_BASE_DELAY_SECONDS
+from app.core.constants import (
+    DB_INTERACTIVE_READ_RETRY_ATTEMPTS,
+    DB_MAX_CONCURRENCY,
+    DB_READ_RETRY_ATTEMPTS,
+    DB_READ_RETRY_BASE_DELAY_SECONDS,
+    SLOW_DATABASE_REQUEST_SECONDS,
+    SLOW_DATABASE_WAIT_SECONDS,
+    SUPABASE_POSTGREST_TIMEOUT_SECONDS,
+)
+from app.core.telemetry import current_trace_id
 
 ResultT = TypeVar("ResultT")
 logger = logging.getLogger(__name__)
@@ -32,38 +42,36 @@ class SupabaseDatabase:
 
     def __init__(self, settings: Settings):
         self._settings = settings
-        self._lock = asyncio.Lock()
-        self.client: Client = self._create_client()
+        self._capacity = asyncio.Semaphore(DB_MAX_CONCURRENCY)
+        self.client = self._create_client()
 
-    async def run(self, operation: Callable[[], ResultT]) -> ResultT:
+    async def run(self, operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
         """Run one potentially mutating operation without unsafe automatic replay."""
-        async with self._lock:
-            try:
-                return await asyncio.to_thread(operation)
-            except Exception as exc:
-                if _is_transient_transport_error(exc):
-                    await self._reconnect()
-                raise
+        return await self._execute(operation, kind="write")
 
-    async def read(self, operation: Callable[[], ResultT]) -> ResultT:
+    async def read(self, operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
         """Run a replay-safe read with bounded transient-network retries."""
-        async with self._lock:
-            for attempt in range(1, DB_READ_RETRY_ATTEMPTS + 1):
-                try:
-                    return await asyncio.to_thread(operation)
-                except Exception as exc:
-                    if not _is_transient_transport_error(exc) or attempt >= DB_READ_RETRY_ATTEMPTS:
-                        if _is_transient_transport_error(exc):
-                            await self._reconnect()
-                        raise
-                    logger.warning(
-                        "Transient Supabase read failed (%s), retry %s/%s",
-                        type(exc).__name__,
-                        attempt + 1,
-                        DB_READ_RETRY_ATTEMPTS,
-                    )
-                    await self._reconnect()
-                    await asyncio.sleep(DB_READ_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
+        attempts = (
+            DB_INTERACTIVE_READ_RETRY_ATTEMPTS
+            if current_trace_id().startswith("telegram:")
+            else DB_READ_RETRY_ATTEMPTS
+        )
+        for attempt in range(1, attempts + 1):
+            try:
+                return await self._execute(operation, kind="read")
+            except Exception as exc:
+                if not _is_transient_transport_error(exc) or attempt >= attempts:
+                    raise
+                logger.warning(
+                    "Transient Supabase read failed trace=%s error=%s retry=%s/%s",
+                    current_trace_id(),
+                    type(exc).__name__,
+                    attempt + 1,
+                    attempts,
+                )
+                await asyncio.sleep(
+                    DB_READ_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                )
         raise RuntimeError("Unreachable Supabase read retry state")
 
     async def rpc(self, name: str, params: dict[str, object]):
@@ -75,11 +83,46 @@ class SupabaseDatabase:
         )
         return response.data is not None
 
-    def _create_client(self) -> Client:
-        return create_client(self._settings.SUPABASE_URL, self._settings.SUPABASE_KEY)
+    async def close(self) -> None:
+        await self.client.postgrest.aclose()
+        await self.client.auth.close()
 
-    async def _reconnect(self) -> None:
-        self.client = await asyncio.to_thread(self._create_client)
+    def _create_client(self) -> AsyncClient:
+        return AsyncClient(
+            self._settings.SUPABASE_URL,
+            self._settings.SUPABASE_KEY,
+            AsyncClientOptions(
+                auto_refresh_token=False,
+                persist_session=False,
+                postgrest_client_timeout=SUPABASE_POSTGREST_TIMEOUT_SECONDS,
+            ),
+        )
+
+    async def _execute(
+        self,
+        operation: Callable[[], Awaitable[ResultT]],
+        *,
+        kind: str,
+    ) -> ResultT:
+        queued_at = perf_counter()
+        async with self._capacity:
+            started_at = perf_counter()
+            wait_seconds = started_at - queued_at
+            try:
+                return await operation()
+            finally:
+                request_seconds = perf_counter() - started_at
+                if (
+                    wait_seconds >= SLOW_DATABASE_WAIT_SECONDS
+                    or request_seconds >= SLOW_DATABASE_REQUEST_SECONDS
+                ):
+                    logger.warning(
+                        "Slow Supabase operation trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                        current_trace_id(),
+                        kind,
+                        wait_seconds * 1_000,
+                        request_seconds * 1_000,
+                    )
 
 
 def _is_transient_transport_error(error: BaseException) -> bool:

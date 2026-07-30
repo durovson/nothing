@@ -1,8 +1,15 @@
+import logging
 from collections.abc import Awaitable, Callable
+from time import perf_counter
 from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, TelegramObject, Update
+
+from app.core.constants import SLOW_CALLBACK_ACK_SECONDS
+from app.core.telemetry import current_trace_id
+
+logger = logging.getLogger(__name__)
 
 _FAST_EXACT_CALLBACKS = frozenset(
     {
@@ -57,5 +64,16 @@ class FastCallbackMiddleware(BaseMiddleware):
     ) -> Any:
         callback = callback_from_event(event)
         if callback is not None and is_fast_navigation_callback(callback.data):
-            await callback.answer()
+            started_at = perf_counter()
+            try:
+                await callback.answer()
+            finally:
+                duration = perf_counter() - started_at
+                if duration >= SLOW_CALLBACK_ACK_SECONDS:
+                    logger.warning(
+                        "Slow Telegram callback ACK trace=%s callback=%s duration_ms=%.1f",
+                        current_trace_id(),
+                        callback.data,
+                        duration * 1_000,
+                    )
         return await handler(event, data)

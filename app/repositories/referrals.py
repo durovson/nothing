@@ -1,8 +1,8 @@
+import asyncio
 from decimal import Decimal
 
-from app.core.enums import Currency
+from app.core.enums import Currency, ReferralWithdrawalStatus
 from app.database import SupabaseDatabase
-from app.core.enums import ReferralWithdrawalStatus
 from app.models.dto import ReferralStats
 from app.models.entities import ReferralWithdrawal
 
@@ -19,17 +19,25 @@ class ReferralRepository:
         return bool(response.data)
 
     async def get_stats(self, referrer_id: int) -> ReferralStats:
-        relations = await self._database.read(
-            lambda: self._database.client.table("referrals").select("id").eq("referrer_id", referrer_id).execute()
-        )
-        balances = await self._database.read(
-            lambda: self._database.client.table("referral_balances").select("currency,balance").eq("user_id", referrer_id).execute()
+        relations, balances = await asyncio.gather(
+            self._database.read(
+                lambda: self._database.client.table("referrals")
+                .select("id")
+                .eq("referrer_id", referrer_id)
+                .execute()
+            ),
+            self._database.read(
+                lambda: self._database.client.table("referral_balances")
+                .select("currency,balance")
+                .eq("user_id", referrer_id)
+                .execute()
+            ),
         )
         values = {str(row["currency"]): Decimal(str(row["balance"])) for row in balances.data or []}
         return ReferralStats(
             count=len(relations.data or []),
-            balance_ton=values.get(Currency.TON.value, Decimal("0")),
-            balance_usdt=values.get(Currency.USDT.value, Decimal("0")),
+            balance_ton=values.get(Currency.TON.value, Decimal(0)),
+            balance_usdt=values.get(Currency.USDT.value, Decimal(0)),
         )
 
     async def add_reward(
