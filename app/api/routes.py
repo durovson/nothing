@@ -1,13 +1,11 @@
 from pathlib import Path
 
+from aiogram.types import Update
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 
-from aiogram.types import Update
-
 from app.loader import AppContainer
-
 
 DOCUMENTS_DIR = Path(__file__).resolve().parents[1] / "assets" / "documents"
 
@@ -20,6 +18,11 @@ def _legal_document(filename: str) -> str:
 def create_api_router(container: AppContainer) -> APIRouter:
     router = APIRouter()
     settings = container.settings
+
+    @router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+    async def liveness() -> JSONResponse:
+        """Cheap platform probe; dependency checks remain on /ping and /healthz."""
+        return JSONResponse({"status": "ok"})
 
     @router.get("/ping")
     @router.get("/healthz")
