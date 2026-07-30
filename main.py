@@ -1,5 +1,6 @@
-from app.main import asgi_app as app
-from app.main import main
+from app.main import create_asgi_app, main
+
+app = create_asgi_app()
 
 __all__ = ["app", "main"]
 

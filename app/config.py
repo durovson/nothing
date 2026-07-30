@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.constants import USDT_MAINNET_MASTER
@@ -22,7 +22,12 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Gift Guarant"
     APP_HOST: str = "0.0.0.0"
-    APP_PORT: int = Field(default=8_000, ge=1, le=65_535)
+    APP_PORT: int = Field(
+        default=8_000,
+        ge=1,
+        le=65_535,
+        validation_alias=AliasChoices("PORT", "APP_PORT"),
+    )
     APP_BASE_URL: str = ""
     RENDER_EXTERNAL_URL: str = ""
     RENDER_KEEPALIVE_ENABLED: bool = True
@@ -59,8 +64,8 @@ class Settings(BaseSettings):
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
     READ_ONLY_FAILURE_THRESHOLD_SECONDS: int = Field(default=900, ge=300, le=3600)
-    MIN_DEAL_AMOUNT: ClassVar[Decimal] = Decimal("1")
-    MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal("1")
+    MIN_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
+    MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
     ESCROW_FEE_RATE: ClassVar[Decimal] = Decimal("0.01")
