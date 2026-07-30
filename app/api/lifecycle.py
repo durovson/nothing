@@ -9,7 +9,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.bot import run_polling
-from app.core.constants import EVENT_LOOP_LAG_WARNING_SECONDS
+from app.core.constants import (
+    EVENT_LOOP_LAG_CONSECUTIVE_SAMPLES,
+    EVENT_LOOP_LAG_WARNING_SECONDS,
+    EVENT_LOOP_SEVERE_LAG_WARNING_SECONDS,
+)
 from app.loader import AppContainer
 
 logger = logging.getLogger(__name__)
@@ -19,13 +23,25 @@ async def monitor_event_loop_lag(interval: float = 1.0) -> None:
     """Report blocking sync work, GIL contention, or long runtime pauses."""
     loop = asyncio.get_running_loop()
     expected = loop.time() + interval
+    consecutive_lag_samples = 0
     while True:
         await asyncio.sleep(interval)
         now = loop.time()
         lag = max(0.0, now - expected)
         expected = now + interval
         if lag >= EVENT_LOOP_LAG_WARNING_SECONDS:
-            logger.warning("Event loop lag detected lag_ms=%.1f", lag * 1_000)
+            consecutive_lag_samples += 1
+            if (
+                consecutive_lag_samples >= EVENT_LOOP_LAG_CONSECUTIVE_SAMPLES
+                or lag >= EVENT_LOOP_SEVERE_LAG_WARNING_SECONDS
+            ):
+                logger.warning(
+                    "Event loop lag detected lag_ms=%.1f consecutive_samples=%s",
+                    lag * 1_000,
+                    consecutive_lag_samples,
+                )
+        else:
+            consecutive_lag_samples = 0
 
 
 def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterator[None]]:
@@ -42,6 +58,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
 
         try:
             await container.ton.start()
+            await container.database.warm_up()
             await container.monitor.start()
             await container.keepalive.start()
             if settings.TELEGRAM_USE_POLLING:

@@ -12,6 +12,8 @@ from app.core.constants import (
     DB_MAX_CONCURRENCY,
     DB_READ_RETRY_ATTEMPTS,
     DB_READ_RETRY_BASE_DELAY_SECONDS,
+    SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS,
+    SLOW_BACKGROUND_DATABASE_WAIT_SECONDS,
     SLOW_DATABASE_REQUEST_SECONDS,
     SLOW_DATABASE_WAIT_SECONDS,
     SUPABASE_POSTGREST_TIMEOUT_SECONDS,
@@ -83,6 +85,10 @@ class SupabaseDatabase:
         )
         return response.data is not None
 
+    async def warm_up(self) -> None:
+        """Open the reusable PostgREST connection before background workers fan out."""
+        await self.ping()
+
     async def close(self) -> None:
         await self.client.postgrest.aclose()
         await self.client.auth.close()
@@ -95,6 +101,7 @@ class SupabaseDatabase:
                 auto_refresh_token=False,
                 persist_session=False,
                 postgrest_client_timeout=SUPABASE_POSTGREST_TIMEOUT_SECONDS,
+                schema="public",
             ),
         )
 
@@ -112,9 +119,20 @@ class SupabaseDatabase:
                 return await operation()
             finally:
                 request_seconds = perf_counter() - started_at
+                interactive = current_trace_id().startswith("telegram:")
+                wait_threshold = (
+                    SLOW_DATABASE_WAIT_SECONDS
+                    if interactive
+                    else SLOW_BACKGROUND_DATABASE_WAIT_SECONDS
+                )
+                request_threshold = (
+                    SLOW_DATABASE_REQUEST_SECONDS
+                    if interactive
+                    else SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS
+                )
                 if (
-                    wait_seconds >= SLOW_DATABASE_WAIT_SECONDS
-                    or request_seconds >= SLOW_DATABASE_REQUEST_SECONDS
+                    wait_seconds >= wait_threshold
+                    or request_seconds >= request_threshold
                 ):
                     logger.warning(
                         "Slow Supabase operation trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
