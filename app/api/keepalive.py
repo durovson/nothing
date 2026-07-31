@@ -69,9 +69,11 @@ class RenderKeepAlive:
 
                 logger.debug("Render keep-alive ping succeeded: status=%s", status)
 
+
                 logger.debug("Render keep-alive ping succeeded: status=%s", status)
 
                 logger.info("Render keep-alive ping succeeded: status=%s", status)
+
 
             except (TimeoutError, HTTPError, URLError) as exc:
                 logger.warning(
