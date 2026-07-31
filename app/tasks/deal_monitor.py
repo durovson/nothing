@@ -8,6 +8,7 @@ from time import monotonic
 from app.config import Settings
 from app.core.constants import BACKGROUND_WORKER_START_STAGGER_SECONDS
 from app.core.exceptions import TonProviderTemporaryError
+from app.core.telemetry import bind_trace_id, reset_trace_id
 from app.services.channels import ChannelDealService
 from app.services.deals import DealService
 from app.services.financial_processor import FinancialOperationProcessor
@@ -166,15 +167,19 @@ class DealMonitor:
 
     async def _lifecycle_loop(self) -> None:
         while not self._stop_event.is_set():
+            token = bind_trace_id("background:deal-lifecycle")
             try:
-                await self._channels.process_pending()
-            except Exception:
-                logger.exception("Channel access reconciliation iteration failed")
-            try:
-                await self._lifecycle.process_deadlines()
-                self._last_success["deal-lifecycle"] = monotonic()
-            except Exception:
-                logger.exception("Deal deadline iteration failed")
+                try:
+                    await self._channels.process_pending()
+                except Exception:
+                    logger.exception("Channel access reconciliation iteration failed")
+                try:
+                    await self._lifecycle.process_deadlines()
+                    self._last_success["deal-lifecycle"] = monotonic()
+                except Exception:
+                    logger.exception("Deal deadline iteration failed")
+            finally:
+                reset_trace_id(token)
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
 
     async def _retention_loop(self) -> None:
@@ -186,16 +191,22 @@ class DealMonitor:
 
     async def _system_mode_loop(self) -> None:
         while not self._stop_event.is_set():
+            token = bind_trace_id("background:system-mode-monitor")
             try:
-                other_workers = {
-                    name: healthy
-                    for name, healthy in self.worker_health.items()
-                    if name != "system-mode-monitor"
-                }
-                await self._system_mode.reconcile_automatic(all(other_workers.values()))
-                self._last_success["system-mode-monitor"] = monotonic()
-            except Exception:
-                logger.exception("System mode reconciliation failed")
+                try:
+                    other_workers = {
+                        name: healthy
+                        for name, healthy in self.worker_health.items()
+                        if name != "system-mode-monitor"
+                    }
+                    await self._system_mode.reconcile_automatic(
+                        all(other_workers.values())
+                    )
+                    self._last_success["system-mode-monitor"] = monotonic()
+                except Exception:
+                    logger.exception("System mode reconciliation failed")
+            finally:
+                reset_trace_id(token)
             await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
 
     async def _repeat(
@@ -208,6 +219,8 @@ class DealMonitor:
         base_interval = interval or self._settings.DEAL_POLL_INTERVAL_SECONDS
         while not self._stop_event.is_set():
             delay = base_interval
+            trace_name = name.lower().replace("_", "-").replace(" ", "-")
+            token = bind_trace_id(f"background:{trace_name}")
             try:
                 await callback()
                 task = asyncio.current_task()
@@ -228,6 +241,8 @@ class DealMonitor:
                 )
             except Exception:
                 logger.exception("%s iteration failed", name)
+            finally:
+                reset_trace_id(token)
             await self._wait(delay)
 
     async def _wait(self, timeout: int) -> None:
