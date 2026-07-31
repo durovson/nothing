@@ -140,12 +140,17 @@ class SupabaseDatabase:
                         if interactive
                         else SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS
                     )
-                    if (
-                        wait_seconds >= wait_threshold
-                        or request_seconds >= request_threshold
-                    ):
+                    if request_seconds >= request_threshold:
                         logger.warning(
-                            "Slow Supabase operation trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            "Slow Supabase request trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            trace_id,
+                            kind,
+                            wait_seconds * 1_000,
+                            request_seconds * 1_000,
+                        )
+                    elif wait_seconds >= wait_threshold:
+                        logger.warning(
+                            "Supabase operation queue congestion trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
                             trace_id,
                             kind,
                             wait_seconds * 1_000,
