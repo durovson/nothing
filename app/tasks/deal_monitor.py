@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from time import monotonic
 
 from app.config import Settings
+from app.core.constants import BACKGROUND_WORKER_START_STAGGER_SECONDS
 from app.core.exceptions import TonProviderTemporaryError
 from app.services.channels import ChannelDealService
 from app.services.deals import DealService
@@ -93,23 +94,48 @@ class DealMonitor:
         if self.is_running:
             return
         self._stop_event.clear()
+        for processor in self._processors.values():
+            processor.health.running = True
+        workers: list[tuple[str, Callable[[], Awaitable[None]]]] = [
+            ("ton-deposit-indexer", self._ton_indexer_loop),
+            ("usdt-deposit-indexer", self._usdt_indexer_loop),
+            ("deal-lifecycle", self._lifecycle_loop),
+            ("refund-planner", self._refund_planner_loop),
+            ("payout-planner", self._payout_planner_loop),
+            ("retention-archive", self._retention_loop),
+            ("system-mode-monitor", self._system_mode_loop),
+            *[
+                (
+                    name,
+                    lambda name=name, processor=processor: self._processor_loop(
+                        name, processor
+                    ),
+                )
+                for name, processor in self._processors.items()
+            ],
+        ]
         self._tasks = {
-            asyncio.create_task(self._ton_indexer_loop(), name="ton-deposit-indexer"),
-            asyncio.create_task(self._usdt_indexer_loop(), name="usdt-deposit-indexer"),
-            asyncio.create_task(self._lifecycle_loop(), name="deal-lifecycle"),
-            asyncio.create_task(self._refund_planner_loop(), name="refund-planner"),
-            asyncio.create_task(self._payout_planner_loop(), name="payout-planner"),
-            asyncio.create_task(self._retention_loop(), name="retention-archive"),
-            asyncio.create_task(self._system_mode_loop(), name="system-mode-monitor"),
-        }
-        self._tasks.update(
             asyncio.create_task(
-                self._processor_loop(name, processor), name=name
+                self._start_after(
+                    position * BACKGROUND_WORKER_START_STAGGER_SECONDS,
+                    worker,
+                ),
+                name=name,
             )
-            for name, processor in self._processors.items()
-        )
+            for position, (name, worker) in enumerate(workers)
+        }
         started_at = monotonic()
         self._last_success.update({task.get_name(): started_at for task in self._tasks})
+
+    async def _start_after(
+        self,
+        delay: float,
+        worker: Callable[[], Awaitable[None]],
+    ) -> None:
+        """Avoid a startup burst without changing recurring worker intervals."""
+        if delay:
+            await asyncio.sleep(delay)
+        await worker()
 
     async def stop(self) -> None:
         self._stop_event.set()

@@ -92,7 +92,13 @@ class TonEscrowClient:
             base_url=settings.TON_API_ENDPOINT.rstrip("/"),
             timeout=settings.TON_REQUEST_TIMEOUT_MS / 1_000,
         )
-        self._guarant_wallet = self._v5_wallet(0)
+        workchain = WorkchainID(settings.TON_WORKCHAIN)
+        self._guarant_wallet, _, self._private_key, _ = WalletV5R1.from_mnemonic(
+            self._client,
+            settings.TON_MNEMONIC,
+            workchain=workchain,
+            config=self._v5_config(0),
+        )
         self._jettons = JettonEscrowGateway(self._client, settings, self._guarant_wallet)
         self._validate_guarant_address()
         self._connected = False
@@ -141,22 +147,24 @@ class TonEscrowClient:
                 "TON_WORKCHAIN and Wallet V5R1 subwallet number 0"
             )
 
-    def _v5_wallet(self, subwallet_number: int) -> WalletV5R1:
+    def _v5_config(self, subwallet_number: int) -> WalletV5Config:
         workchain = WorkchainID(self._settings.TON_WORKCHAIN)
-        wallet, _, _, _ = WalletV5R1.from_mnemonic(
-            self._client,
-            self._settings.TON_MNEMONIC,
-            workchain=workchain,
-            config=WalletV5Config(
-                subwallet_id=WalletV5SubwalletID(
-                    subwallet_number=subwallet_number,
-                    workchain=workchain,
-                    version=0,
-                    network=_network(self._settings.TON_NETWORK),
-                )
-            ),
+        return WalletV5Config(
+            subwallet_id=WalletV5SubwalletID(
+                subwallet_number=subwallet_number,
+                workchain=workchain,
+                version=0,
+                network=_network(self._settings.TON_NETWORK),
+            )
         )
-        return wallet
+
+    def _v5_wallet(self, subwallet_number: int) -> WalletV5R1:
+        return WalletV5R1.from_private_key(
+            self._client,
+            self._private_key,
+            workchain=WorkchainID(self._settings.TON_WORKCHAIN),
+            config=self._v5_config(subwallet_number),
+        )
 
     def _wallet(self, deal: Deal) -> WalletV4R2 | WalletV5R1:
         workchain = WorkchainID(self._settings.TON_WORKCHAIN)
@@ -166,13 +174,12 @@ class TonEscrowClient:
                     raise TonGatewayError(
                         f"Wallet V4R2 subwallet_id is outside uint32: {deal.subwallet_id}"
                     )
-                wallet, _, _, _ = WalletV4R2.from_mnemonic(
+                return WalletV4R2.from_private_key(
                     self._client,
-                    self._settings.TON_MNEMONIC,
+                    self._private_key,
                     workchain=workchain,
                     config=WalletV4Config(subwallet_id=deal.subwallet_id),
                 )
-                return wallet
             case WalletVersion.V5R1:
                 if not 0 <= deal.subwallet_id <= WALLET_V5_MAX_SUBWALLET_NUMBER:
                     raise TonGatewayError(

@@ -90,6 +90,7 @@ class TextKey(StrEnum):
     SERVICE_DESCRIPTION_BUTTON = "service_description_button"
     LANG_RU = "lang_ru"
     LANG_EN = "lang_en"
+    COMPLETED_DEAL_FEED = "completed_deal_feed"
 
 
 TEXTS: dict[Language, dict[TextKey, str]] = {
@@ -296,6 +297,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.SERVICE_DESCRIPTION_BUTTON: "Описание и условия сервиса",
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
+        TextKey.COMPLETED_DEAL_FEED: (
+            "<b>Сделка:</b> <code>#{deal_id}</code>\n\n"
+            "<b>Детали сделки:</b>\n"
+            "<b>• Описание:</b> <code>{description}</code>\n"
+            "<b>• Сумма:</b> <code>{amount} {currency}</code>\n\n"
+            "@grntrobot"
+        ),
     },
     Language.EN: {
         TextKey.MAIN_MENU_CAPTION: (
@@ -481,6 +489,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.SERVICE_DESCRIPTION_BUTTON: "Service description and conditions",
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
+        TextKey.COMPLETED_DEAL_FEED: (
+            "<b>Deal:</b> <code>#{deal_id}</code>\n\n"
+            "<b>Deal details:</b>\n"
+            "<b>• Description:</b> <code>{description}</code>\n"
+            "<b>• Amount:</b> <code>{amount} {currency}</code>\n\n"
+            "@grntrobot"
+        ),
     },
 }
 

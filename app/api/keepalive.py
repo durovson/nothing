@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from app.config import Settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,7 +37,7 @@ class RenderKeepAlive:
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run(), name="render-keepalive")
         logger.info(
-            "Render keep-alive started: url=%s/ping interval=%ss",
+            "Render keep-alive started: url=%s/ interval=%ss",
             self._base_url,
             self._interval,
         )
@@ -57,10 +58,20 @@ class RenderKeepAlive:
             )
 
     async def _run(self) -> None:
+        # A self-request during ASGI lifespan startup cannot be served yet.
+        # Waiting one full interval also keeps the first wake-up inside Render's
+        # inactivity window without adding startup traffic.
+        if await self._wait_for_stop():
+            return
         while not self._stop_event.is_set():
             try:
                 status = await asyncio.to_thread(self._ping)
-                logger.info("Render keep-alive ping succeeded: status=%s", status)
+                logger.debug("Render keep-alive ping succeeded: status=%s", status)
+            except (TimeoutError, HTTPError, URLError) as exc:
+                logger.warning(
+                    "Render keep-alive ping temporarily failed: error=%s",
+                    type(exc).__name__,
+                )
             except Exception:
                 logger.exception("Render keep-alive ping failed")
             if await self._wait_for_stop():
@@ -75,7 +86,7 @@ class RenderKeepAlive:
 
     def _ping(self) -> int:
         request = Request(
-            f"{self._base_url}/ping",
+            f"{self._base_url}/livez",
             method="GET",
             headers={"User-Agent": "Gift-Guarant-Render-KeepAlive/1.0"},
         )
