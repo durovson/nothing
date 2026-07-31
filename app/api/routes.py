@@ -24,7 +24,6 @@ def create_api_router(container: AppContainer) -> APIRouter:
         """Cheap platform probe; dependency checks remain on /ping and /healthz."""
         return JSONResponse({"status": "ok"})
 
-<<<<<<< HEAD
     @router.api_route("/livez", methods=["GET", "HEAD"], include_in_schema=False)
     async def platform_liveness() -> JSONResponse:
         """Cheap Render probe that never calls Supabase, TON or Telegram."""
@@ -35,8 +34,6 @@ def create_api_router(container: AppContainer) -> APIRouter:
         """Browsers request this automatically; an empty response avoids 404 log spam."""
         return Response(status_code=204)
 
-=======
->>>>>>> 683710e48dd65cdb7e64e78f3317fc4f62cf47eb
     @router.get("/ping")
     @router.get("/healthz")
     async def healthcheck() -> JSONResponse:
