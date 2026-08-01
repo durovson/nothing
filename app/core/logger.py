@@ -8,7 +8,9 @@ from uvicorn.config import LOGGING_CONFIG
 class HealthCheckAccessFilter(logging.Filter):
     """Hide successful probe traffic without suppressing useful access logs."""
 
-    _QUIET_PATHS = frozenset({"/healthz", "/readyz", "/ping"})
+    _QUIET_PATHS = frozenset(
+        {"/healthz", "/readyz", "/ping", "/livez", "/favicon.ico"}
+    )
 
     def filter(self, record: logging.LogRecord) -> bool:
         args = record.args

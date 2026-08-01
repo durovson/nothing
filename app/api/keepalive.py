@@ -66,7 +66,7 @@ class RenderKeepAlive:
         while not self._stop_event.is_set():
             try:
                 status = await asyncio.to_thread(self._ping)
-                logger.info("Render keep-alive ping succeeded: status=%s", status)
+                logger.debug("Render keep-alive ping succeeded: status=%s", status)
             except (TimeoutError, HTTPError, URLError) as exc:
                 logger.warning(
                     "Render keep-alive ping temporarily failed: error=%s",
@@ -86,7 +86,7 @@ class RenderKeepAlive:
 
     def _ping(self) -> int:
         request = Request(
-            f"{self._base_url}/",
+            f"{self._base_url}/livez",
             method="GET",
             headers={"User-Agent": "Gift-Guarant-Render-KeepAlive/1.0"},
         )

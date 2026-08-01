@@ -8,6 +8,7 @@ from supabase import AsyncClient, AsyncClientOptions
 
 from app.config import Settings
 from app.core.constants import (
+    DB_BACKGROUND_MAX_CONCURRENCY,
     DB_INTERACTIVE_READ_RETRY_ATTEMPTS,
     DB_MAX_CONCURRENCY,
     DB_READ_RETRY_ATTEMPTS,
@@ -45,6 +46,9 @@ class SupabaseDatabase:
     def __init__(self, settings: Settings):
         self._settings = settings
         self._capacity = asyncio.Semaphore(DB_MAX_CONCURRENCY)
+        self._background_capacity = asyncio.Semaphore(
+            DB_BACKGROUND_MAX_CONCURRENCY
+        )
         self.client = self._create_client()
 
     async def run(self, operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
@@ -112,35 +116,49 @@ class SupabaseDatabase:
         kind: str,
     ) -> ResultT:
         queued_at = perf_counter()
-        async with self._capacity:
-            started_at = perf_counter()
-            wait_seconds = started_at - queued_at
-            try:
-                return await operation()
-            finally:
-                request_seconds = perf_counter() - started_at
-                interactive = current_trace_id().startswith("telegram:")
-                wait_threshold = (
-                    SLOW_DATABASE_WAIT_SECONDS
-                    if interactive
-                    else SLOW_BACKGROUND_DATABASE_WAIT_SECONDS
-                )
-                request_threshold = (
-                    SLOW_DATABASE_REQUEST_SECONDS
-                    if interactive
-                    else SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS
-                )
-                if (
-                    wait_seconds >= wait_threshold
-                    or request_seconds >= request_threshold
-                ):
-                    logger.warning(
-                        "Slow Supabase operation trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
-                        current_trace_id(),
-                        kind,
-                        wait_seconds * 1_000,
-                        request_seconds * 1_000,
+        trace_id = current_trace_id()
+        interactive = trace_id.startswith("telegram:")
+        background_acquired = False
+        try:
+            if not interactive:
+                await self._background_capacity.acquire()
+                background_acquired = True
+            async with self._capacity:
+                started_at = perf_counter()
+                wait_seconds = started_at - queued_at
+                try:
+                    return await operation()
+                finally:
+                    request_seconds = perf_counter() - started_at
+                    wait_threshold = (
+                        SLOW_DATABASE_WAIT_SECONDS
+                        if interactive
+                        else SLOW_BACKGROUND_DATABASE_WAIT_SECONDS
                     )
+                    request_threshold = (
+                        SLOW_DATABASE_REQUEST_SECONDS
+                        if interactive
+                        else SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS
+                    )
+                    if request_seconds >= request_threshold:
+                        logger.warning(
+                            "Slow Supabase request trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            trace_id,
+                            kind,
+                            wait_seconds * 1_000,
+                            request_seconds * 1_000,
+                        )
+                    elif wait_seconds >= wait_threshold:
+                        logger.warning(
+                            "Supabase operation queue congestion trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            trace_id,
+                            kind,
+                            wait_seconds * 1_000,
+                            request_seconds * 1_000,
+                        )
+        finally:
+            if background_acquired:
+                self._background_capacity.release()
 
 
 def _is_transient_transport_error(error: BaseException) -> bool:
