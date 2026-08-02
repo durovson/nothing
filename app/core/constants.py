@@ -24,7 +24,9 @@ SLOW_DATABASE_REQUEST_SECONDS = 0.5
 # Warn only when that backpressure becomes abnormally long.
 SLOW_BACKGROUND_DATABASE_WAIT_SECONDS = 5.0
 SLOW_BACKGROUND_DATABASE_REQUEST_SECONDS = 2.0
-SLOW_CALLBACK_ACK_SECONDS = 0.25
+# A callback ACK is an external Telegram API round trip. Sub-second latency is
+# normal between Render and Telegram; warn only when it becomes user-visible.
+SLOW_CALLBACK_ACK_SECONDS = 1.0
 SLOW_USER_LOOKUP_SECONDS = 0.5
 SLOW_UPDATE_SECONDS = 1.0
 EVENT_LOOP_LAG_WARNING_SECONDS = 0.5
@@ -48,7 +50,7 @@ GIFT_INSPECTION_TIMEOUT_SECONDS = DEAL_STAGE_TIMEOUT_SECONDS
 LONG_INSPECTION_TIMEOUT_SECONDS = DEAL_STAGE_TIMEOUT_SECONDS
 DISPUTE_DESCRIPTION_MIN_LENGTH = 10
 DISPUTE_DESCRIPTION_MAX_LENGTH = 1_000
-# One percent of the service commission, not one percent of the deal principal.
+# Ten percent of the service commission, not ten percent of the deal principal.
 REFERRAL_COMMISSION_SHARE = Decimal("0.10")
 REFERRAL_MIN_WITHDRAW_TON = Decimal("0.1")
 REFERRAL_MIN_WITHDRAW_USDT = Decimal(1)

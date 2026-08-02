@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from time import perf_counter
@@ -54,7 +55,7 @@ def callback_from_event(event: TelegramObject) -> CallbackQuery | None:
 
 
 class FastCallbackMiddleware(BaseMiddleware):
-    """Acknowledge safe navigation before database and rendering network calls."""
+    """Acknowledge safe navigation concurrently with rendering its next screen."""
 
     async def __call__(
         self,
@@ -63,17 +64,40 @@ class FastCallbackMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         callback = callback_from_event(event)
-        if callback is not None and is_fast_navigation_callback(callback.data):
-            started_at = perf_counter()
-            try:
-                await callback.answer()
-            finally:
-                duration = perf_counter() - started_at
-                if duration >= SLOW_CALLBACK_ACK_SECONDS:
-                    logger.warning(
-                        "Slow Telegram callback ACK trace=%s callback=%s duration_ms=%.1f",
-                        current_trace_id(),
-                        callback.data,
-                        duration * 1_000,
-                    )
-        return await handler(event, data)
+        if callback is None or not is_fast_navigation_callback(callback.data):
+            return await handler(event, data)
+
+        # Telegram ACK and screen rendering are independent API requests. Running
+        # them concurrently removes one full network round trip from navigation.
+        ack_task = asyncio.create_task(
+            self._acknowledge(callback),
+            name=f"callback-ack:{callback.id}",
+        )
+        try:
+            return await handler(event, data)
+        finally:
+            await ack_task
+
+    @staticmethod
+    async def _acknowledge(callback: CallbackQuery) -> None:
+        started_at = perf_counter()
+        try:
+            await callback.answer()
+        except Exception:
+            # A failed ACK must not suppress the actual menu handler. Aiogram's
+            # polling/backoff layer will independently recover transport errors.
+            logger.warning(
+                "Telegram callback ACK failed trace=%s callback=%s",
+                current_trace_id(),
+                callback.data,
+                exc_info=True,
+            )
+        finally:
+            duration = perf_counter() - started_at
+            if duration >= SLOW_CALLBACK_ACK_SECONDS:
+                logger.warning(
+                    "Slow Telegram callback ACK trace=%s callback=%s duration_ms=%.1f",
+                    current_trace_id(),
+                    callback.data,
+                    duration * 1_000,
+                )

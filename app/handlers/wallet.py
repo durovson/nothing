@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from app.core.enums import Language
 from app.core.exceptions import InvalidWalletError
-from app.keyboards import WalletCallback, home_keyboard, wallet_actions, wallet_details
+from app.keyboards import WalletCallback, wallet_actions, wallet_details
 from app.keyboards.callbacks import MenuAction, WalletAction
 from app.keyboards import MenuCallback
 from app.locales import TextKey, translate
@@ -25,7 +25,13 @@ def _wallet_url(address: str) -> str:
 
 
 def _list_keyboard(user: User):
-    return home_keyboard(user.language)
+    address = user.wallet_address
+    return wallet_actions(
+        user.language,
+        bool(address),
+        _wallet_url(address) if address else None,
+        _short_wallet(address) if address else None,
+    )
 
 
 def _wallet_prompt(user: User) -> str:
@@ -34,6 +40,8 @@ def _wallet_prompt(user: User) -> str:
             user.language,
             TextKey.WALLET_ACTIVE_PROMPT,
             wallet=user.wallet_address,
+            wallet_short=_short_wallet(user.wallet_address),
+            wallet_url=_wallet_url(user.wallet_address),
         )
     return translate(user.language, TextKey.WALLET_PROMPT)
 
@@ -94,7 +102,7 @@ async def wallet_back(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
         await render_menu(
             callback.message,
-            translate(db_user.language, TextKey.WALLET_EMPTY),
+            _wallet_prompt(db_user),
             _list_keyboard(db_user),
             screen="wallet",
         )
@@ -109,7 +117,11 @@ async def edit_wallet(
     await state.set_state(WalletStates.waiting_for_wallet)
     if callback.message:
         await remember_menu(state, callback.message)
-        await render_menu(callback.message, translate(db_user.language, TextKey.WALLET_PROMPT), wallet_actions(db_user.language, bool(db_user.wallet_address)))
+        await render_menu(
+            callback.message,
+            translate(db_user.language, TextKey.WALLET_PROMPT),
+            _list_keyboard(db_user),
+        )
 
 
 @router.callback_query(WalletCallback.filter(F.action == WalletAction.DELETE))
@@ -135,12 +147,17 @@ async def save_wallet(
     try:
         updated_user = await wallet_service.save(db_user.telegram_id, raw_address)
     except InvalidWalletError:
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.WALLET_INVALID), wallet_actions(db_user.language, bool(db_user.wallet_address)))
+        await render_stored_menu(
+            message,
+            state,
+            translate(db_user.language, TextKey.WALLET_INVALID),
+            _list_keyboard(db_user),
+        )
         return
     await render_stored_menu(
         message,
         state,
         _wallet_prompt(updated_user),
-        home_keyboard(updated_user.language),
+        _list_keyboard(updated_user),
         screen="wallet",
     )

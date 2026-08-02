@@ -25,7 +25,7 @@ def wallet_actions(
             rows.insert(0, [premium_button(
                 text=wallet_label or translate(locale, TextKey.WALLET_OPEN),
                 icon=CustomEmoji.WALLET,
-                callback_data=WalletCallback(action=WalletAction.OPEN).pack(),
+                url=wallet_url,
             )])
         rows.append(
             [premium_button(translate(locale, TextKey.WALLET_DELETE), icon=CustomEmoji.CANCEL, callback_data=WalletCallback(action=WalletAction.DELETE).pack())]
