@@ -13,6 +13,7 @@ COPY . ./
 # Reject unresolved merge markers and any other Python syntax error during
 # the build, before Render starts replacing the currently healthy instance.
 RUN python -m compileall -q app
+RUN python -c "import app.main"
 
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
