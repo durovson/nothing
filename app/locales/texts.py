@@ -25,15 +25,6 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Настройки",
         TextKey.MENU_FAQ: "Вопросы",
         TextKey.MENU_DOCUMENTS: "Документы",
-        TextKey.WALLET_CAPTION: (
-            "<tg-emoji emoji-id='5769403330761593044'>💵</tg-emoji> <b>Кошелёк</b>\n\n<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
-            "<b>Полный адрес:</b>\n<blockquote><code>{wallet}</code></blockquote>"
-        ),
-        TextKey.WALLET_EMPTY: "<tg-emoji emoji-id='5769403330761593044'>💵</tg-emoji> <b>Мой кошелёк</b>\n\nВыберите или добавьте ваш кошелёк по кнопке ниже:",
-        TextKey.WALLET_ADD: "Добавить кошелек",
-        TextKey.WALLET_CHANGE: "Изменить кошелек",
-        TextKey.WALLET_DELETE: "Удалить кошелек",
-        TextKey.WALLET_DELETED: "Кошелек удален.",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nТекущий адрес:\n"
@@ -42,7 +33,6 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.WALLET_SAVED: "Кошелек сохранен:\n<blockquote><code>{wallet}</code></blockquote>",
         TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
-        TextKey.WALLET_OPEN: "Открыть кошелёк",
         TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Создание сделки</b>\n\nВыберите тип сделки <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
         TextKey.DEAL_TYPE_GIFTS: "Оффер",
         TextKey.DEAL_TYPE_OFFER: "Оффер",
@@ -285,15 +275,6 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Settings",
         TextKey.MENU_FAQ: "Questions",
         TextKey.MENU_DOCUMENTS: "Documents",
-        TextKey.WALLET_CAPTION: (
-            "<tg-emoji emoji-id='5769403330761593044'>💵</tg-emoji> <b>Wallet</b>\n\n<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
-            "<b>Full address:</b>\n<blockquote><code>{wallet}</code></blockquote>"
-        ),
-        TextKey.WALLET_EMPTY: "<tg-emoji emoji-id='5769403330761593044'>💵</tg-emoji> <b>My wallet</b>\n\nSelect or add your wallet below:",
-        TextKey.WALLET_ADD: "Add wallet",
-        TextKey.WALLET_CHANGE: "Change wallet",
-        TextKey.WALLET_DELETE: "Delete wallet",
-        TextKey.WALLET_DELETED: "Wallet deleted.",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nCurrent address:\n"
@@ -302,7 +283,6 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.WALLET_SAVED: "Wallet saved:\n<blockquote><code>{wallet}</code></blockquote>",
         TextKey.WALLET_INVALID: "This does not look like a TON address. Please try again.",
-        TextKey.WALLET_OPEN: "Open wallet",
         TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Create a deal</b>\n\nChoose the deal type <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
         TextKey.DEAL_TYPE_GIFTS: "Offer",
         TextKey.DEAL_TYPE_OFFER: "Offer",

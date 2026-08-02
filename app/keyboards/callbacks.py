@@ -24,13 +24,6 @@ class MenuAction(StrEnum):
     DOCUMENTS = "documents"
 
 
-class WalletAction(StrEnum):
-    OPEN = "open"
-    BACK = "back"
-    EDIT = "edit"
-    DELETE = "delete"
-
-
 class DealAction(StrEnum):
     OPEN = "open"
     CANCEL = "cancel"
@@ -57,10 +50,6 @@ class ReferralAction(StrEnum):
 
 class MenuCallback(CallbackData, prefix="menu"):
     action: MenuAction
-
-
-class WalletCallback(CallbackData, prefix="wallet"):
-    action: WalletAction
 
 
 class DealTypeCallback(CallbackData, prefix="deal-type"):

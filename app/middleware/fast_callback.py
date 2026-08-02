@@ -25,8 +25,6 @@ _FAST_EXACT_CALLBACKS = frozenset(
         "settings:referrals",
         "settings:language",
         "settings:support",
-        "wallet:back",
-        "wallet:edit",
     }
 )
 _FAST_CALLBACK_PREFIXES = (
