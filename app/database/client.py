@@ -51,11 +51,21 @@ class SupabaseDatabase:
         )
         self.client = self._create_client()
 
-    async def run(self, operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
+    async def run(
+        self,
+        operation: Callable[[], Awaitable[ResultT]],
+        *,
+        name: str = "unlabelled-write",
+    ) -> ResultT:
         """Run one potentially mutating operation without unsafe automatic replay."""
-        return await self._execute(operation, kind="write")
+        return await self._execute(operation, kind="write", operation_name=name)
 
-    async def read(self, operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
+    async def read(
+        self,
+        operation: Callable[[], Awaitable[ResultT]],
+        *,
+        name: str = "unlabelled-read",
+    ) -> ResultT:
         """Run a replay-safe read with bounded transient-network retries."""
         attempts = (
             DB_INTERACTIVE_READ_RETRY_ATTEMPTS
@@ -64,13 +74,18 @@ class SupabaseDatabase:
         )
         for attempt in range(1, attempts + 1):
             try:
-                return await self._execute(operation, kind="read")
+                return await self._execute(
+                    operation,
+                    kind="read",
+                    operation_name=name,
+                )
             except Exception as exc:
                 if not _is_transient_transport_error(exc) or attempt >= attempts:
                     raise
                 logger.warning(
-                    "Transient Supabase read failed trace=%s error=%s retry=%s/%s",
+                    "Transient Supabase read failed trace=%s operation=%s error=%s retry=%s/%s",
                     current_trace_id(),
+                    name,
                     type(exc).__name__,
                     attempt + 1,
                     attempts,
@@ -81,11 +96,15 @@ class SupabaseDatabase:
         raise RuntimeError("Unreachable Supabase read retry state")
 
     async def rpc(self, name: str, params: dict[str, object]):
-        return await self.run(lambda: self.client.rpc(name, params).execute())
+        return await self.run(
+            lambda: self.client.rpc(name, params).execute(),
+            name=f"rpc:{name}",
+        )
 
     async def ping(self) -> bool:
         response = await self.read(
-            lambda: self.client.table("bot_settings").select("id").limit(1).execute()
+            lambda: self.client.table("bot_settings").select("id").limit(1).execute(),
+            name="bot_settings:health-probe",
         )
         return response.data is not None
 
@@ -114,6 +133,7 @@ class SupabaseDatabase:
         operation: Callable[[], Awaitable[ResultT]],
         *,
         kind: str,
+        operation_name: str,
     ) -> ResultT:
         queued_at = perf_counter()
         trace_id = current_trace_id()
@@ -126,10 +146,14 @@ class SupabaseDatabase:
             async with self._capacity:
                 started_at = perf_counter()
                 wait_seconds = started_at - queued_at
+                result: ResultT | None = None
                 try:
-                    return await operation()
+                    async with asyncio.timeout(SUPABASE_POSTGREST_TIMEOUT_SECONDS):
+                        result = await operation()
+                    return result
                 finally:
                     request_seconds = perf_counter() - started_at
+                    row_count = _response_row_count(result)
                     wait_threshold = (
                         SLOW_DATABASE_WAIT_SECONDS
                         if interactive
@@ -142,17 +166,21 @@ class SupabaseDatabase:
                     )
                     if request_seconds >= request_threshold:
                         logger.warning(
-                            "Slow Supabase request trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            "Slow Supabase request trace=%s operation=%s kind=%s rows=%s wait_ms=%.1f request_ms=%.1f",
                             trace_id,
+                            operation_name,
                             kind,
+                            row_count,
                             wait_seconds * 1_000,
                             request_seconds * 1_000,
                         )
                     elif wait_seconds >= wait_threshold:
                         logger.warning(
-                            "Supabase operation queue congestion trace=%s kind=%s wait_ms=%.1f request_ms=%.1f",
+                            "Supabase operation queue congestion trace=%s operation=%s kind=%s rows=%s wait_ms=%.1f request_ms=%.1f",
                             trace_id,
+                            operation_name,
                             kind,
+                            row_count,
                             wait_seconds * 1_000,
                             request_seconds * 1_000,
                         )
@@ -167,9 +195,20 @@ def _is_transient_transport_error(error: BaseException) -> bool:
     while current is not None and id(current) not in visited:
         visited.add(id(current))
         module = type(current).__module__.split(".", 1)[0]
+        if isinstance(current, TimeoutError):
+            return True
         if module in {"httpx", "httpcore"} and type(current).__name__ in _TRANSIENT_ERROR_NAMES:
             return True
         if isinstance(current, OSError) and current.errno in _TRANSIENT_ERRNOS:
             return True
         current = current.__cause__ or current.__context__
     return False
+
+
+def _response_row_count(response: object | None) -> int | str:
+    if response is None:
+        return "unknown"
+    data = getattr(response, "data", None)
+    if isinstance(data, list):
+        return len(data)
+    return 1 if data is not None else 0

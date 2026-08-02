@@ -41,9 +41,24 @@ class UserRepository:
             .select("*")
             .eq("telegram_id", telegram_id)
             .limit(1)
-            .execute()
+            .execute(),
+            name="users:get-one",
         )
         return User(**response.data[0]) if response.data else None
+
+    async def get_many(self, telegram_ids: set[int]) -> dict[int, User]:
+        if not telegram_ids:
+            return {}
+        response = await self._database.read(
+            lambda: self._database.client.table("users")
+            .select("*")
+            .in_("telegram_id", sorted(telegram_ids))
+            .limit(len(telegram_ids))
+            .execute(),
+            name="users:get-many",
+        )
+        users = [User(**item) for item in response.data or []]
+        return {user.telegram_id: user for user in users}
 
     async def update(self, telegram_id: int, **changes: Unpack[UserChanges]) -> User:
         serialized = {

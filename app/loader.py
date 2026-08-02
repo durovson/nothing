@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 
 from app.api.keepalive import RenderKeepAlive
@@ -31,6 +32,7 @@ from app.services import (
 from app.tasks import DealMonitor
 from app.ton import TonEscrowClient
 from app.core.enums import FinancialOperationFlow
+from app.core.constants import TELEGRAM_REQUEST_TIMEOUT_SECONDS
 from app.services.financial_processor import FinancialOperationProcessor
 from app.services.health import HealthService
 from app.services.system_mode import SystemModeService
@@ -55,6 +57,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     app_settings = settings or get_settings()
     bot = Bot(
         token=app_settings.TELEGRAM_BOT_TOKEN,
+        session=AiohttpSession(timeout=TELEGRAM_REQUEST_TIMEOUT_SECONDS),
         default=DefaultBotProperties(
             parse_mode=ParseMode.HTML,
             link_preview_is_disabled=True,

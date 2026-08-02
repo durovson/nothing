@@ -18,7 +18,7 @@ from app.core.types import (
     TonGatewayProtocol,
     UserRepositoryProtocol,
 )
-from app.models.entities import Deal, FinancialOperation
+from app.models.entities import Deal, FinancialOperation, User
 from app.services.referrals import ReferralService
 from app.services.system_mode import SystemModeService
 from app.ton.amounts import asset_amount_atomic, asset_service_fee_atomic
@@ -66,18 +66,38 @@ class PayoutService:
         await self.publish_pending_success_feed()
         if self._system_mode is not None and not await self._system_mode.allows_flow(FinancialOperationFlow.PAYOUT):
             return
-        for deal in await self._deals.list_release_requested(limit=20):
+        deals = await self._deals.list_release_requested(limit=20)
+        participant_ids = {
+            participant_id
+            for deal in deals
+            for participant_id in (deal.creator_id, deal.buyer_id)
+            if participant_id is not None
+        }
+        participants = await self._users.get_many(participant_ids)
+        for deal in deals:
             try:
-                await self.start_payout(deal)
+                await self.start_payout(
+                    deal,
+                    seller=participants.get(deal.creator_id),
+                    buyer=participants.get(deal.buyer_id) if deal.buyer_id else None,
+                )
             except Exception:
                 logger.exception("Payout planning failed for deal=%s", deal.public_id)
 
-    async def start_payout(self, deal: Deal) -> None:
-        seller = await self._users.get(deal.creator_id)
+    async def start_payout(
+        self,
+        deal: Deal,
+        *,
+        seller: User | None = None,
+        buyer: User | None = None,
+    ) -> None:
+        if seller is None:
+            seller = await self._users.get(deal.creator_id)
         payout_wallet = deal.seller_wallet_address or (seller.wallet_address if seller else None)
         if seller is None or payout_wallet is None:
             raise MissingPayoutWalletError(f"Seller wallet is missing for deal {deal.public_id}")
-        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
+        if buyer is None and deal.buyer_id:
+            buyer = await self._users.get(deal.buyer_id)
         allocations = self._referrals.reward_allocations(seller, buyer, deal)
         referral_total = sum((amount for _, amount in allocations), start=Decimal(0))
         service_fee_atomic = asset_service_fee_atomic(

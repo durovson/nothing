@@ -199,26 +199,35 @@ class FinancialOperationRepository:
         return [FinancialOperationAttempt(**row) for row in response.data or []]
 
     async def list_submitted(
-        self, flow: FinancialOperationFlow
+        self, flow: FinancialOperationFlow, limit: int = 20
     ) -> list[tuple[FinancialOperation, FinancialOperationAttempt]]:
         operations = await self._list_by_status(
             flow,
             [FinancialOperationStatus.PREPARED, FinancialOperationStatus.SUBMITTED],
+            limit=limit,
         )
-        result: list[tuple[FinancialOperation, FinancialOperationAttempt]] = []
-        for operation in operations:
-            attempts = await self.list_attempts(operation.id)
-            active = next(
-                (
-                    item
-                    for item in attempts
-                    if item.status.value in {"prepared", "submitted", "unknown"}
-                ),
-                None,
-            )
-            if active:
-                result.append((operation, active))
-        return result
+        if not operations:
+            return []
+        operation_ids = [operation.id for operation in operations]
+        response = await self._database.read(
+            lambda: self._database.client.table("financial_operation_attempts")
+            .select("*")
+            .in_("operation_id", operation_ids)
+            .in_("status", ["prepared", "submitted", "unknown"])
+            .order("attempt_no", desc=True)
+            .limit(limit)
+            .execute(),
+            name=f"financial-attempts:list-active:{flow.value}",
+        )
+        attempts = [FinancialOperationAttempt(**row) for row in response.data or []]
+        active_by_operation: dict[int, FinancialOperationAttempt] = {}
+        for attempt in attempts:
+            active_by_operation.setdefault(attempt.operation_id, attempt)
+        return [
+            (operation, active_by_operation[operation.id])
+            for operation in operations
+            if operation.id in active_by_operation
+        ]
 
     async def list_for_admin(
         self, page: int, page_size: int
@@ -262,6 +271,8 @@ class FinancialOperationRepository:
         self,
         flow: FinancialOperationFlow,
         statuses: list[FinancialOperationStatus],
+        *,
+        limit: int = 20,
     ) -> list[FinancialOperation]:
         response = await self._database.read(
             lambda: self._database.client.table("financial_operations")
@@ -269,7 +280,9 @@ class FinancialOperationRepository:
             .eq("flow", flow.value)
             .in_("status", [status.value for status in statuses])
             .order("id")
-            .execute()
+            .limit(limit)
+            .execute(),
+            name=f"financial-operations:list-active:{flow.value}",
         )
         return [FinancialOperation(**row) for row in response.data or []]
 

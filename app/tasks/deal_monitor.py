@@ -233,9 +233,9 @@ class DealMonitor:
                 failures += 1
                 delay = provider_retry_delay(base_interval, failures)
                 logger.warning(
-                    "%s temporarily unavailable: HTTP %s endpoint=%s; retry in %ss",
+                    "%s temporarily unavailable: %s endpoint=%s; retry in %ss",
                     name,
-                    exc.code,
+                    exc.reason,
                     exc.endpoint,
                     delay,
                 )

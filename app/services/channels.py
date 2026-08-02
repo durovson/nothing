@@ -7,7 +7,7 @@ from app.api.channel_gateway import TelegramChannelGateway
 from app.core.enums import ChannelMemberStatus, DealType
 from app.core.types import DealRepositoryProtocol, UserRepositoryProtocol
 from app.models.dto import ChannelDescriptor
-from app.models.entities import Deal
+from app.models.entities import Deal, User
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,17 @@ class ChannelDealService:
             return False
         return await self.check_transfer(deal)
 
-    async def check_transfer(self, deal: Deal) -> bool:
+    async def check_transfer(
+        self,
+        deal: Deal,
+        participants: tuple[User | None, User | None] | None = None,
+    ) -> bool:
         """Release only for creator; dispute a non-owner only after the SLA."""
-        buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
-        seller = await self._users.get(deal.creator_id)
+        if participants is None:
+            buyer = await self._users.get(deal.buyer_id) if deal.buyer_id else None
+            seller = await self._users.get(deal.creator_id)
+        else:
+            buyer, seller = participants
         if buyer is None:
             await self._deals.record_channel_observation(
                 deal.id, ChannelMemberStatus.UNKNOWN.value, "Buyer not found"
@@ -83,5 +90,19 @@ class ChannelDealService:
             return False
 
     async def process_pending(self) -> None:
-        for deal in await self._deals.list_channel_transfer_pending():
-            await self.check_transfer(deal)
+        deals = await self._deals.list_channel_transfer_pending(limit=20)
+        participant_ids = {
+            participant_id
+            for deal in deals
+            for participant_id in (deal.creator_id, deal.buyer_id)
+            if participant_id is not None
+        }
+        participants = await self._users.get_many(participant_ids)
+        for deal in deals:
+            await self.check_transfer(
+                deal,
+                (
+                    participants.get(deal.buyer_id) if deal.buyer_id else None,
+                    participants.get(deal.creator_id),
+                ),
+            )

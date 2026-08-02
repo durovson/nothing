@@ -10,6 +10,7 @@ from app.core.constants import (
     TELEGRAM_POLLING_BACKOFF_JITTER,
     TELEGRAM_POLLING_MAX_BACKOFF_SECONDS,
     TELEGRAM_POLLING_MIN_BACKOFF_SECONDS,
+    TELEGRAM_POLLING_TIMEOUT_SECONDS,
 )
 from app.handlers import create_router
 from app.middleware import (
@@ -58,6 +59,7 @@ async def run_polling(bot: Bot, dispatcher: Dispatcher) -> None:
                 bot,
                 handle_signals=False,
                 close_bot_session=False,
+                polling_timeout=TELEGRAM_POLLING_TIMEOUT_SECONDS,
                 backoff_config=POLLING_BACKOFF_CONFIG,
             )
         except asyncio.CancelledError:

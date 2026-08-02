@@ -78,18 +78,20 @@ class SystemModeService:
         return flow in {FinancialOperationFlow.REFUND, FinancialOperationFlow.UNMATCHED_REFUND}
 
     async def reconcile_automatic(self, workers_healthy: bool) -> None:
-        probes = await asyncio.gather(
-            self._probe(self._database.ping),
+        current_setting, ton_healthy = await asyncio.gather(
+            self._probe_mode(),
             self._probe(self._ton.get_guarant_balance_atomic),
         )
-        healthy = workers_healthy and all(probes)
+        healthy = workers_healthy and current_setting is not None and ton_healthy
         now = datetime.now(UTC)
         if healthy:
             self._failure_started_at = None
             if self._local_read_only:
                 self._local_read_only = False
             try:
-                current = await self.current(force=True)
+                current = current_setting
+                self._cached = current
+                self._cache_until = now + timedelta(seconds=5)
                 if current.mode is SystemMode.READ_ONLY and current.automatic:
                     self._cached = await self._repository.set_mode(
                         SystemMode.NORMAL,
@@ -133,3 +135,12 @@ class SystemModeService:
             return True
         except Exception:
             return False
+
+    async def _probe_mode(self) -> SystemSetting | None:
+        try:
+            return await asyncio.wait_for(
+                self._repository.get_mode(),
+                timeout=10,
+            )
+        except Exception:
+            return None

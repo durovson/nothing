@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
+from functools import wraps
 from time import time
-from typing import Never
+from typing import Never, ParamSpec, TypeVar
 
 from ton_core import (
     Address,
@@ -21,7 +22,7 @@ from ton_core import (
 )
 from tonutils.clients import TonapiClient
 from tonutils.contracts import TONTransferBuilder, WalletV4R2, WalletV5R1
-from tonutils.exceptions import ProviderResponseError
+from tonutils.exceptions import ProviderResponseError, ProviderTimeoutError
 
 from app.config import Settings
 from app.core.constants import (
@@ -56,6 +57,8 @@ from app.ton.parsing import (
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_PROVIDER_CODES = frozenset({408, 425, 429, 500, 502, 503, 504, 542})
+_Parameters = ParamSpec("_Parameters")
+_Result = TypeVar("_Result")
 
 
 def _raise_temporary_provider_error(exc: ProviderResponseError) -> Never:
@@ -63,6 +66,23 @@ def _raise_temporary_provider_error(exc: ProviderResponseError) -> Never:
     if exc.code in _RETRYABLE_PROVIDER_CODES:
         raise TonProviderTemporaryError(exc.code, exc.endpoint) from None
     raise exc
+
+
+def _translate_provider_failures(
+    callback: Callable[_Parameters, Awaitable[_Result]],
+) -> Callable[_Parameters, Awaitable[_Result]]:
+    """Keep SDK transport failures behind the TON application boundary."""
+
+    @wraps(callback)
+    async def wrapped(*args: _Parameters.args, **kwargs: _Parameters.kwargs) -> _Result:
+        try:
+            return await callback(*args, **kwargs)
+        except ProviderTimeoutError as exc:
+            raise TonProviderTemporaryError(None, exc.endpoint) from None
+        except ProviderResponseError as exc:
+            _raise_temporary_provider_error(exc)
+
+    return wrapped
 
 
 def _network(value: TonNetwork) -> NetworkGlobalID:
@@ -196,6 +216,7 @@ class TonEscrowClient:
             is_test_only=self._settings.TON_NETWORK is TonNetwork.TESTNET,
         )
 
+    @_translate_provider_failures
     async def find_incoming_payment(self, deal: Deal) -> PaymentObservation | None:
         if deal.currency is Currency.USDT:
             raise TonGatewayError("USDT deposits must be processed by the cursor indexer")
@@ -261,6 +282,7 @@ class TonEscrowClient:
             )
         return None
 
+    @_translate_provider_failures
     async def scan_usdt_deposits(
         self, last_lt: int | None, last_hash: str | None
     ) -> DepositScanBatch:
@@ -269,6 +291,7 @@ class TonEscrowClient:
         except ProviderResponseError as exc:
             _raise_temporary_provider_error(exc)
 
+    @_translate_provider_failures
     async def scan_ton_deposits(
         self,
         deal: Deal,
@@ -318,6 +341,7 @@ class TonEscrowClient:
             newest_hash=newest_hash,
         )
 
+    @_translate_provider_failures
     async def prepare_batch_payout(
         self,
         deal: Deal,
@@ -389,6 +413,7 @@ class TonEscrowClient:
             ],
         )
 
+    @_translate_provider_failures
     async def prepare_guarant_payout(
         self,
         messages: Sequence[PayoutMessage],
@@ -425,18 +450,22 @@ class TonEscrowClient:
             valid_until=datetime.fromtimestamp(valid_until_unix, tz=UTC),
         )
 
+    @_translate_provider_failures
     async def get_guarant_balance_atomic(self) -> int:
         info = await self._client.get_info(self._guarant_wallet.address)
         return int(info.balance)
 
+    @_translate_provider_failures
     async def get_guarant_asset_balance_atomic(self, currency: Currency) -> int:
         if currency is Currency.TON:
             return await self.get_guarant_balance_atomic()
         return await self._jettons.balance_atomic()
 
+    @_translate_provider_failures
     async def broadcast(self, signed_boc: str) -> None:
         await self._client.send_message(signed_boc)
 
+    @_translate_provider_failures
     async def get_collection_trace_status(
         self,
         attempt: CollectionAttempt,
@@ -466,6 +495,7 @@ class TonEscrowClient:
         status = classify_trace(trace)
         return TraceStatus.FAILED if status is TraceStatus.CONFIRMED else status
 
+    @_translate_provider_failures
     async def get_financial_operation_trace_status(
         self,
         operation: FinancialOperation,

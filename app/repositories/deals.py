@@ -133,7 +133,8 @@ class DealRepository:
             .is_("success_feed_notified_at", "null")
             .order("id")
             .limit(limit)
-            .execute()
+            .execute(),
+            name="deals:release-requested",
         )
         return [Deal(**item) for item in response.data]
 
@@ -193,17 +194,20 @@ class DealRepository:
             .eq("status", DealStatus.RELEASE_REQUESTED.value)
             .order("id")
             .limit(limit)
-            .execute()
+            .execute(),
+            name="deals:release-requested",
         )
         return [Deal(**item) for item in response.data]
 
-    async def list_collecting(self) -> list[Deal]:
+    async def list_collecting(self, limit: int = 50) -> list[Deal]:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.COLLECTING.value)
             .order("id")
-            .execute()
+            .limit(limit)
+            .execute(),
+            name="deals:list-collecting",
         )
         return [Deal(**item) for item in response.data]
 
@@ -223,7 +227,7 @@ class DealRepository:
         )
         return Deal(**response.data[0]) if response.data else None
 
-    async def list_delivery_expired(self) -> list[Deal]:
+    async def list_delivery_expired(self, limit: int = 50) -> list[Deal]:
         now = datetime.now(UTC).isoformat()
         response = await self._database.read(
             lambda: self._database.client.table("deals")
@@ -232,12 +236,18 @@ class DealRepository:
             .neq("deal_type", "channel")
             .lte("delivery_deadline_at", now)
             .order("delivery_deadline_at")
-            .execute()
+            .limit(limit)
+            .execute(),
+            name="deals:list-delivery-expired",
         )
         return [Deal(**item) for item in response.data]
 
-    async def list_inspection_expired(self) -> list[Deal]:
-        return await self._list_expired(DealStatus.DELIVERED, "inspection_deadline_at")
+    async def list_inspection_expired(self, limit: int = 50) -> list[Deal]:
+        return await self._list_expired(
+            DealStatus.DELIVERED,
+            "inspection_deadline_at",
+            limit,
+        )
 
     async def request_expired_refund(self, deal_id: int) -> Deal | None:
         return await self._deal_rpc("request_expired_delivery_refund", deal_id)
@@ -252,24 +262,32 @@ class DealRepository:
             .eq("status", DealStatus.REFUND_REQUESTED.value)
             .order("id")
             .limit(limit)
-            .execute()
+            .execute(),
+            name="deals:refund-requested",
         )
         return [Deal(**item) for item in response.data]
 
-    async def list_refund_awaiting_wallet(self) -> list[Deal]:
+    async def list_refund_awaiting_wallet(self, limit: int = 50) -> list[Deal]:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.REFUND_AWAITING_WALLET.value)
             .order("id")
-            .execute()
+            .limit(limit)
+            .execute(),
+            name="deals:list-refund-awaiting-wallet",
         )
         return [Deal(**item) for item in response.data]
 
     async def activate_refund_after_wallet(self, deal_id: int) -> Deal | None:
         return await self._deal_rpc("activate_refund_after_wallet", deal_id)
 
-    async def _list_expired(self, status: DealStatus, column: str) -> list[Deal]:
+    async def _list_expired(
+        self,
+        status: DealStatus,
+        column: str,
+        limit: int = 50,
+    ) -> list[Deal]:
         now = datetime.now(UTC).isoformat()
         response = await self._database.read(
             lambda: self._database.client.table("deals")
@@ -277,7 +295,9 @@ class DealRepository:
             .eq("status", status.value)
             .lte(column, now)
             .order(column)
-            .execute()
+            .limit(limit)
+            .execute(),
+            name=f"deals:list-expired:{status.value}:{column}",
         )
         return [Deal(**item) for item in response.data]
 
@@ -306,14 +326,17 @@ class DealRepository:
         total_pages = max(1, (total + page_size - 1) // page_size)
         return rows, total_pages
 
-    async def list_pending(self) -> list[Deal]:
+    async def list_pending(self, limit: int = 50) -> list[Deal]:
         pending = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
             .eq("status", DealStatus.PENDING.value)
             .not_.is_("buyer_id", "null")
             .is_("archived_at", "null")
-            .execute()
+            .order("id")
+            .limit(limit)
+            .execute(),
+            name="deals:list-pending-payments",
         )
         late_cutoff = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         cancelled = await self._database.read(
@@ -323,7 +346,10 @@ class DealRepository:
             .gte("updated_at", late_cutoff)
             .not_.is_("buyer_id", "null")
             .is_("archived_at", "null")
-            .execute()
+            .order("id")
+            .limit(limit)
+            .execute(),
+            name="deals:list-recent-timeout-payments",
         )
         return [Deal(**item) for item in [*pending.data, *cancelled.data]]
 
@@ -349,7 +375,19 @@ class DealRepository:
             return int(response.data[0]) if response.data else 0
         return int(response.data or 0)
 
-    async def list_channel_transfer_pending(self) -> list[Deal]:
+    async def process_deadlines_batch(self, limit: int = 50) -> dict[str, int]:
+        response = await self._database.rpc(
+            "process_deal_lifecycle_batch",
+            {"p_limit": limit},
+        )
+        raw = response.data
+        if isinstance(raw, list):
+            raw = raw[0] if raw else {}
+        if not isinstance(raw, dict):
+            return {}
+        return {str(key): int(value) for key, value in raw.items()}
+
+    async def list_channel_transfer_pending(self, limit: int = 20) -> list[Deal]:
         response = await self._database.read(
             lambda: self._database.client.table("deals")
             .select("*")
@@ -358,7 +396,9 @@ class DealRepository:
             .is_("channel_owner_verified_at", "null")
             .not_.is_("buyer_id", "null")
             .order("id")
-            .execute()
+            .limit(limit)
+            .execute(),
+            name="deals:list-channel-transfer-pending",
         )
         return [Deal(**item) for item in response.data]
 

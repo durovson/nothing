@@ -10,7 +10,8 @@ class SystemSettingsRepository:
     async def get_mode(self) -> SystemSetting:
         response = await self._database.read(
             lambda: self._database.client.table("system_settings")
-            .select("*").eq("key", "system_mode").single().execute()
+            .select("*").eq("key", "system_mode").single().execute(),
+            name="system-settings:get-mode",
         )
         return SystemSetting(**response.data)
 

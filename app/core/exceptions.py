@@ -20,10 +20,11 @@ class TonGatewayError(ApplicationError):
 class TonProviderTemporaryError(TonGatewayError):
     """A retryable failure returned by the external TON data provider."""
 
-    def __init__(self, code: int, endpoint: str):
+    def __init__(self, code: int | None, endpoint: str):
         self.code = code
         self.endpoint = endpoint
-        super().__init__(f"TON provider temporarily unavailable: HTTP {code}")
+        self.reason = f"HTTP {code}" if code is not None else "request timeout"
+        super().__init__(f"TON provider temporarily unavailable: {self.reason}")
 
 
 class MissingPayoutWalletError(ApplicationError):

@@ -59,6 +59,7 @@ revoke all on function list_admin_disputes(integer, integer) from public, anon, 
 revoke all on function resolve_dispute_refund(bigint, text) from public, anon, authenticated;
 revoke all on function confirm_channel_owner_transfer(bigint) from public, anon, authenticated;
 revoke all on function dispute_expired_channel_transfer(bigint, text) from public, anon, authenticated;
+revoke all on function process_deal_lifecycle_batch(integer) from public, anon, authenticated;
 
 grant execute on function claim_deal_payment(bigint, text, numeric, numeric, text, boolean, timestamptz) to service_role;
 grant execute on function claim_deal_collection(bigint, text, text) to service_role;
@@ -107,5 +108,6 @@ grant execute on function list_admin_disputes(integer, integer) to service_role;
 grant execute on function resolve_dispute_refund(bigint, text) to service_role;
 grant execute on function confirm_channel_owner_transfer(bigint) to service_role;
 grant execute on function dispute_expired_channel_transfer(bigint, text) to service_role;
+grant execute on function process_deal_lifecycle_batch(integer) to service_role;
 
 commit;

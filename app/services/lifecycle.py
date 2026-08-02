@@ -69,13 +69,7 @@ class DealLifecycleService:
         return ticket
 
     async def process_deadlines(self) -> None:
-        await self._deals.cancel_expired_pending()
-        for deal in await self._deals.list_delivery_expired():
-            await self._deals.request_expired_refund(deal.id)
-        for deal in await self._deals.list_inspection_expired():
-            await self._deals.request_auto_release(deal.id)
-        for deal in await self._deals.list_refund_awaiting_wallet():
-            await self._deals.activate_refund_after_wallet(deal.id)
+        await self._deals.process_deadlines_batch(limit=50)
 
     async def _notify_delivery(self, deal: Deal) -> None:
         buyer, seller = await self._participants(deal)
