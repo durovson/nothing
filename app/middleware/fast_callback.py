@@ -5,12 +5,18 @@ from time import perf_counter
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, TelegramObject, Update
 
 from app.core.constants import SLOW_CALLBACK_ACK_SECONDS
 from app.core.telemetry import current_trace_id
 
 logger = logging.getLogger(__name__)
+
+_EXPIRED_CALLBACK_ERROR_MARKERS = (
+    "query is too old",
+    "query id is invalid",
+)
 
 _FAST_EXACT_CALLBACKS = frozenset(
     {
@@ -81,6 +87,24 @@ class FastCallbackMiddleware(BaseMiddleware):
         started_at = perf_counter()
         try:
             await callback.answer()
+        except TelegramBadRequest as exc:
+            error_message = str(exc).lower()
+            if any(marker in error_message for marker in _EXPIRED_CALLBACK_ERROR_MARKERS):
+                # Telegram may deliver a queued callback immediately after a
+                # deploy. Its short-lived query ID can expire before the new
+                # process acknowledges it; the menu handler remains valid.
+                logger.info(
+                    "Expired Telegram callback ACK ignored trace=%s callback=%s",
+                    current_trace_id(),
+                    callback.data,
+                )
+            else:
+                logger.warning(
+                    "Telegram callback ACK rejected trace=%s callback=%s",
+                    current_trace_id(),
+                    callback.data,
+                    exc_info=True,
+                )
         except Exception:
             # A failed ACK must not suppress the actual menu handler. Aiogram's
             # polling/backoff layer will independently recover transport errors.
