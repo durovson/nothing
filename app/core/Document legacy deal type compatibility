@@ -63,8 +63,9 @@ class WalletVersion(StrEnum):
 
 class DealType(StrEnum):
     OFFER = "offer"
-    GIFTS = "gifts"
     CHANNEL = "channel"
+    # Persisted legacy values remain readable until historical deals are migrated.
+    GIFTS = "gifts"
     ACCOUNT = "account"
 
 
