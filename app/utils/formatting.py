@@ -1,6 +1,21 @@
 from decimal import Decimal
 
+from app.core.custom_emoji import CustomEmoji
 from app.core.enums import ChannelMemberStatus, Currency, DealStatus, DealType, Language
+
+
+_SUCCESSFUL_DEAL_STATUSES = frozenset({DealStatus.COMPLETED, DealStatus.REFUNDED})
+_FAILED_DEAL_STATUSES = frozenset(
+    {
+        DealStatus.COLLECTION_FAILED,
+        DealStatus.PAYOUT_FAILED,
+        DealStatus.PAYOUT_BOUNCED,
+        DealStatus.REFUND_FAILED,
+        DealStatus.REFUND_BOUNCED,
+        DealStatus.CANCELLED,
+        DealStatus.CREATION_FAILED,
+    }
+)
 
 
 def format_amount(amount: Decimal) -> str:
@@ -29,38 +44,62 @@ def deal_status_label(
 ) -> str:
     normalized = DealStatus(status)
     if normalized in {DealStatus.CREATING, DealStatus.PENDING}:
-        return "Ожидание оплаты ⏳" if locale is Language.RU else "Waiting for payment ⏳"
+        return "Ожидание оплаты" if locale is Language.RU else "Waiting for payment"
     if normalized in {
         DealStatus.COLLECTING,
         DealStatus.COLLECTION_SUBMITTED,
         DealStatus.PAID,
         DealStatus.DELIVERY_PENDING,
     }:
-        return "Ожидание оказания услуги ⏳" if locale is Language.RU else "Waiting for delivery ⏳"
+        return "Ожидание оказания услуги" if locale is Language.RU else "Waiting for delivery"
     if normalized is DealStatus.DELIVERED:
-        return "Ожидание подтверждения покупателя ⏳" if locale is Language.RU else "Waiting for buyer confirmation ⏳"
+        return "Ожидание подтверждения покупателя" if locale is Language.RU else "Waiting for buyer confirmation"
     if normalized is DealStatus.DISPUTED:
-        return "Открыт спор ⚖️" if locale is Language.RU else "Dispute opened ⚖️"
+        return "Открыт спор" if locale is Language.RU else "Dispute opened"
     if normalized in {
         DealStatus.RELEASE_REQUESTED,
         DealStatus.PAYOUT_PROCESSING,
         DealStatus.PAYOUT_SUBMITTED,
     }:
-        return "Выплата обрабатывается ⏳" if locale is Language.RU else "Payout processing ⏳"
+        return "Выплата обрабатывается" if locale is Language.RU else "Payout processing"
     if normalized in {
         DealStatus.REFUND_AWAITING_WALLET,
         DealStatus.REFUND_REQUESTED,
         DealStatus.REFUND_PROCESSING,
         DealStatus.REFUND_SUBMITTED,
     }:
-        return "Возврат обрабатывается ⏳" if locale is Language.RU else "Refund processing ⏳"
+        return "Возврат обрабатывается" if locale is Language.RU else "Refund processing"
     if normalized is DealStatus.COMPLETED:
-        return "Завершена ✅" if locale is Language.RU else "Completed ✅"
+        return "Завершена" if locale is Language.RU else "Completed"
     if normalized is DealStatus.REFUNDED:
-        return "Возвращена ↩️" if locale is Language.RU else "Refunded ↩️"
+        return "Возвращена" if locale is Language.RU else "Refunded"
     if normalized is DealStatus.CANCELLED:
-        return "Отменена ❌" if locale is Language.RU else "Cancelled ❌"
-    return "Ошибка ❌" if locale is Language.RU else "Failed ❌"
+        return "Отменена" if locale is Language.RU else "Cancelled"
+    return "Ошибка" if locale is Language.RU else "Failed"
+
+
+def deal_status_custom_emoji(status: DealStatus | str) -> CustomEmoji:
+    """Map every deal status to one of the three approved status icons."""
+    normalized = DealStatus(status)
+    if normalized in _SUCCESSFUL_DEAL_STATUSES:
+        return CustomEmoji.CONFIRM
+    if normalized in _FAILED_DEAL_STATUSES:
+        return CustomEmoji.CANCEL
+    return CustomEmoji.PENDING
+
+
+def deal_status_html(status: DealStatus | str, locale: Language = Language.RU) -> str:
+    """Render a localized status with a Telegram custom emoji entity."""
+    icon = deal_status_custom_emoji(status)
+    fallback = {
+        CustomEmoji.CONFIRM: "✅",
+        CustomEmoji.PENDING: "🕒",
+        CustomEmoji.CANCEL: "❌",
+    }[icon]
+    return (
+        f"{deal_status_label(status, locale)} "
+        f'<tg-emoji emoji-id="{icon.value}">{fallback}</tg-emoji>'
+    )
 
 
 def channel_member_status_label(

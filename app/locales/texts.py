@@ -103,8 +103,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<pre>Сделка #{deal_id}\n\nДетали сделки:\n"
             "• Описание: {description}\n• Продавец получил: {amount} {currency}\n"
             "• Покупатель оплатит: {payment_amount} {currency}\n\n"
-            "Продавец:\n{seller}\n\nПокупатель:\n{buyer}{channel_details}\n\n"
-            "Статус: {status}</pre>"
+            "Продавец:\n{seller}\n\nПокупатель:\n{buyer}{channel_details}</pre>\n\n"
+            "Статус: {status}"
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
@@ -350,8 +350,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Seller received: {amount} {currency}\n"
             "• Buyer will pay: {payment_amount} {currency}\n\n"
             "Seller:\n{seller}\n\n"
-            "Buyer:\n{buyer}{channel_details}\n\n"
-            "Status: {status}</pre>"
+            "Buyer:\n{buyer}{channel_details}</pre>\n\n"
+            "Status: {status}"
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"

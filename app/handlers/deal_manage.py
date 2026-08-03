@@ -18,7 +18,14 @@ from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
-from app.utils import channel_member_status_label, currency_label, deal_status_label, deal_type_label, format_amount, render_menu
+from app.utils import (
+    channel_member_status_label,
+    currency_label,
+    deal_status_html,
+    deal_type_label,
+    format_amount,
+    render_menu,
+)
 
 router = Router(name="deal-management")
 MY_DEALS_TEXTS = {translate(language, TextKey.MENU_MY_DEALS) for language in Language}
@@ -42,23 +49,25 @@ async def render_deal_card(
             channel_details = f"\nКанал: {deal.channel_title or '-'}\nРоль покупателя: {role}"
         else:
             channel_details = f"\nChannel: {deal.channel_title or '-'}\nBuyer role: {role}"
+    status_marker = "__DEAL_STATUS_HTML__"
+    caption = translate(
+        db_user.language,
+        TextKey.DEAL_CARD,
+        deal_id=deal.public_id,
+        status=status_marker,
+        deal_type=deal_type_label(deal.deal_type, db_user.language),
+        description=deal.description,
+        amount=format_amount(deal.amount),
+        payment_amount=format_amount(payment_amount),
+        currency=currency_label(deal.currency),
+        wallet_address=deal.wallet_address or "-",
+        buyer=buyer,
+        seller=seller,
+        channel_details=channel_details,
+    ).replace(status_marker, deal_status_html(deal.status, db_user.language))
     await render_menu(
         message,
-        translate(
-            db_user.language,
-            TextKey.DEAL_CARD,
-            deal_id=deal.public_id,
-            status=deal_status_label(deal.status, db_user.language),
-            deal_type=deal_type_label(deal.deal_type, db_user.language),
-            description=deal.description,
-            amount=format_amount(deal.amount),
-            payment_amount=format_amount(payment_amount),
-            currency=currency_label(deal.currency),
-            wallet_address=deal.wallet_address or "-",
-            buyer=buyer,
-            seller=seller,
-            channel_details=channel_details,
-        ),
+        caption,
         deal_actions(db_user.language, deal, db_user.telegram_id),
         screen="deal",
     )
