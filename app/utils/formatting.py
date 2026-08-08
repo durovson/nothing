@@ -88,14 +88,27 @@ def deal_status_custom_emoji(status: DealStatus | str) -> CustomEmoji:
     return CustomEmoji.PENDING
 
 
-def deal_status_html(status: DealStatus | str, locale: Language = Language.RU) -> str:
-    """Render a localized status with a Telegram custom emoji entity."""
-    icon = deal_status_custom_emoji(status)
-    fallback = {
+def deal_status_fallback_emoji(status: DealStatus | str) -> str:
+    """Return a Unicode status marker suitable for inline button text."""
+    return {
         CustomEmoji.CONFIRM: "✅",
         CustomEmoji.PENDING: "🕒",
         CustomEmoji.CANCEL: "❌",
-    }[icon]
+    }[deal_status_custom_emoji(status)]
+
+
+def deal_status_button_label(
+    status: DealStatus | str,
+    locale: Language = Language.RU,
+) -> str:
+    """Render a button label with its status marker on the right."""
+    return f"{deal_status_label(status, locale)} {deal_status_fallback_emoji(status)}"
+
+
+def deal_status_html(status: DealStatus | str, locale: Language = Language.RU) -> str:
+    """Render a localized status with a Telegram custom emoji entity."""
+    icon = deal_status_custom_emoji(status)
+    fallback = deal_status_fallback_emoji(status)
     return (
         f"{deal_status_label(status, locale)} "
         f'<tg-emoji emoji-id="{icon.value}">{fallback}</tg-emoji>'

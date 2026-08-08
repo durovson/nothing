@@ -100,11 +100,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_CAPTION: "<b>Мои сделки:</b>",
         TextKey.DEAL_CARD: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> "
-            "<pre>Сделка #{deal_id}\n\nДетали сделки:\n"
-            "• Описание: {description}\n• Продавец получил: {amount} {currency}\n"
-            "• Покупатель оплатит: {payment_amount} {currency}\n\n"
-            "Продавец:\n{seller}\n\nПокупатель:\n{buyer}{channel_details}</pre>\n\n"
-            "Статус: {status}"
+            "<b>Сделка</b> <code>#{deal_id}</code>\n\n"
+            "<b>Детали:</b>\n"
+            "<blockquote>• Описание: {description}\n"
+            "• Продавец получил: {amount} {currency}\n"
+            "• Покупатель оплатит: {payment_amount} {currency}</blockquote>\n\n"
+            "<b>Продавец:</b>\n{seller}\n\n"
+            "<b>Покупатель:</b>\n{buyer}{channel_details}\n\n"
+            "<b>Статус:</b> {status}"
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
@@ -211,7 +214,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Приглашено пользователей: {count}</blockquote>\n\n"
             "<b>Баланс:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
-            "• USDT ( <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> ): {earned_usdt}</blockquote>\n\n"
+            "• USDT <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
             "Ваша реферальная ссылка:\n<code>{link}</code>"
         ),
         TextKey.BACK_BUTTON: "Назад",
@@ -220,9 +223,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5778184941154078090'>📚</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
             "Как использовать сервис:\n"
             "<blockquote>1. Добавьте свой TON-кошелёк в разделе «Мой кошелёк».\n"
-            "2. Создайте сделку или присоединитесь к существующей.\n"
+            "2. Создайте сделку или присоединитесь к ней.\n"
             "3. Покупатель переводит средства — они замораживаются на escrow.\n"
-            "4. После оказания услуги покупатель подтверждает — деньги автоматически уходят продавцу.</blockquote>\n\n"
+            "4. Покупатель подтверждает услугу — деньги автоматически уходят продавцу.</blockquote>\n\n"
             "Как долго заморожены деньги?\n"
             "<blockquote>До подтверждения покупателем или отмены сделки.</blockquote>\n\n"
             "Что если продавец не выполнил работу?\n"
@@ -345,13 +348,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_LIST_CAPTION: "<b>My deals:</b>",
         TextKey.DEAL_CARD: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> "
-            "<pre>Deal #{deal_id}\n\nDeal details:\n"
-            "• Description: {description}\n"
+            "<b>Deal</b> <code>#{deal_id}</code>\n\n"
+            "<b>Details:</b>\n"
+            "<blockquote>• Description: {description}\n"
             "• Seller received: {amount} {currency}\n"
-            "• Buyer will pay: {payment_amount} {currency}\n\n"
-            "Seller:\n{seller}\n\n"
-            "Buyer:\n{buyer}{channel_details}</pre>\n\n"
-            "Status: {status}"
+            "• Buyer will pay: {payment_amount} {currency}</blockquote>\n\n"
+            "<b>Seller:</b>\n{seller}\n\n"
+            "<b>Buyer:</b>\n{buyer}{channel_details}\n\n"
+            "<b>Status:</b> {status}"
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"
@@ -461,7 +465,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Users invited: {count}</blockquote>\n\n"
             "<b>Balance:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
-            "• USDT ( <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> ): {earned_usdt}</blockquote>\n\n"
+            "• USDT <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
             "Your referral link:\n"
             "<code>{link}</code>"
         ),

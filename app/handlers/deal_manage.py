@@ -1,3 +1,5 @@
+from html import escape
+
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
@@ -31,6 +33,16 @@ router = Router(name="deal-management")
 MY_DEALS_TEXTS = {translate(language, TextKey.MENU_MY_DEALS) for language in Language}
 
 
+def _participant_html(user: User | None, telegram_id: int | None) -> str:
+    """Render a participant with a proportional username and monospace numeric ID."""
+    if telegram_id is None:
+        return "—"
+    identifier = f"<code>{telegram_id}</code>"
+    if user and user.username:
+        return f"@{escape(user.username)} ({identifier})"
+    return identifier
+
+
 async def render_deal_card(
     message: types.Message,
     deal: Deal,
@@ -39,8 +51,8 @@ async def render_deal_card(
 ) -> None:
     """Render the canonical deal screen for callbacks and deep links."""
     buyer_user, seller_user = await deal_service.participants(deal)
-    buyer = f"@{buyer_user.username} ({buyer_user.telegram_id})" if buyer_user and buyer_user.username else str(deal.buyer_id or "—")
-    seller = f"@{seller_user.username} ({seller_user.telegram_id})" if seller_user and seller_user.username else str(deal.creator_id)
+    buyer = _participant_html(buyer_user, deal.buyer_id)
+    seller = _participant_html(seller_user, deal.creator_id)
     payment_amount = deal_service.buyer_payment_amount(deal)
     channel_details = ""
     if deal.deal_type is DealType.CHANNEL:
@@ -50,6 +62,8 @@ async def render_deal_card(
         else:
             channel_details = f"\nChannel: {deal.channel_title or '-'}\nBuyer role: {role}"
     status_marker = "__DEAL_STATUS_HTML__"
+    buyer_marker = "__DEAL_BUYER_HTML__"
+    seller_marker = "__DEAL_SELLER_HTML__"
     caption = translate(
         db_user.language,
         TextKey.DEAL_CARD,
@@ -61,10 +75,15 @@ async def render_deal_card(
         payment_amount=format_amount(payment_amount),
         currency=currency_label(deal.currency),
         wallet_address=deal.wallet_address or "-",
-        buyer=buyer,
-        seller=seller,
+        buyer=buyer_marker,
+        seller=seller_marker,
         channel_details=channel_details,
-    ).replace(status_marker, deal_status_html(deal.status, db_user.language))
+    )
+    caption = (
+        caption.replace(status_marker, deal_status_html(deal.status, db_user.language))
+        .replace(buyer_marker, buyer)
+        .replace(seller_marker, seller)
+    )
     await render_menu(
         message,
         caption,
