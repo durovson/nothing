@@ -54,6 +54,13 @@ async def render_deal_card(
     buyer = _participant_html(buyer_user, deal.buyer_id)
     seller = _participant_html(seller_user, deal.creator_id)
     payment_amount = deal_service.buyer_payment_amount(deal)
+    completed = deal.status is DealStatus.COMPLETED
+    if db_user.language is Language.RU:
+        seller_amount_verb = "получил" if completed else "получит"
+        buyer_amount_verb = "оплатил" if completed else "оплатит"
+    else:
+        seller_amount_verb = "received" if completed else "will receive"
+        buyer_amount_verb = "paid" if completed else "will pay"
     channel_details = ""
     if deal.deal_type is DealType.CHANNEL:
         role = channel_member_status_label(deal.channel_last_member_status, db_user.language)
@@ -73,6 +80,8 @@ async def render_deal_card(
         description=deal.description,
         amount=format_amount(deal.amount),
         payment_amount=format_amount(payment_amount),
+        seller_amount_verb=seller_amount_verb,
+        buyer_amount_verb=buyer_amount_verb,
         currency=currency_label(deal.currency),
         wallet_address=deal.wallet_address or "-",
         buyer=buyer_marker,

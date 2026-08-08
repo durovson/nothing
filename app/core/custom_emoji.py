@@ -5,6 +5,7 @@ class CustomEmoji(StrEnum):
     """Telegram custom emoji identifiers approved for the bot UI."""
 
     DOCUMENTS = "6028226658543082010"
+    DETAILS = "5875206779196935950"
     SETTINGS = "5877260593903177342"
     REFERRALS = "5942877472163892475"
     FAQ = "5985833664884250583"

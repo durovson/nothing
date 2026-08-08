@@ -103,8 +103,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<b>Сделка</b> <code>#{deal_id}</code>\n\n"
             "<b>Детали:</b>\n"
             "<blockquote>• Описание: {description}\n"
-            "• Продавец получил: {amount} {currency}\n"
-            "• Покупатель оплатит: {payment_amount} {currency}</blockquote>\n\n"
+            "• Продавец {seller_amount_verb}: {amount} {currency}\n"
+            "• Покупатель {buyer_amount_verb}: {payment_amount} {currency}</blockquote>\n\n"
             "<b>Продавец:</b>\n{seller}\n\n"
             "<b>Покупатель:</b>\n{buyer}{channel_details}\n\n"
             "<b>Статус:</b> {status}"
@@ -245,10 +245,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
         TextKey.COMPLETED_DEAL_FEED: (
-            "<b>Сделка:</b> <code>#{deal_id}</code>\n\n"
-            "Детали сделки:\n"
-            "<blockquote><b>• Описание:</b> {description}\n"
-            "<b>• Сумма:</b> {amount} {currency}</blockquote>\n\n"
+            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji><b>Сделка</b> <code>#{deal_id}</code>\n\n"
+            "<tg-emoji emoji-id='5875206779196935950'>📁</tg-emoji><b>Детали:</b>\n"
+            "<blockquote>• Описание: {description}\n"
+            "• Продавец получил: {amount} {currency}\n"
+            "• Покупатель оплатил: {payment_amount} {currency}</blockquote>\n\n"
             "@grntrobot"
         ),
     },
@@ -351,8 +352,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<b>Deal</b> <code>#{deal_id}</code>\n\n"
             "<b>Details:</b>\n"
             "<blockquote>• Description: {description}\n"
-            "• Seller received: {amount} {currency}\n"
-            "• Buyer will pay: {payment_amount} {currency}</blockquote>\n\n"
+            "• Seller {seller_amount_verb}: {amount} {currency}\n"
+            "• Buyer {buyer_amount_verb}: {payment_amount} {currency}</blockquote>\n\n"
             "<b>Seller:</b>\n{seller}\n\n"
             "<b>Buyer:</b>\n{buyer}{channel_details}\n\n"
             "<b>Status:</b> {status}"
@@ -497,10 +498,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANG_RU: "Русский",
         TextKey.LANG_EN: "English",
         TextKey.COMPLETED_DEAL_FEED: (
-            "<b>Deal:</b> <code>#{deal_id}</code>\n\n"
-            "Deal details:\n"
-            "<blockquote><b>• Description:</b> {description}\n"
-            "<b>• Amount:</b> {amount} {currency}</blockquote>\n\n"
+            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji><b>Deal</b> <code>#{deal_id}</code>\n\n"
+            "<tg-emoji emoji-id='5875206779196935950'>📁</tg-emoji><b>Details:</b>\n"
+            "<blockquote>• Description: {description}\n"
+            "• Seller received: {amount} {currency}\n"
+            "• Buyer paid: {payment_amount} {currency}</blockquote>\n\n"
             "@grntrobot"
         ),
     },

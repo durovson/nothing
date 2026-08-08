@@ -194,14 +194,7 @@ class DealMonitor:
             token = bind_trace_id("background:system-mode-monitor")
             try:
                 try:
-                    other_workers = {
-                        name: healthy
-                        for name, healthy in self.worker_health.items()
-                        if name != "system-mode-monitor"
-                    }
-                    await self._system_mode.reconcile_automatic(
-                        all(other_workers.values())
-                    )
+                    await self._system_mode.reconcile_automatic()
                     self._last_success["system-mode-monitor"] = monotonic()
                 except Exception:
                     logger.exception("System mode reconciliation failed")

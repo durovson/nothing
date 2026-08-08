@@ -181,12 +181,19 @@ class TelegramNotificationGateway:
 
     async def completed_deal_feed(self, deal: Deal) -> bool:
         """Publish one safely escaped summary after the payout is finalized."""
+        payment_amount = asset_payment_amount(
+            deal.amount,
+            deal.currency,
+            self._settings.ESCROW_FEE_RATE,
+            self._settings.TON_PAYOUT_FEE_RESERVE,
+        )
         text = translate(
             Language.RU,
             TextKey.COMPLETED_DEAL_FEED,
             deal_id=deal.public_id,
             description=deal.description,
             amount=format_amount(deal.amount),
+            payment_amount=format_amount(payment_amount),
             currency=currency_label(deal.currency),
         )
         try:

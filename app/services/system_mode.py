@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class SystemModeService:
-    """Hybrid circuit breaker: automatic READ_ONLY, manual EMERGENCY."""
+    """TON-only circuit breaker with administrator-controlled manual modes."""
+
+    _CACHE_TTL_SECONDS = 30
+    _PERSIST_RETRY_SECONDS = 60
 
     def __init__(
         self,
@@ -31,8 +34,10 @@ class SystemModeService:
         self._ton = ton
         self._cached: SystemSetting | None = None
         self._cache_until = datetime.min.replace(tzinfo=UTC)
+        self._cache_lock = asyncio.Lock()
         self._failure_started_at: datetime | None = None
         self._local_read_only = False
+        self._persist_retry_at = datetime.min.replace(tzinfo=UTC)
 
     async def current(self, *, force: bool = False) -> SystemSetting:
         if self._local_read_only:
@@ -44,18 +49,26 @@ class SystemModeService:
             )
         now = datetime.now(UTC)
         if force or self._cached is None or now >= self._cache_until:
-            self._cached = await self._repository.get_mode()
-            self._cache_until = now + timedelta(seconds=5)
+            async with self._cache_lock:
+                now = datetime.now(UTC)
+                if force or self._cached is None or now >= self._cache_until:
+                    self._cached = await self._repository.get_mode()
+                    self._cache_until = now + timedelta(
+                        seconds=self._CACHE_TTL_SECONDS
+                    )
         return self._cached
 
     async def set_manual(
         self, mode: SystemMode, reason: str, actor_id: int
     ) -> SystemSetting:
         self._local_read_only = False
+        self._persist_retry_at = datetime.min.replace(tzinfo=UTC)
         self._cached = await self._repository.set_mode(
             mode, reason, updated_by=actor_id, automatic=False
         )
-        self._cache_until = datetime.now(UTC) + timedelta(seconds=5)
+        self._cache_until = datetime.now(UTC) + timedelta(
+            seconds=self._CACHE_TTL_SECONDS
+        )
         return self._cached
 
     async def ensure_new_business_allowed(self) -> None:
@@ -77,36 +90,49 @@ class SystemModeService:
             return True
         return flow in {FinancialOperationFlow.REFUND, FinancialOperationFlow.UNMATCHED_REFUND}
 
-    async def reconcile_automatic(self, workers_healthy: bool) -> None:
-        current_setting, ton_healthy = await asyncio.gather(
-            self._probe_mode(),
-            self._probe(self._ton.get_guarant_balance_atomic),
-        )
-        healthy = workers_healthy and current_setting is not None and ton_healthy
+    async def reconcile_automatic(self) -> None:
+        """Enter automatic READ_ONLY only after a sustained TON provider outage."""
+        ton_healthy = await self._probe(self._ton.get_guarant_balance_atomic)
         now = datetime.now(UTC)
-        if healthy:
+        if ton_healthy:
             self._failure_started_at = None
             if self._local_read_only:
                 self._local_read_only = False
-            try:
-                current = current_setting
-                self._cached = current
-                self._cache_until = now + timedelta(seconds=5)
-                if current.mode is SystemMode.READ_ONLY and current.automatic:
+            current = self._cached
+            if (
+                current is not None
+                and current.mode is SystemMode.READ_ONLY
+                and current.automatic
+            ):
+                if now < self._persist_retry_at:
+                    return
+                try:
                     self._cached = await self._repository.set_mode(
                         SystemMode.NORMAL,
-                        "Infrastructure recovered",
+                        "TON provider recovered",
                         updated_by=None,
                         automatic=True,
                     )
-            except Exception:
-                logger.warning("Could not persist automatic NORMAL mode", exc_info=True)
-                return
+                    self._cache_until = now + timedelta(
+                        seconds=self._CACHE_TTL_SECONDS
+                    )
+                    self._persist_retry_at = datetime.min.replace(tzinfo=UTC)
+                except Exception:
+                    self._persist_retry_at = now + timedelta(
+                        seconds=self._PERSIST_RETRY_SECONDS
+                    )
+                    logger.warning(
+                        "TON recovered, but automatic NORMAL could not be persisted; retrying later"
+                    )
             return
 
         self._failure_started_at = self._failure_started_at or now
         elapsed = (now - self._failure_started_at).total_seconds()
         if elapsed < self._settings.READ_ONLY_FAILURE_THRESHOLD_SECONDS:
+            return
+        if self._local_read_only:
+            return
+        if self._cached is not None and self._cached.mode is not SystemMode.NORMAL:
             return
         self._local_read_only = True
         try:
@@ -117,15 +143,17 @@ class SystemModeService:
             else:
                 self._cached = await self._repository.set_mode(
                     SystemMode.READ_ONLY,
-                    "Infrastructure unhealthy for at least 15 minutes",
+                    "TON provider unavailable beyond the configured threshold",
                     updated_by=None,
                     automatic=True,
+                )
+                self._cache_until = now + timedelta(
+                    seconds=self._CACHE_TTL_SECONDS
                 )
                 self._local_read_only = False
         except Exception:
             logger.warning(
-                "Could not persist READ_ONLY; keeping the local circuit breaker",
-                exc_info=True,
+                "TON is unavailable and READ_ONLY could not be persisted; local circuit breaker is active"
             )
 
     @staticmethod
@@ -135,12 +163,3 @@ class SystemModeService:
             return True
         except Exception:
             return False
-
-    async def _probe_mode(self) -> SystemSetting | None:
-        try:
-            return await asyncio.wait_for(
-                self._repository.get_mode(),
-                timeout=10,
-            )
-        except Exception:
-            return None
