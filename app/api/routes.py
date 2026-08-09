@@ -21,12 +21,12 @@ def create_api_router(container: AppContainer) -> APIRouter:
 
     @router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     async def liveness() -> JSONResponse:
-        """Cheap platform probe; dependency checks remain on /ping and /healthz."""
+        """Cheap platform probe without external dependency checks."""
         return JSONResponse({"status": "ok"})
 
     @router.api_route("/livez", methods=["GET", "HEAD"], include_in_schema=False)
     async def platform_liveness() -> JSONResponse:
-        """Cheap Render probe that never calls Supabase, TON or Telegram."""
+        """Cheap Render probe that never calls an external service."""
         return JSONResponse({"status": "ok"})
 
     @router.get("/favicon.ico", include_in_schema=False)
@@ -37,11 +37,13 @@ def create_api_router(container: AppContainer) -> APIRouter:
     @router.get("/ping")
     @router.get("/healthz")
     async def healthcheck() -> JSONResponse:
+        """Report only TON API availability; do not probe Supabase or Telegram."""
         result = await container.health.check()
         return JSONResponse(result, status_code=200 if result["status"] == "ok" else 503)
 
     @router.get("/readyz")
     async def readiness() -> JSONResponse:
+        """Use the same TON-only readiness criterion as the health endpoint."""
         result = await container.health.check()
         return JSONResponse(result, status_code=200 if result["status"] == "ok" else 503)
 

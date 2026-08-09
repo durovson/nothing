@@ -44,7 +44,7 @@ class SystemModeService:
             return SystemSetting(
                 key="system_mode",
                 value=SystemMode.READ_ONLY.value,
-                reason="Infrastructure health check failed continuously",
+                reason="TON provider health check failed continuously",
                 automatic=True,
             )
         now = datetime.now(UTC)

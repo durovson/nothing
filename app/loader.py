@@ -213,7 +213,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         system_mode,
     )
     keepalive = RenderKeepAlive(app_settings)
-    health = HealthService(database, ton, bot, monitor)
+    health = HealthService(ton)
     return AppContainer(
         settings=app_settings,
         bot=bot,
