@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
-    ESCROW_FEE_RATE: ClassVar[Decimal] = Decimal("0.015")
+    ESCROW_FEE_RATE: ClassVar[Decimal] = Decimal("0.01")
     DEALS_PAGE_SIZE: ClassVar[int] = 5
 
     DEFAULT_LANGUAGE: Language = Language.RU

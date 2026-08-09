@@ -14,7 +14,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id=\'5879895758202735862\'>🔒</tg-emoji> <b>Безопасность:</b>\n"
             "Заморозка активов до завершения условий сделки\n\n"
             "<tg-emoji emoji-id=\'5778139491810155937\'>📊</tg-emoji> <b>Прозрачность:</b>\n"
-            "Фиксированная комиссия — всего 1,5%"
+            "Фиксированная комиссия — всего 1%"
             "</blockquote>\n\n"
             "<tg-emoji emoji-id=\'5994636050033545139\'>🪧</tg-emoji> <b>Успешные сделки:</b> "
             "<a href='https://t.me/grnthub/4'>@grnthub</a>"
@@ -70,7 +70,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Комиссия сервиса добавляется к счёту; сетевой gas оплачивается отдельно."
         ),
         TextKey.DEAL_CREATED: (
-            "<tg-emoji emoji-id='5879895758202735862'>🔒</tg-emoji> <b>Сделка #{deal_id} создана</b>\n\nДетали сделки:\n"
+            "<tg-emoji emoji-id='5879895758202735862'>🔒</tg-emoji> <b>Сделка</b> <code>#{deal_id}</code> <b>создана</b>\n\nДетали сделки:\n"
             "<blockquote>• Описание: {description}\n• Продавец получит: {amount} {currency}\n"
             "• Покупатель оплатит: {payment_amount} {currency}</blockquote>\n\n"
             "Для присоединения покупателя отправьте ему ссылку:\n{deep_link}"
@@ -80,11 +80,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DELIVER_BUTTON: "Услуга оказана",
         TextKey.DEAL_DISPUTE_BUTTON: "Открыть спор",
         TextKey.DEAL_JOINED: (
-            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> <b>Сделка #{deal_id}</b>\n"
+            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> <b>Сделка</b> <code>#{deal_id}</code>\n"
             "<tg-emoji emoji-id='5942877472163892475'>👤</tg-emoji> Вы покупатель.\n\n"
             "• Завершённых сделок продавца: {seller_deals}\n\n"
             "Детали сделки:\n"
-            "<blockquote>• Код сделки: #{deal_id}\n"
+            "<blockquote>• Код сделки: <code>#{deal_id}</code>\n"
             "• Описание: {description}</blockquote>\n\n"
             "• Адрес оплаты: {wallet_address}\n"
             "• Сумма к оплате: {amount} {currency}\n"
@@ -111,7 +111,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
-            "Ваш платеж по сделке #{deal_id} успешно обработан.\n\n"
+            "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
             "Транзакция:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "Детали сделки:\n"
@@ -121,7 +121,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n"
-            "Покупатель оплатил сделку #{deal_id}\n\n"
+            "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
             "Транзакция:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "Детали сделки:\n"
@@ -132,14 +132,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
-            "Ваш платеж по сделке #{deal_id} успешно обработан.\n\n"
+            "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
             "Транзакция:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вступите в канал по кнопке сделки и дождитесь, пока продавец вручную передаст вам статус владельца. Бот проверит это автоматически."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n"
-            "Покупатель оплатил сделку #{deal_id}\n\n"
+            "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
             "Транзакция:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вручную передайте ему статус владельца в настройках Telegram и не удаляйте бота из администраторов. После статуса creator бот автоматически запустит выплату."
@@ -172,7 +172,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DELIVERY_NOTICE: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> Продавец оказал услугу!\n\n"
             "Продавец подтвердил, что оказал услугу по сделке:\n"
-            "<blockquote>• Код сделки: #{deal_id}\n"
+            "<blockquote>• Код сделки: <code>#{deal_id}</code>\n"
             "• Описание: {description}\n"
             "• Сумма к оплате: {payment_amount} {currency}</blockquote>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Пожалуйста, проверьте качество выполненной работы.\n\n"
@@ -189,7 +189,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Для разбора напишите в службу поддержки и укажите ID сделки."
         ),
         TextKey.DEAL_REFUNDED: "Возврат покупателю подтверждён сетью TON.",
-        TextKey.DEAL_CANCELLED_BY_SELLER: "Сделка отменена продавцом\nКод сделки: #{deal_id}",
+        TextKey.DEAL_CANCELLED_BY_SELLER: "Сделка отменена продавцом\nКод сделки: <code>#{deal_id}</code>",
         TextKey.DEAL_PAYOUT_RECEIVED: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Сделка успешно завершена!</b>\n<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>Выплата получена!</b>\n\nДетали сделки:\n"
             "<blockquote>• Описание: {description}\n"
@@ -231,7 +231,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Что если продавец не выполнил работу?\n"
             "<blockquote>Вы можете отменить сделку и вернуть средства до подтверждения.</blockquote>\n\n"
             "Сколько стоит комиссия?\n"
-            "<blockquote>Фиксировано 1,5% от суммы сделки.</blockquote>\n\n"
+            "<blockquote>Фиксировано 1% от суммы сделки.</blockquote>\n\n"
             "Можно ли торговать криптовалютой, товарами или услугами?\n"
             "<blockquote>Да, любые сделки между двумя пользователями.</blockquote>\n\n"
             "Как работает реферальная система?\n"
@@ -264,7 +264,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5879895758202735862'>🔒</tg-emoji> <b>Security:</b>\n"
             "Assets remain frozen until the deal conditions are fulfilled\n\n"
             "<tg-emoji emoji-id='5778139491810155937'>📊</tg-emoji> <b>Transparency:</b>\n"
-            "Fixed service fee — only 1.5%"
+            "Fixed service fee — only 1%"
             "</blockquote>\n\n"
             "<tg-emoji emoji-id='5994636050033545139'>🪧</tg-emoji> <b>Successful deals:</b> "
             "<a href='https://t.me/grnthub/4'>@grnthub</a>"
@@ -317,7 +317,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "The service fee is added to the invoice; network gas is paid separately."
         ),
         TextKey.DEAL_CREATED: (
-            "<tg-emoji emoji-id='5879895758202735862'>🔒</tg-emoji> <b>Deal #{deal_id} created</b>\n\n"
+            "<tg-emoji emoji-id='5879895758202735862'>🔒</tg-emoji> <b>Deal</b> <code>#{deal_id}</code> <b>created</b>\n\n"
             "Deal details:\n"
             "<blockquote>• Description: {description}\n"
             "• Seller will receive: {amount} {currency}\n"
@@ -329,11 +329,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DELIVER_BUTTON: "Service delivered",
         TextKey.DEAL_DISPUTE_BUTTON: "Open dispute",
         TextKey.DEAL_JOINED: (
-            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> <b>Deal #{deal_id}</b>\n"
+            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> <b>Deal</b> <code>#{deal_id}</code>\n"
             "<tg-emoji emoji-id='5942877472163892475'>👤</tg-emoji> You are the buyer.\n\n"
             "• Seller's completed deals: {seller_deals}\n\n"
             "Deal details:\n"
-            "<blockquote>• Deal code: #{deal_id}\n"
+            "<blockquote>• Deal code: <code>#{deal_id}</code>\n"
             "• Description: {description}</blockquote>\n\n"
             "• Payment address: {wallet_address}\n"
             "• Amount due: {amount} {currency}\n"
@@ -360,7 +360,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"
-            "Your payment for deal #{deal_id} was processed successfully.\n\n"
+            "Your payment for deal <code>#{deal_id}</code> was processed successfully.\n\n"
             "Transaction:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
             "Deal details:\n"
@@ -370,7 +370,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment confirmed!</b>\n"
-            "The buyer paid for deal #{deal_id}.\n\n"
+            "The buyer paid for deal <code>#{deal_id}</code>.\n\n"
             "Transaction:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
             "Deal details:\n"
@@ -381,14 +381,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"
-            "Your payment for deal #{deal_id} was processed successfully.\n\n"
+            "Your payment for deal <code>#{deal_id}</code> was processed successfully.\n\n"
             "Transaction:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Join the channel using the deal button and wait for the seller to transfer ownership manually. The bot will verify it automatically."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment confirmed!</b>\n"
-            "The buyer paid for deal #{deal_id}.\n\n"
+            "The buyer paid for deal <code>#{deal_id}</code>.\n\n"
             "Transaction:\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Transfer ownership manually in Telegram settings and do not remove the bot from the administrators. Once the buyer has creator status, the bot will start the payout automatically."
@@ -420,7 +420,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_DELIVERY_NOTICE: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> The seller delivered the service!\n\n"
             "The seller confirmed delivery for this deal:\n"
-            "<blockquote>• Deal code: #{deal_id}\n"
+            "<blockquote>• Deal code: <code>#{deal_id}</code>\n"
             "• Description: {description}\n"
             "• Amount paid: {payment_amount} {currency}</blockquote>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Please check the quality of the completed work.\n\n"
@@ -437,7 +437,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Contact support and include the deal ID."
         ),
         TextKey.DEAL_REFUNDED: "The TON network confirmed the buyer refund.",
-        TextKey.DEAL_CANCELLED_BY_SELLER: "The seller cancelled the deal\nDeal code: #{deal_id}",
+        TextKey.DEAL_CANCELLED_BY_SELLER: "The seller cancelled the deal\nDeal code: <code>#{deal_id}</code>",
         TextKey.DEAL_PAYOUT_RECEIVED: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Deal completed successfully!</b>\n"
             "<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>Payout received!</b>\n\n"
@@ -484,7 +484,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "What if the seller does not deliver?\n"
             "<blockquote>You can cancel the deal and recover the funds before confirmation.</blockquote>\n\n"
             "How much is the fee?\n"
-            "<blockquote>A fixed 1.5% of the deal amount.</blockquote>\n\n"
+            "<blockquote>A fixed 1% of the deal amount.</blockquote>\n\n"
             "Can I trade cryptocurrency, goods, or services?\n"
             "<blockquote>Yes, any deals between two users.</blockquote>\n\n"
             "How does the referral program work?\n"

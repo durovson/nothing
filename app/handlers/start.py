@@ -60,7 +60,7 @@ async def start_with_args(
             buyer, seller, buyer_deals = join_event
             await notification_gateway.buyer_joined(deal, buyer, seller, buyer_deals)
         if deal.status is not DealStatus.PENDING:
-            await render_deal_card(message, deal, db_user, deal_service)
+            await render_deal_card(message, deal, db_user, deal_service, settings)
             return
         try:
             channel_invite = await channel_service.buyer_join_link(deal)

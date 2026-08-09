@@ -19,10 +19,6 @@ def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineK
                 premium_button(translate(locale, TextKey.MENU_MY_DEALS), icon=CustomEmoji.MY_DEALS, callback_data=MenuCallback(action=MenuAction.DEALS).pack()),
             ],
             [
-                premium_button(translate(locale, TextKey.MENU_FAQ), icon=CustomEmoji.FAQ, callback_data=MenuCallback(action=MenuAction.FAQ).pack()),
-                premium_button(translate(locale, TextKey.MENU_DOCUMENTS), icon=CustomEmoji.DOCUMENTS, callback_data=MenuCallback(action=MenuAction.DOCUMENTS).pack()),
-            ],
-            [
                 premium_button(translate(locale, TextKey.SETTINGS_REFERRALS), icon=CustomEmoji.REFERRALS, callback_data=MenuCallback(action=MenuAction.REFERRALS).pack()),
                 premium_button(translate(locale, TextKey.MENU_SETTINGS), icon=CustomEmoji.SETTINGS, callback_data=MenuCallback(action=MenuAction.SETTINGS).pack()),
             ],

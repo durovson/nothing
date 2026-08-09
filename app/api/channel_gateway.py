@@ -111,7 +111,7 @@ class TelegramChannelGateway:
         self, deal: Deal, buyer: User | None, seller: User | None
     ) -> None:
         text = (
-            f"⚖️ Сделка #{deal.public_id} переведена в спор: к дедлайну Telegram "
+            f"⚖️ Сделка <code>#{deal.public_id}</code> переведена в спор: к дедлайну Telegram "
             "не подтвердил покупателя владельцем канала. Средства остаются у гаранта."
         )
         for user in (buyer, seller):

@@ -1,6 +1,5 @@
 import logging
 from html import escape
-from urllib.parse import quote
 
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,12 +10,13 @@ from app.core.constants import (
     COMPLETED_DEALS_TOPIC_ID,
 )
 from app.core.custom_emoji import CustomEmoji
-from app.core.enums import DealType, Language, TonNetwork
+from app.core.enums import DealType, Language
 from app.keyboards.buttons import premium_button
 from app.keyboards.callbacks import DealAction, DealCallback, MenuAction, MenuCallback
 from app.locales import TextKey, translate
 from app.models.entities import Deal, User
 from app.ton.amounts import asset_payment_amount
+from app.ton.links import tonviewer_transaction_url
 from app.utils import currency_label, format_amount
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class TelegramNotificationGateway:
         if seller.language is Language.RU:
             text = (
                 f"Пользователь {username} ({buyer.telegram_id}) присоединился к сделке "
-                f"#{deal.public_id}\n\n"
+                f"<code>#{deal.public_id}</code>\n\n"
                 f"• Сделок завершено: {buyer_deals}\n\n"
                 "⚠️ <b>ВАЖНО</b>\n\n"
                 "Проверьте, что Telegram ID и username совпадают с пользователем, с которым вы "
@@ -46,7 +46,7 @@ class TelegramNotificationGateway:
             open_text = "Открыть сделку"
         else:
             text = (
-                f"User {username} ({buyer.telegram_id}) joined deal #{deal.public_id}\n\n"
+                f"User {username} ({buyer.telegram_id}) joined deal <code>#{deal.public_id}</code>\n\n"
                 f"• Buyer completed deals: {buyer_deals}\n\n"
                 "⚠️ Make sure this is the same person you spoke with.\n\n"
                 "Do not deliver the service until the bot confirms payment."
@@ -244,8 +244,7 @@ class TelegramNotificationGateway:
         if not transaction_hash:
             logger.error("Deal %s has no %s transaction hash", deal.public_id, "payout" if payout else "payment")
             return "https://tonviewer.com/"
-        host = "testnet.tonviewer.com" if self._settings.TON_NETWORK is TonNetwork.TESTNET else "tonviewer.com"
-        return f"https://{host}/transaction/{quote(transaction_hash, safe='')}"
+        return tonviewer_transaction_url(transaction_hash, self._settings.TON_NETWORK)
 
     async def _send(self, user: User, key: TextKey, **kwargs: object) -> None:
         reply_markup = kwargs.pop("reply_markup", None)

@@ -2,9 +2,9 @@ from aiogram import F, Router, types
 
 from app.config import Settings
 from app.core.custom_emoji import CustomEmoji
-from app.keyboards import MenuCallback
+from app.keyboards import MenuCallback, SettingsCallback
 from app.keyboards.buttons import premium_button
-from app.keyboards.callbacks import MenuAction
+from app.keyboards.callbacks import MenuAction, SettingsAction
 from app.locales import TextKey, translate
 from app.models.entities import User
 from app.utils import render_menu
@@ -12,16 +12,14 @@ from app.utils import render_menu
 router = Router(name="information")
 
 
-def _home_keyboard(locale):
+def _settings_keyboard(locale):
     from aiogram.types import InlineKeyboardMarkup
-
-    from app.keyboards import MenuCallback
 
     return InlineKeyboardMarkup(inline_keyboard=[[
         premium_button(
-            text=translate(locale, TextKey.MAIN_MENU_BUTTON),
-            icon=CustomEmoji.HOME,
-            callback_data=MenuCallback(action=MenuAction.BACK).pack(),
+            text=translate(locale, TextKey.BACK_BUTTON),
+            icon=CustomEmoji.BACK,
+            callback_data=SettingsCallback(action=SettingsAction.BACK).pack(),
         )
     ]])
 
@@ -32,7 +30,7 @@ async def show_faq(callback: types.CallbackQuery, db_user: User, settings: Setti
         await render_menu(
             callback.message,
             translate(db_user.language, TextKey.FAQ_CAPTION, support_username=settings.SUPPORT_USERNAME),
-            _home_keyboard(db_user.language),
+            _settings_keyboard(db_user.language),
             screen="faq",
         )
 
@@ -49,7 +47,7 @@ async def show_documents(callback: types.CallbackQuery, db_user: User, settings:
             [premium_button(translate(db_user.language, TextKey.TERMS_BUTTON), icon=CustomEmoji.DOCUMENTS, url=f"{base_url}/documents/terms")],
             [premium_button(translate(db_user.language, TextKey.SERVICE_DESCRIPTION_BUTTON), icon=CustomEmoji.DOCUMENTS, url=f"{base_url}/documents/service")],
         ])
-    rows.extend(_home_keyboard(db_user.language).inline_keyboard)
+    rows.extend(_settings_keyboard(db_user.language).inline_keyboard)
     if callback.message:
         await render_menu(
             callback.message,

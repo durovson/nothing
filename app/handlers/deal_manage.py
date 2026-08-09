@@ -3,6 +3,7 @@ from html import escape
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
+from app.config import Settings
 from app.core.enums import DealStatus, DealType, Language
 from app.core.constants import DISPUTE_DESCRIPTION_MAX_LENGTH, DISPUTE_DESCRIPTION_MIN_LENGTH
 from app.core.exceptions import (
@@ -20,6 +21,7 @@ from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
+from app.ton.links import tonviewer_transaction_url
 from app.utils import (
     channel_member_status_label,
     currency_label,
@@ -48,6 +50,7 @@ async def render_deal_card(
     deal: Deal,
     db_user: User,
     deal_service: DealService,
+    settings: Settings,
 ) -> None:
     """Render the canonical deal screen for callbacks and deep links."""
     buyer_user, seller_user = await deal_service.participants(deal)
@@ -88,8 +91,18 @@ async def render_deal_card(
         seller=seller_marker,
         channel_details=channel_details,
     )
+    payout_url = None
+    if completed and deal.payout_tx_hash:
+        payout_url = tonviewer_transaction_url(deal.payout_tx_hash, settings.TON_NETWORK)
     caption = (
-        caption.replace(status_marker, deal_status_html(deal.status, db_user.language))
+        caption.replace(
+            status_marker,
+            deal_status_html(
+                deal.status,
+                db_user.language,
+                transaction_url=payout_url,
+            ),
+        )
         .replace(buyer_marker, buyer)
         .replace(seller_marker, seller)
     )
@@ -154,6 +167,7 @@ async def open_deal(
     callback_data: DealCallback,
     db_user: User,
     deal_service: DealService,
+    settings: Settings,
 ) -> None:
     deal = await deal_service.get_deal(callback_data.deal_id)
     if not deal:
@@ -165,7 +179,7 @@ async def open_deal(
             await callback.message.answer(translate(db_user.language, TextKey.DEAL_FORBIDDEN))
         return
     if callback.message:
-        await render_deal_card(callback.message, deal, db_user, deal_service)
+        await render_deal_card(callback.message, deal, db_user, deal_service, settings)
 
 
 @router.callback_query(DealCallback.filter(F.action == DealAction.CANCEL))
@@ -175,6 +189,7 @@ async def cancel_deal(
     db_user: User,
     deal_service: DealService,
     notification_gateway: TelegramNotificationGateway,
+    settings: Settings,
 ) -> None:
     deal, applied = await deal_service.cancel_deal(
         callback_data.deal_id, db_user.telegram_id
@@ -197,7 +212,7 @@ async def cancel_deal(
         buyer, seller = await deal_service.participants(deal)
         await notification_gateway.dispute_opened(deal, buyer, seller)
         if callback.message:
-            await render_deal_card(callback.message, deal, db_user, deal_service)
+            await render_deal_card(callback.message, deal, db_user, deal_service, settings)
         await callback.answer(
             "После оплаты отмена рассматривается как спор. Средства заморожены до решения администратора."
             if db_user.language is Language.RU

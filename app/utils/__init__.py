@@ -1,7 +1,6 @@
 from app.utils.formatting import (
     channel_member_status_label,
     currency_label,
-    deal_status_button_label,
     deal_status_custom_emoji,
     deal_status_html,
     deal_status_label,
@@ -13,7 +12,6 @@ from app.utils.menu import remember_menu, render_home, render_menu, render_store
 __all__ = [
     "channel_member_status_label",
     "currency_label",
-    "deal_status_button_label",
     "deal_status_custom_emoji",
     "deal_status_html",
     "deal_status_label",

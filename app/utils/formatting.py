@@ -1,4 +1,5 @@
 from decimal import Decimal
+from html import escape
 
 from app.core.custom_emoji import CustomEmoji
 from app.core.enums import ChannelMemberStatus, Currency, DealStatus, DealType, Language
@@ -97,20 +98,20 @@ def deal_status_fallback_emoji(status: DealStatus | str) -> str:
     }[deal_status_custom_emoji(status)]
 
 
-def deal_status_button_label(
+def deal_status_html(
     status: DealStatus | str,
     locale: Language = Language.RU,
+    *,
+    transaction_url: str | None = None,
 ) -> str:
-    """Render a button label with its status marker on the right."""
-    return f"{deal_status_label(status, locale)} {deal_status_fallback_emoji(status)}"
-
-
-def deal_status_html(status: DealStatus | str, locale: Language = Language.RU) -> str:
     """Render a localized status with a Telegram custom emoji entity."""
     icon = deal_status_custom_emoji(status)
     fallback = deal_status_fallback_emoji(status)
+    label = deal_status_label(status, locale)
+    if transaction_url:
+        label = f'<a href="{escape(transaction_url, quote=True)}">{label}</a>'
     return (
-        f"{deal_status_label(status, locale)} "
+        f"{label} "
         f'<tg-emoji emoji-id="{icon.value}">{fallback}</tg-emoji>'
     )
 
