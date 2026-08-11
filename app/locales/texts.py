@@ -25,7 +25,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Настройки",
         TextKey.MENU_FAQ: "Вопросы",
         TextKey.MENU_DOCUMENTS: "Документы",
-        TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
+        TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nТекущий адрес:\n"
             "<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
@@ -33,11 +33,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.WALLET_SAVED: "Кошелек сохранен:\n<blockquote><code>{wallet}</code></blockquote>",
         TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
-        TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Создание сделки</b>\n\nВыберите тип сделки <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
+        TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Создание сделки</b>\n\nВыберите тип сделки:",
         TextKey.DEAL_TYPE_OFFER: "Оффер",
         TextKey.DEAL_TYPE_CHANNEL: "Канал",
         TextKey.DEAL_CHANNEL_WARNING: (
-            "<tg-emoji emoji-id='5843843420468024653'>🔖</tg-emoji> <b>Сделка по каналу</b>\n\n"
+            "<tg-emoji emoji-id='5839116473951328489'>⭐️</tg-emoji> <b>Сделка по каналу</b>\n\n"
             "<blockquote>Добавьте бота администратором канала и выдайте ему полные права, включая "
             "приглашение пользователей и назначение администраторов. Затем отправьте @username, ID канала "
             "или перешлите сообщение из канала.</blockquote>\n\n"
@@ -58,12 +58,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_PAY_BUTTON: "Оплатить в Tonkeeper",
         TextKey.DEAL_CHANNEL_JOIN_BUTTON: "Запросить доступ к каналу",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Создание оффера</b>\n\nУкажите, что вы предлагаете в сделке.\n\n"
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>Создание оффера</b>\n\nУкажите, что вы предлагаете в сделке.\n\n"
             "Например:\n"
             "<blockquote>Цифровой товар, подарок, аккаунт или услуга и условия её оказания.</blockquote>"
         ),
-        TextKey.DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Создание сделки</b>\n\nВыберите валюту сделки <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
-        TextKey.DEAL_AMOUNT_PROMPT: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Создание сделки</b>\n\nВведите сумму сделки.\n\nНапример: 5 или 12.5",
+        TextKey.DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Создание сделки</b>\n\nВыберите валюту сделки:",
+        TextKey.DEAL_AMOUNT_PROMPT: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Создание сделки</b>\n\nВведите сумму сделки.\n\nНапример: 5 или 12.5",
         TextKey.DEAL_AMOUNT_INVALID: "Введите положительное число.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Минимальная сумма сделки — {minimum} {currency} <tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji></blockquote>\n\n"
@@ -96,8 +96,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_FORBIDDEN: "У вас нет доступа к этой сделке.",
         TextKey.DEAL_ALREADY_CANCELLED: "Эту сделку уже нельзя отменить.",
         TextKey.DEAL_CANCELLED: "Сделка отменена.",
-        TextKey.DEAL_LIST_EMPTY: "Здесь пока ничего нет",
-        TextKey.DEAL_LIST_CAPTION: "<b>Мои сделки:</b>",
+        TextKey.DEAL_LIST_EMPTY: "<tg-emoji emoji-id='5967548335542767952'>📋</tg-emoji> <b>Мои сделки</b>\n\nЗдесь пока ничего нет",
+        TextKey.DEAL_LIST_CAPTION: "<tg-emoji emoji-id='5967548335542767952'>📋</tg-emoji> <b>Мои сделки:</b>",
         TextKey.DEAL_CARD: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> "
             "<b>Сделка</b> <code>#{deal_id}</code>\n\n"
@@ -220,7 +220,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.BACK_BUTTON: "Назад",
         TextKey.MAIN_MENU_BUTTON: "Главное меню",
         TextKey.FAQ_CAPTION: (
-            "<tg-emoji emoji-id='5778184941154078090'>📚</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
+            "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
             "Как использовать сервис:\n"
             "<blockquote>1. Добавьте свой TON-кошелёк в разделе «Мой кошелёк».\n"
             "2. Создайте сделку или присоединитесь к ней.\n"
@@ -275,7 +275,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Settings",
         TextKey.MENU_FAQ: "Questions",
         TextKey.MENU_DOCUMENTS: "Documents",
-        TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
+        TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nCurrent address:\n"
             "<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
@@ -283,11 +283,11 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.WALLET_SAVED: "Wallet saved:\n<blockquote><code>{wallet}</code></blockquote>",
         TextKey.WALLET_INVALID: "This does not look like a TON address. Please try again.",
-        TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Create a deal</b>\n\nChoose the deal type <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
+        TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Create a deal</b>\n\nChoose the deal type:",
         TextKey.DEAL_TYPE_OFFER: "Offer",
         TextKey.DEAL_TYPE_CHANNEL: "Channel",
         TextKey.DEAL_CHANNEL_WARNING: (
-            "<tg-emoji emoji-id='5843843420468024653'>🔖</tg-emoji> <b>Channel deal</b>\n\n"
+            "<tg-emoji emoji-id='5839116473951328489'>⭐️</tg-emoji> <b>Channel deal</b>\n\n"
             "<blockquote>Add the bot as a channel administrator and grant it full rights, including inviting users and appointing administrators. Then send the channel @username or ID, or forward a message from the channel.</blockquote>\n\n"
             "<blockquote>The buyer will join through an invite link. After payment, the seller manually transfers ownership. The bot verifies the status automatically and starts the payout only after verification.</blockquote>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> <b>Do not remove the bot from the administrators until the deal is complete!</b>"
@@ -305,12 +305,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_PAY_BUTTON: "Pay in Tonkeeper",
         TextKey.DEAL_CHANNEL_JOIN_BUTTON: "Request channel access",
         TextKey.DEAL_DESCRIPTION_PROMPT: (
-            "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Create an offer</b>\n\nDescribe what you offer in the deal.\n\n"
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>Create an offer</b>\n\nDescribe what you offer in the deal.\n\n"
             "Example:\n"
             "<blockquote>A digital item, gift, account, service, and its delivery terms.</blockquote>"
         ),
-        TextKey.DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Create a deal</b>\n\nChoose the deal currency <tg-emoji emoji-id='5908808657700655253'>👇</tg-emoji>",
-        TextKey.DEAL_AMOUNT_PROMPT: "<tg-emoji emoji-id='5967389567781703494'>💼</tg-emoji> <b>Create a deal</b>\n\nEnter the deal amount.\n\nExample: 5 or 12.5",
+        TextKey.DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Create a deal</b>\n\nChoose the deal currency:",
+        TextKey.DEAL_AMOUNT_PROMPT: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Create a deal</b>\n\nEnter the deal amount.\n\nExample: 5 or 12.5",
         TextKey.DEAL_AMOUNT_INVALID: "Please enter a positive number.",
         TextKey.DEAL_AMOUNT_TOO_SMALL: (
             "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Minimum deal amount — {minimum} {currency} <tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji></blockquote>\n\n"
@@ -345,8 +345,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DEAL_FORBIDDEN: "You do not have access to this deal.",
         TextKey.DEAL_ALREADY_CANCELLED: "This deal can no longer be cancelled.",
         TextKey.DEAL_CANCELLED: "Deal cancelled.",
-        TextKey.DEAL_LIST_EMPTY: "Nothing here yet",
-        TextKey.DEAL_LIST_CAPTION: "<b>My deals:</b>",
+        TextKey.DEAL_LIST_EMPTY: "<tg-emoji emoji-id='5967548335542767952'>📋</tg-emoji> <b>My deals</b>\n\nNothing here yet",
+        TextKey.DEAL_LIST_CAPTION: "<tg-emoji emoji-id='5967548335542767952'>📋</tg-emoji> <b>My deals:</b>",
         TextKey.DEAL_CARD: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> "
             "<b>Deal</b> <code>#{deal_id}</code>\n\n"
@@ -473,7 +473,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.BACK_BUTTON: "Back",
         TextKey.MAIN_MENU_BUTTON: "Main menu",
         TextKey.FAQ_CAPTION: (
-            "<tg-emoji emoji-id='5778184941154078090'>📚</tg-emoji> <b>Help and frequently asked questions</b>\n\n"
+            "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Help and frequently asked questions</b>\n\n"
             "How to use the service:\n"
             "<blockquote>1. Add your TON wallet in the “My wallet” section.\n"
             "2. Create a deal or join an existing one.\n"

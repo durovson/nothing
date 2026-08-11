@@ -192,7 +192,7 @@ async def choose_currency(
         await render_menu(
             callback.message,
             caption,
-            currency_keyboard(db_user.language),
+            back_keyboard(db_user.language),
             screen="deal_create",
         )
 
@@ -210,7 +210,7 @@ async def handle_amount(
         if not amount.is_finite() or amount <= 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language), screen="deal_create")
+        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), back_keyboard(db_user.language), screen="deal_create")
         return
 
     data = await state.get_data()
@@ -232,7 +232,7 @@ async def handle_amount(
                 TextKey.DEAL_AMOUNT_TOO_SMALL,
                 minimum=format_amount(exc.minimum),
                 currency=currency_label(exc.currency),
-            ), currency_keyboard(db_user.language), screen="deal_create"
+            ), back_keyboard(db_user.language), screen="deal_create"
         )
         return
     except MissingLinkedWalletError:
@@ -247,7 +247,7 @@ async def handle_amount(
         await state.clear()
         return
     except (ValidationError, KeyError, ValueError):
-        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), currency_keyboard(db_user.language), screen="deal_create")
+        await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), back_keyboard(db_user.language), screen="deal_create")
         return
     bot_username = settings.TELEGRAM_BOT_USERNAME or (await message.bot.get_me()).username or "YourBot"
     deep_link = f"https://t.me/{bot_username}?start={deal.public_id}"
