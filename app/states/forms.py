@@ -12,6 +12,15 @@ class DealCreationStates(StatesGroup):
     waiting_for_amount = State()
 
 
+class DeskCreationStates(StatesGroup):
+    waiting_for_kind = State()
+    waiting_for_description = State()
+    previewing_description = State()
+    waiting_for_deal_currency = State()
+    waiting_for_amount = State()
+    waiting_for_payment_currency = State()
+
+
 class ChannelDealStates(StatesGroup):
     """Input state isolated from the generic offer creation flow."""
 

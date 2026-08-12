@@ -12,6 +12,7 @@ from app.models.entities import Deal, ObservedDeposit
 from app.services.collections import CollectionService
 from app.ton.amounts import asset_payment_amount_atomic
 from app.services.system_mode import SystemModeService
+from app.services.desk import DeskService
 
 SCANNER_NAME = "guarant-usdt-tep74-v1"
 
@@ -25,6 +26,7 @@ class UsdtDepositIndexer:
         ton: TonGatewayProtocol,
         collections: CollectionService,
         system_mode: SystemModeService | None = None,
+        desk: DeskService | None = None,
     ):
         self._settings = settings
         self._deposits = deposits
@@ -32,6 +34,7 @@ class UsdtDepositIndexer:
         self._ton = ton
         self._collections = collections
         self._system_mode = system_mode
+        self._desk = desk
 
     async def run_once(self) -> None:
         if self._system_mode is not None and not await self._system_mode.accepts_deposits():
@@ -66,10 +69,20 @@ class UsdtDepositIndexer:
                 "observed_at": observation.observed_at.isoformat(),
             }
         )
-        if deposit is None or deposit.processed_at is not None:
+        if deposit is None:
+            return
+        if deposit.processed_at is not None:
+            if self._desk is not None and deposit.desk_checked_at is None:
+                await self._desk.try_process_deposit(deposit)
+                await self._deposits.mark_desk_checked(deposit.id)
             return
         deal, reason = await self._match(deposit)
         if deal is None:
+            if self._desk is not None and reason in {"missing_or_malformed_memo", "unknown_memo"}:
+                handled = await self._desk.try_process_deposit(deposit)
+                await self._deposits.mark_desk_checked(deposit.id)
+                if handled:
+                    return
             await self._deposits.add_unmatched(deposit, reason)
             await self._deposits.mark_processed(deposit.id)
             return

@@ -8,13 +8,15 @@ from app.config import Settings
 from app.core.constants import (
     COMPLETED_DEALS_CHANNEL,
     COMPLETED_DEALS_TOPIC_ID,
+    DESK_CHANNEL,
+    DESK_TOPIC_ID,
 )
 from app.core.custom_emoji import CustomEmoji
 from app.core.enums import DealType, Language
 from app.keyboards.buttons import premium_button
 from app.keyboards.callbacks import DealAction, DealCallback, MenuAction, MenuCallback
 from app.locales import TextKey, translate
-from app.models.entities import Deal, User
+from app.models.entities import Deal, DeskListing, User
 from app.ton.amounts import asset_payment_amount
 from app.ton.links import tonviewer_transaction_url
 from app.utils import currency_label, format_amount
@@ -210,6 +212,52 @@ class TelegramNotificationGateway:
             )
             return False
         return True
+
+    async def publish_desk_listing(self, listing: DeskListing) -> int | None:
+        """Publish one paid listing in the dedicated Desk forum topic."""
+        price = (
+            "Offer"
+            if listing.price is None
+            else f"{format_amount(listing.price)} {currency_label(listing.deal_currency)}"
+        )
+        text = (
+            f"<tg-emoji emoji-id='{CustomEmoji.MESSAGE.value}'>💬</tg-emoji> <b>{listing.kind.value}</b>\n\n"
+            "<b>Детали сделки:</b>\n"
+            f"<blockquote>• Описание:\n{escape(listing.description)}\n\n"
+            f"• Цена: {price}</blockquote>"
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+            premium_button(
+                "Профиль",
+                icon=CustomEmoji.PERSON,
+                url=f"tg://user?id={listing.owner_id}",
+            )
+        ]])
+        try:
+            message = await self._bot.send_message(
+                DESK_CHANNEL,
+                text,
+                message_thread_id=DESK_TOPIC_ID,
+                reply_markup=keyboard,
+            )
+        except Exception:
+            logger.exception("Desk publication failed listing=%s", listing.public_id)
+            return None
+        return message.message_id
+
+    async def desk_listing_published(self, listing: DeskListing) -> None:
+        language = listing.owner_language
+        price = "Offer" if listing.price is None else f"{format_amount(listing.price)} {currency_label(listing.deal_currency)}"
+        await self._send_text(
+            listing.owner_id,
+            translate(
+                language,
+                TextKey.DESK_CREATED,
+                listing_id=listing.public_id,
+                description=escape(listing.description),
+                price=price,
+            ),
+        )
 
     async def cancelled_by_seller(self, deal: Deal, buyer: User) -> None:
         await self._send(

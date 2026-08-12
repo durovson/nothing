@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from app.core.enums import Currency, DealType
+from app.core.enums import Currency, DealType, DeskKind, Language
 
 
 class CreateDealCommand(BaseModel):
@@ -17,6 +17,21 @@ class CreateDealCommand(BaseModel):
     channel_id: int | None = None
     channel_title: str | None = Field(default=None, max_length=255)
     channel_username: str | None = Field(default=None, max_length=64)
+
+
+class CreateDeskListingCommand(BaseModel):
+    public_id: str = Field(min_length=10, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")
+    owner_id: int
+    owner_username: str = Field(min_length=1, max_length=64)
+    owner_language: Language
+    kind: DeskKind
+    description: str = Field(min_length=1, max_length=2_000)
+    deal_currency: Currency
+    price: Decimal | None = Field(default=None, gt=Decimal("0"))
+    payment_currency: Currency
+    publication_fee: Decimal = Field(gt=Decimal("0"))
+    publication_fee_atomic: int = Field(gt=0)
+    payment_deadline_at: datetime
 
 
 class ChannelDescriptor(BaseModel):

@@ -12,6 +12,7 @@ from app.repositories.admin import AdminRepository
 from app.repositories.deposits import DepositRepository
 from app.repositories.financial_operations import FinancialOperationRepository
 from app.repositories.system import SystemSettingsRepository
+from app.repositories.desk import DeskRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +25,7 @@ class Repositories:
     deposits: DepositRepository
     financial_operations: FinancialOperationRepository
     system: SystemSettingsRepository
+    desk: DeskRepository
 
     @classmethod
     def build(cls, database: SupabaseDatabase) -> Self:
@@ -36,6 +38,7 @@ class Repositories:
             deposits=DepositRepository(database),
             financial_operations=FinancialOperationRepository(database),
             system=SystemSettingsRepository(database),
+            desk=DeskRepository(database),
         )
 
 
@@ -48,4 +51,5 @@ __all__ = [
     "DepositRepository",
     "FinancialOperationRepository",
     "SystemSettingsRepository",
+    "DeskRepository",
 ]

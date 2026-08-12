@@ -11,6 +11,19 @@ class Currency(StrEnum):
     USDT = "USDT"
 
 
+class DeskKind(StrEnum):
+    WTS = "WTS"
+    WTB = "WTB"
+
+
+class DeskListingStatus(StrEnum):
+    WAITING_PAYMENT = "waiting_payment"
+    PUBLISHING = "publishing"
+    PUBLISHED = "published"
+    EXPIRED = "expired"
+    PUBLICATION_FAILED = "publication_failed"
+
+
 class AdminDisputeAction(StrEnum):
     OPEN = "open"
     RELEASE = "release"

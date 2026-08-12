@@ -342,6 +342,46 @@ class TonEscrowClient:
         )
 
     @_translate_provider_failures
+    async def scan_guarant_ton_deposits(
+        self, last_lt: int | None, last_hash: str | None
+    ) -> DepositScanBatch:
+        """Index inbound TON transfers to the guarant wallet for paid Desk posts."""
+        del last_hash
+        transactions = await self._guarant_wallet.get_transactions(
+            limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
+        )
+        observations: list[PaymentObservation] = []
+        newest_lt: int | None = None
+        newest_hash: str | None = None
+        for transaction in transactions:
+            if newest_lt is None:
+                newest_lt = int(transaction.lt)
+                newest_hash = transaction_hash(transaction)
+            if last_lt is not None and int(transaction.lt) <= last_lt:
+                break
+            incoming = transaction.in_msg
+            info = getattr(incoming, "info", None) if incoming else None
+            if not isinstance(info, InternalMsgInfo) or info.bounced or info.value_coins <= 0:
+                continue
+            credited_atomic = _credited_amount_atomic(transaction.description)
+            if credited_atomic is None or credited_atomic <= 0:
+                continue
+            observations.append(PaymentObservation(
+                tx_hash=transaction_hash(transaction),
+                tx_lt=int(transaction.lt),
+                amount_atomic=int(info.value_coins),
+                sender=info.src.to_str(is_bounceable=False) if info.src else None,
+                memo=decode_text_comment(incoming.body),
+                observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
+            ))
+        observations.sort(key=lambda item: item.tx_lt)
+        return DepositScanBatch(
+            deposits=observations,
+            newest_lt=newest_lt,
+            newest_hash=newest_hash,
+        )
+
+    @_translate_provider_failures
     async def prepare_batch_payout(
         self,
         deal: Deal,

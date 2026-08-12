@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from app.core.enums import (
     CollectionStatus,
     Currency,
+    DeskKind,
+    DeskListingStatus,
     DealStatus,
     DealType,
     DisputeStatus,
@@ -30,6 +32,33 @@ class User(BaseModel):
     language: Language = Language.RU
     referrer_id: int | None = None
     created_at: datetime | None = None
+
+
+class DeskListing(BaseModel):
+    id: int
+    public_id: str
+    owner_id: int
+    owner_username: str
+    owner_language: Language = Language.RU
+    kind: DeskKind
+    description: str
+    deal_currency: Currency
+    price: Decimal | None = None
+    payment_currency: Currency
+    publication_fee: Decimal
+    publication_fee_atomic: int
+    status: DeskListingStatus
+    payment_deadline_at: datetime
+    observed_deposit_id: int | None = None
+    paid_tx_hash: str | None = None
+    paid_tx_lt: int | None = None
+    payment_sender: str | None = None
+    paid_at: datetime | None = None
+    topic_message_id: int | None = None
+    published_at: datetime | None = None
+    failure_reason: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class Deal(BaseModel):
@@ -261,6 +290,7 @@ class ObservedDeposit(BaseModel):
     matched_deal_id: int | None = None
     processed_at: datetime | None = None
     created_at: datetime | None = None
+    desk_checked_at: datetime | None = None
 
 
 class UnmatchedPayment(BaseModel):

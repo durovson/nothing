@@ -2,6 +2,9 @@ from app.keyboards.callbacks import (
     CurrencyCallback,
     DealCallback,
     DealTypeCallback,
+    DeskActionCallback,
+    DeskCurrencyCallback,
+    DeskKindCallback,
     LanguageCallback,
     MenuCallback,
     PageCallback,
@@ -9,6 +12,7 @@ from app.keyboards.callbacks import (
     ReferralCallback,
 )
 from app.keyboards.deals import back_keyboard, created_deal_actions, currency_keyboard, deal_actions, deal_type_keyboard, deals_list, payment_keyboard
+from app.keyboards.desk import desk_amount_keyboard, desk_currency_keyboard, desk_invoice_keyboard, desk_kind_keyboard, description_preview_keyboard
 from app.keyboards.menu import main_menu
 from app.keyboards.settings import home_keyboard, language_keyboard, referral_keyboard, settings_keyboard
 from app.keyboards.wallet import wallet_actions
@@ -17,6 +21,9 @@ __all__ = [
     "CurrencyCallback",
     "DealCallback",
     "DealTypeCallback",
+    "DeskActionCallback",
+    "DeskCurrencyCallback",
+    "DeskKindCallback",
     "LanguageCallback",
     "MenuCallback",
     "PageCallback",
@@ -29,6 +36,11 @@ __all__ = [
     "deal_type_keyboard",
     "deals_list",
     "payment_keyboard",
+    "desk_amount_keyboard",
+    "desk_currency_keyboard",
+    "desk_invoice_keyboard",
+    "desk_kind_keyboard",
+    "description_preview_keyboard",
     "language_keyboard",
     "home_keyboard",
     "referral_keyboard",

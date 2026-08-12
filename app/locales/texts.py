@@ -25,6 +25,40 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Настройки",
         TextKey.MENU_FAQ: "Вопросы",
         TextKey.MENU_DOCUMENTS: "Документы",
+        TextKey.MENU_CREATE_DESK: "Создать объявление",
+        TextKey.DESK_KIND_PROMPT: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\n"
+            "Выберите из следующего:\n"
+            "<blockquote>WTS — для продажи/оказания услуги и тд.\n\n"
+            "WTB — для покупки/поиска услуги и тд.</blockquote>"
+        ),
+        TextKey.DESK_DESCRIPTION_PROMPT: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\n"
+            "Укажите, что вы предлагаете в объявлении.\n\n"
+            "Например:\n<blockquote>Цифровой товар, подарок, аккаунт или услуга и условия её оказания.</blockquote>"
+        ),
+        TextKey.DESK_DESCRIPTION_PREVIEW: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
+            "<b>Детали сделки:</b>\n<blockquote>• Описание:\n{description}</blockquote>\n\n"
+            "Проверьте описание. Чтобы исправить его, отправьте новый текст или нажмите «Изменить описание»."
+        ),
+        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВыберите валюту для сделки в объявлении:",
+        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВведите сумму сделки или нажмите кнопку Оффер, если цена согласовывается в DM.\n\nНапример: 5 или 12.5",
+        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВыберите валюту для оплаты публикации:",
+        TextKey.DESK_PAYMENT_INVOICE: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Оплата объявления</b>\n\n"
+            "Чтобы опубликовать сообщение в разделе Desk, отправьте точную сумму на адрес гаранта.\n\n"
+            "<b>Адрес:</b>\n<code>{wallet}</code>\n\n<b>Сумма:</b> {fee} {currency}\n"
+            "<b>Обязательный комментарий:</b> <code>{username}</code>\n\n"
+            "<blockquote>Комментарий можно указать с @ или без него. Оплата действует 15 минут.</blockquote>"
+        ),
+        TextKey.DESK_CREATED: (
+            "<tg-emoji emoji-id='5875206779196935950'>📅</tg-emoji> <b>Объявление</b> <code>#{listing_id}</code> <b>создано</b>\n\n"
+            "<b>Детали объявления:</b>\n<blockquote>• Описание:\n{description}\n\n• Цена: {price}</blockquote>"
+        ),
+        TextKey.DESK_EXPIRED: "Время оплаты объявления истекло. Создайте его заново.",
+        TextKey.DESK_USERNAME_REQUIRED: "Для публикации объявления у профиля Telegram должен быть @username.",
+        TextKey.DESK_INVALID_AMOUNT: "Введите положительное число, например 5 или 12.5.",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nТекущий адрес:\n"
@@ -275,6 +309,37 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_SETTINGS: "Settings",
         TextKey.MENU_FAQ: "Questions",
         TextKey.MENU_DOCUMENTS: "Documents",
+        TextKey.MENU_CREATE_DESK: "Create listing",
+        TextKey.DESK_KIND_PROMPT: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\n"
+            "Choose one of the following:\n<blockquote>WTS — to sell or provide a service.\n\nWTB — to buy or find a service.</blockquote>"
+        ),
+        TextKey.DESK_DESCRIPTION_PROMPT: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\n"
+            "Describe what you offer in the listing.\n\nExample:\n<blockquote>A digital item, gift, account, service, and its terms.</blockquote>"
+        ),
+        TextKey.DESK_DESCRIPTION_PREVIEW: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
+            "<b>Deal details:</b>\n<blockquote>• Description:\n{description}</blockquote>\n\n"
+            "Check the description. Send replacement text or press Edit description to change it."
+        ),
+        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nChoose the deal currency shown in the listing:",
+        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nEnter the deal amount or press Offer if the price is negotiated in DM.\n\nExample: 5 or 12.5",
+        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nChoose the publication payment currency:",
+        TextKey.DESK_PAYMENT_INVOICE: (
+            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Listing payment</b>\n\n"
+            "To publish in Desk, send the exact amount to the guarant wallet.\n\n"
+            "<b>Address:</b>\n<code>{wallet}</code>\n\n<b>Amount:</b> {fee} {currency}\n"
+            "<b>Required comment:</b> <code>{username}</code>\n\n"
+            "<blockquote>The comment may include @ or omit it. The invoice is valid for 15 minutes.</blockquote>"
+        ),
+        TextKey.DESK_CREATED: (
+            "<tg-emoji emoji-id='5875206779196935950'>📅</tg-emoji> <b>Listing</b> <code>#{listing_id}</code> <b>created</b>\n\n"
+            "<b>Listing details:</b>\n<blockquote>• Description:\n{description}\n\n• Price: {price}</blockquote>"
+        ),
+        TextKey.DESK_EXPIRED: "The listing payment window has expired. Create it again.",
+        TextKey.DESK_USERNAME_REQUIRED: "Your Telegram profile needs an @username to publish a listing.",
+        TextKey.DESK_INVALID_AMOUNT: "Enter a positive number, for example 5 or 12.5.",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nCurrent address:\n"

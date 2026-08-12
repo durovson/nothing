@@ -7,6 +7,7 @@ from app.core.enums import (
     AdminDisputeAction,
     Currency,
     DealType,
+    DeskKind,
     FinancialAdminAction,
     Language,
     UnmatchedPaymentAction,
@@ -22,6 +23,19 @@ class MenuAction(StrEnum):
     REFERRALS = "referrals"
     FAQ = "faq"
     DOCUMENTS = "documents"
+    CREATE_DESK = "create_desk"
+
+
+class DeskAction(StrEnum):
+    CONFIRM_DESCRIPTION = "confirm_description"
+    EDIT_DESCRIPTION = "edit_description"
+    OFFER_PRICE = "offer_price"
+    CANCEL = "cancel"
+
+
+class DeskCurrencyPurpose(StrEnum):
+    DEAL = "deal"
+    PAYMENT = "payment"
 
 
 class DealAction(StrEnum):
@@ -57,6 +71,19 @@ class DealTypeCallback(CallbackData, prefix="deal-type"):
 
 
 class CurrencyCallback(CallbackData, prefix="currency"):
+    currency: Currency
+
+
+class DeskKindCallback(CallbackData, prefix="desk-kind"):
+    kind: DeskKind
+
+
+class DeskActionCallback(CallbackData, prefix="desk-action"):
+    action: DeskAction
+
+
+class DeskCurrencyCallback(CallbackData, prefix="desk-currency"):
+    purpose: DeskCurrencyPurpose
     currency: Currency
 
 
