@@ -66,6 +66,14 @@ class DepositRepository:
             .eq("id", deposit_id).execute()
         )
 
+    async def mark_desk_checked(self, deposit_id: int) -> None:
+        await self._database.run(
+            lambda: self._database.client.table("observed_deposits")
+            .update({"desk_checked_at": datetime.now(UTC).isoformat()})
+            .eq("id", deposit_id).execute(),
+            name="deposits:mark-desk-checked",
+        )
+
     async def add_unmatched(
         self, deposit: ObservedDeposit, reason: str
     ) -> UnmatchedPayment | None:

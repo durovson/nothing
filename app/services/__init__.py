@@ -15,6 +15,8 @@ from app.services.channels import ChannelDealService
 from app.services.financial_processor import FinancialOperationProcessor
 from app.services.usdt_indexer import UsdtDepositIndexer
 from app.services.ton_indexer import TonDepositIndexer
+from app.services.desk import DeskService
+from app.services.desk_indexer import DeskTonDepositIndexer
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +31,7 @@ class Services:
     refunds: RefundService
     admin: AdminService
     channels: ChannelDealService
+    desk: DeskService
 
 
 __all__ = [
@@ -46,4 +49,6 @@ __all__ = [
     "FinancialOperationProcessor",
     "UsdtDepositIndexer",
     "TonDepositIndexer",
+    "DeskService",
+    "DeskTonDepositIndexer",
 ]

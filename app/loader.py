@@ -28,6 +28,8 @@ from app.services import (
     ChannelDealService,
     UsdtDepositIndexer,
     TonDepositIndexer,
+    DeskService,
+    DeskTonDepositIndexer,
 )
 from app.tasks import DealMonitor
 from app.ton import TonEscrowClient
@@ -82,6 +84,13 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         system_mode,
     )
     channels = ChannelDealService(repositories.deals, repositories.users, channel_gateway)
+    desk = DeskService(
+        repositories.desk,
+        repositories.deposits,
+        ton,
+        notifications,
+        system_mode,
+    )
     deals = DealService(
         app_settings, repositories.deals, repositories.users, ton, system_mode
     )
@@ -125,6 +134,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         ton,
         collections,
         system_mode,
+        desk,
     )
     ton_indexer = TonDepositIndexer(
         app_settings,
@@ -132,6 +142,12 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         repositories.deals,
         ton,
         collections,
+        system_mode,
+    )
+    desk_ton_indexer = DeskTonDepositIndexer(
+        repositories.deposits,
+        ton,
+        desk,
         system_mode,
     )
     collection_processor = FinancialOperationProcessor(
@@ -193,6 +209,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         refunds=refunds,
         admin=admin,
         channels=channels,
+        desk=desk,
     )
     dispatcher = create_dispatcher(app_settings, services)
     dispatcher["notification_gateway"] = notifications
@@ -205,6 +222,8 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         channels,
         ton_indexer,
         usdt_indexer,
+        desk_ton_indexer,
+        desk,
         collection_processor,
         refund_processor,
         payout_processor,

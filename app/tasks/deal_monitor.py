@@ -18,6 +18,8 @@ from app.services.refunds import RefundService
 from app.services.system_mode import SystemModeService
 from app.services.ton_indexer import TonDepositIndexer
 from app.services.usdt_indexer import UsdtDepositIndexer
+from app.services.desk import DeskService
+from app.services.desk_indexer import DeskTonDepositIndexer
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,8 @@ class DealMonitor:
         channels: ChannelDealService,
         ton_indexer: TonDepositIndexer,
         usdt_indexer: UsdtDepositIndexer,
+        desk_ton_indexer: DeskTonDepositIndexer,
+        desk: DeskService,
         collection_processor: FinancialOperationProcessor,
         refund_processor: FinancialOperationProcessor,
         payout_processor: FinancialOperationProcessor,
@@ -58,6 +62,8 @@ class DealMonitor:
         self._channels = channels
         self._ton_indexer = ton_indexer
         self._usdt_indexer = usdt_indexer
+        self._desk_ton_indexer = desk_ton_indexer
+        self._desk = desk
         self._processors = {
             "collection_processor": collection_processor,
             "refund_processor": refund_processor,
@@ -100,6 +106,8 @@ class DealMonitor:
         workers: list[tuple[str, Callable[[], Awaitable[None]]]] = [
             ("ton-deposit-indexer", self._ton_indexer_loop),
             ("usdt-deposit-indexer", self._usdt_indexer_loop),
+            ("desk-ton-indexer", self._desk_ton_indexer_loop),
+            ("desk-expiry", self._desk_expiry_loop),
             ("deal-lifecycle", self._lifecycle_loop),
             ("refund-planner", self._refund_planner_loop),
             ("payout-planner", self._payout_planner_loop),
@@ -153,6 +161,12 @@ class DealMonitor:
 
     async def _usdt_indexer_loop(self) -> None:
         await self._repeat("USDT deposit indexer", self._usdt_indexer.run_once)
+
+    async def _desk_ton_indexer_loop(self) -> None:
+        await self._repeat("Desk TON indexer", self._desk_ton_indexer.run_once)
+
+    async def _desk_expiry_loop(self) -> None:
+        await self._repeat("Desk expiry", self._desk.expire_due)
 
     async def _refund_planner_loop(self) -> None:
         await self._repeat("Refund planner", self._refunds.process_requested)
