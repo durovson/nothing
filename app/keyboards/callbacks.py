@@ -28,7 +28,6 @@ class MenuAction(StrEnum):
 
 class DeskAction(StrEnum):
     CONFIRM_DESCRIPTION = "confirm_description"
-    EDIT_DESCRIPTION = "edit_description"
     OFFER_PRICE = "offer_price"
     CANCEL = "cancel"
 

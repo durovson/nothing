@@ -32,13 +32,13 @@ def description_preview_keyboard(locale: Language) -> InlineKeyboardMarkup:
             icon=CustomEmoji.CONFIRM,
             callback_data=DeskActionCallback(action=DeskAction.CONFIRM_DESCRIPTION).pack(),
         )],
-        [premium_button(
-            "Изменить описание" if locale is Language.RU else "Edit description",
-            icon=CustomEmoji.BRUSH,
-            callback_data=DeskActionCallback(action=DeskAction.EDIT_DESCRIPTION).pack(),
-        )],
         [_cancel(locale)],
     ])
+
+
+def desk_cancel_keyboard(locale: Language) -> InlineKeyboardMarkup:
+    """Navigation for a text-input step without repeating earlier choices."""
+    return InlineKeyboardMarkup(inline_keyboard=[[_cancel(locale)]])
 
 
 def desk_currency_keyboard(

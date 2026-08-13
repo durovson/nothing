@@ -21,6 +21,7 @@ from app.keyboards.callbacks import (
 )
 from app.keyboards.desk import (
     desk_amount_keyboard,
+    desk_cancel_keyboard,
     desk_currency_keyboard,
     desk_invoice_keyboard,
     desk_kind_keyboard,
@@ -70,7 +71,7 @@ async def choose_kind(
         await render_menu(
             callback.message,
             translate(db_user.language, TextKey.DESK_DESCRIPTION_PROMPT),
-            desk_kind_keyboard(db_user.language),
+            desk_cancel_keyboard(db_user.language),
             screen="desk_create",
         )
 
@@ -98,23 +99,6 @@ async def receive_description(
         description_preview_keyboard(db_user.language),
         screen="desk_create",
     )
-
-
-@router.callback_query(
-    DeskCreationStates.previewing_description,
-    DeskActionCallback.filter(F.action == DeskAction.EDIT_DESCRIPTION),
-)
-async def edit_description(
-    callback: types.CallbackQuery, db_user: User, state: FSMContext
-) -> None:
-    await state.set_state(DeskCreationStates.waiting_for_description)
-    if callback.message:
-        await render_menu(
-            callback.message,
-            translate(db_user.language, TextKey.DESK_DESCRIPTION_PROMPT),
-            description_preview_keyboard(db_user.language),
-            screen="desk_create",
-        )
 
 
 @router.callback_query(
