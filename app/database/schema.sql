@@ -467,9 +467,45 @@ create table if not exists referral_rewards (
     referred_id bigint not null references users(telegram_id) on delete restrict,
     currency text not null check (currency in ('TON', 'USDT')),
     amount numeric(36, 9) not null check (amount > 0),
+    commission_share numeric(5, 4) not null default 0.10
+        check (commission_share > 0 and commission_share <= 1),
+    reward_source text not null default 'level'
+        check (reward_source in ('level', 'holder', 'special')),
     created_at timestamptz not null default timezone('utc', now()),
     unique (deal_id, referrer_id, referred_id)
 );
+
+create table if not exists referral_communities (
+    id bigint generated always as identity primary key,
+    name text not null check (char_length(name) between 1 and 120),
+    telegram_chat_id bigint not null unique,
+    collection_address text,
+    holder_share numeric(5, 4) not null default 0.30
+        check (holder_share > 0 and holder_share <= 1),
+    owner_user_id bigint references users(telegram_id) on delete set null,
+    enabled boolean not null default true,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists referral_community_memberships (
+    community_id bigint not null references referral_communities(id) on delete cascade,
+    telegram_id bigint not null,
+    status text not null check (status in ('active', 'inactive')),
+    telegram_status text not null,
+    joined_at timestamptz,
+    left_at timestamptz,
+    verified_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    primary key (community_id, telegram_id)
+);
+
+alter table referral_rewards add column if not exists community_id bigint
+    references referral_communities(id) on delete set null;
+alter table referral_rewards add column if not exists commission_share numeric(5, 4)
+    not null default 0.10 check (commission_share > 0 and commission_share <= 1);
+alter table referral_rewards add column if not exists reward_source text
+    not null default 'level' check (reward_source in ('level', 'holder', 'special'));
 
 create table if not exists referral_profiles (
     user_id bigint primary key references users(telegram_id) on delete restrict,

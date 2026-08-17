@@ -10,6 +10,7 @@ from app.locales import TextKey, translate
 from app.models.entities import User
 from app.services.referrals import ReferralService
 from app.services.users import UserService
+from app.handlers.referral_communities import sync_user_community_memberships
 from app.utils import format_amount
 from app.utils import render_menu
 from app.core.exceptions import MissingLinkedWalletError, ReferralWithdrawalError
@@ -95,6 +96,11 @@ async def referral_info(
     referral_service: ReferralService,
     settings: Settings,
 ) -> None:
+    await sync_user_community_memberships(
+        callback.bot,
+        referral_service,
+        db_user.telegram_id,
+    )
     stats = await referral_service.get_stats(db_user.telegram_id)
     bot_username = settings.TELEGRAM_BOT_USERNAME or (await callback.bot.get_me()).username or "YourBot"
     link = f"https://t.me/{bot_username}?start=ref_{db_user.telegram_id}"
@@ -108,8 +114,26 @@ async def referral_info(
                 earned_ton=format_amount(stats.earned_ton),
                 earned_usdt=format_amount(stats.earned_usdt),
                 rate=format_amount(stats.commission_share * 100),
-                level=stats.level.value.replace("level_", "Level ").replace("special", "Special"),
+                level=(
+                    stats.level.value
+                    .replace("level_", "Level ")
+                    .replace("holder", "Holder")
+                    .replace("special", "Special")
+                ),
                 volume=format_amount(stats.ton_volume),
+                community_status=(
+                    (
+                        "\n\n<b>Статус сообщества:</b>\n"
+                        "<blockquote>• Участие подтверждено</blockquote>"
+                    )
+                    if stats.holder_community_id is not None and db_user.language is Language.RU
+                    else (
+                        "\n\n<b>Community status:</b>\n"
+                        "<blockquote>• Membership confirmed</blockquote>"
+                    )
+                    if stats.holder_community_id is not None
+                    else ""
+                ),
             ),
             referral_keyboard(
                 db_user.language,

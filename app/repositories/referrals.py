@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.core.enums import Currency, ReferralWithdrawalStatus
 from app.database import SupabaseDatabase
-from app.models.dto import ReferralProfile, ReferralStats
+from app.models.dto import ReferralCommunity, ReferralProfile, ReferralStats
 from app.models.entities import ReferralWithdrawal
 
 
@@ -19,7 +19,7 @@ class ReferralRepository:
         return bool(response.data)
 
     async def get_stats(self, referrer_id: int) -> ReferralStats:
-        relations, balances, profiles = await asyncio.gather(
+        relations, balances, profile_map = await asyncio.gather(
             self._database.read(
                 lambda: self._database.client.table("referrals")
                 .select("id")
@@ -32,37 +32,30 @@ class ReferralRepository:
                 .eq("user_id", referrer_id)
                 .execute()
             ),
-            self._database.read(
-                lambda: self._database.client.table("referral_profiles")
-                .select("user_id,level,ton_volume")
-                .eq("user_id", referrer_id)
-                .limit(1)
-                .execute()
-            ),
+            self.get_profiles({referrer_id}),
         )
         values = {str(row["currency"]): Decimal(str(row["balance"])) for row in balances.data or []}
-        profile = (
-            ReferralProfile(**profiles.data[0])
-            if profiles.data
-            else ReferralProfile(user_id=referrer_id)
-        )
+        profile = profile_map[referrer_id]
         return ReferralStats(
             count=len(relations.data or []),
             balance_ton=values.get(Currency.TON.value, Decimal(0)),
             balance_usdt=values.get(Currency.USDT.value, Decimal(0)),
-            level=profile.level,
+            level=profile.effective_level,
             ton_volume=profile.ton_volume,
             commission_share=profile.commission_share,
+            holder_community_id=profile.holder_community_id,
+            holder_community_name=profile.holder_community_name,
         )
 
     async def get_profiles(self, user_ids: set[int]) -> dict[int, ReferralProfile]:
         if not user_ids:
             return {}
         response = await self._database.read(
-            lambda: self._database.client.table("referral_profiles")
-            .select("user_id,level,ton_volume")
-            .in_("user_id", sorted(user_ids))
-            .execute()
+            lambda: self._database.client.rpc(
+                "get_referral_profiles_with_entitlements",
+                {"p_user_ids": sorted(user_ids)},
+            ).execute(),
+            name="referral-profiles:with-entitlements",
         )
         profiles = {
             int(row["user_id"]): ReferralProfile(**row)
@@ -71,6 +64,35 @@ class ReferralRepository:
         for user_id in user_ids:
             profiles.setdefault(user_id, ReferralProfile(user_id=user_id))
         return profiles
+
+    async def list_enabled_communities(self) -> list[ReferralCommunity]:
+        response = await self._database.read(
+            lambda: self._database.client.table("referral_communities")
+            .select("id,name,telegram_chat_id,collection_address,holder_share,owner_user_id,enabled")
+            .eq("enabled", True)
+            .order("id")
+            .execute(),
+            name="referral-communities:list-enabled",
+        )
+        return [ReferralCommunity(**row) for row in response.data or []]
+
+    async def sync_community_membership(
+        self,
+        chat_id: int,
+        telegram_id: int,
+        telegram_status: str,
+        active: bool,
+    ) -> bool:
+        response = await self._database.rpc(
+            "sync_referral_community_membership",
+            {
+                "p_telegram_chat_id": chat_id,
+                "p_telegram_id": telegram_id,
+                "p_telegram_status": telegram_status,
+                "p_active": active,
+            },
+        )
+        return bool(response.data)
 
     async def add_reward(
         self,

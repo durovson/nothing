@@ -99,7 +99,7 @@ class PayoutService:
         if buyer is None and deal.buyer_id:
             buyer = await self._users.get(deal.buyer_id)
         allocations = await self._referrals.reward_allocations(seller, buyer, deal)
-        referral_total = sum((amount for _, amount in allocations), start=Decimal(0))
+        referral_total = sum((allocation.amount for allocation in allocations), start=Decimal(0))
         service_fee_atomic = asset_service_fee_atomic(
             deal.amount, deal.currency, self._settings.ESCROW_FEE_RATE
         )
@@ -119,11 +119,14 @@ class PayoutService:
             service_comment=self._settings.SERVICE_FEE_COMMENT,
             referral_allocations=[
                 {
-                    "referrer_id": participant.referrer_id,
-                    "referred_id": participant.telegram_id,
-                    "amount": str(amount),
+                    "referrer_id": allocation.referred.referrer_id,
+                    "referred_id": allocation.referred.telegram_id,
+                    "amount": str(allocation.amount),
+                    "commission_share": str(allocation.commission_share),
+                    "reward_source": allocation.reward_source,
+                    "community_id": allocation.community_id,
                 }
-                for participant, amount in allocations
+                for allocation in allocations
             ],
         )
 

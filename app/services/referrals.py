@@ -15,7 +15,7 @@ from app.core.types import (
     ReferralRepositoryProtocol,
     TonGatewayProtocol,
 )
-from app.models.dto import ReferralStats
+from app.models.dto import ReferralAllocation, ReferralCommunity, ReferralStats
 from app.models.entities import Deal, ReferralWithdrawal, User
 from app.ton.amounts import asset_quantum
 from app.services.system_mode import SystemModeService
@@ -44,9 +44,23 @@ class ReferralService:
     async def get_stats(self, referrer_id: int) -> ReferralStats:
         return await self._referrals.get_stats(referrer_id)
 
+    async def enabled_communities(self) -> list[ReferralCommunity]:
+        return await self._referrals.list_enabled_communities()
+
+    async def sync_community_membership(
+        self,
+        chat_id: int,
+        telegram_id: int,
+        telegram_status: str,
+        active: bool,
+    ) -> bool:
+        return await self._referrals.sync_community_membership(
+            chat_id, telegram_id, telegram_status, active
+        )
+
     async def reward_allocations(
         self, seller: User | None, buyer: User | None, deal: Deal
-    ) -> list[tuple[User, Decimal]]:
+    ) -> list[ReferralAllocation]:
         participants = [item for item in (seller, buyer) if item and item.referrer_id]
         if not participants:
             return []
@@ -56,7 +70,7 @@ class ReferralService:
         quantum = asset_quantum(deal.currency)
         service_fee = (deal.amount * self._settings.ESCROW_FEE_RATE).quantize(quantum)
         remaining = service_fee
-        allocations: list[tuple[User, Decimal]] = []
+        allocations: list[ReferralAllocation] = []
         for participant in participants:
             profile = profiles[participant.referrer_id]
             amount = min(
@@ -64,7 +78,19 @@ class ReferralService:
                 remaining,
             )
             if amount > 0:
-                allocations.append((participant, amount))
+                allocations.append(
+                    ReferralAllocation(
+                        referred=participant,
+                        amount=amount,
+                        commission_share=profile.commission_share,
+                        reward_source=profile.reward_source,
+                        community_id=(
+                            profile.holder_community_id
+                            if profile.reward_source == "holder"
+                            else None
+                        ),
+                    )
+                )
                 remaining -= amount
         return allocations
 
@@ -72,7 +98,7 @@ class ReferralService:
         self, seller: User | None, buyer: User | None, deal: Deal
     ) -> Decimal:
         return sum(
-            (amount for _, amount in await self.reward_allocations(seller, buyer, deal)),
+            (allocation.amount for allocation in await self.reward_allocations(seller, buyer, deal)),
             start=Decimal("0"),
         )
 

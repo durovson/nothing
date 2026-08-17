@@ -12,10 +12,17 @@ alter table referral_rewards enable row level security;
 alter table referral_profiles enable row level security;
 alter table referral_balances enable row level security;
 alter table referral_withdrawals enable row level security;
+alter table referral_communities enable row level security;
+alter table referral_community_memberships enable row level security;
 alter table bot_settings enable row level security;
 
 revoke all on table referral_profiles from public, anon, authenticated;
 grant select, insert, update on table referral_profiles to service_role;
+revoke all on table referral_communities from public, anon, authenticated;
+revoke all on table referral_community_memberships from public, anon, authenticated;
+grant select, insert, update, delete on table referral_communities to service_role;
+grant select, insert, update, delete on table referral_community_memberships to service_role;
+grant usage, select on sequence referral_communities_id_seq to service_role;
 
 revoke all on function claim_deal_payment(bigint, text, numeric, numeric, text, boolean, timestamptz) from public, anon, authenticated;
 revoke all on function claim_deal_collection(bigint, text, text) from public, anon, authenticated;
@@ -33,6 +40,8 @@ revoke all on function release_success_feed_notification(bigint) from public, an
 revoke all on function request_deal_cancellation(bigint, bigint) from public, anon, authenticated;
 revoke all on function assign_user_referrer(bigint, bigint) from public, anon, authenticated;
 revoke all on function credit_referral_reward(bigint, bigint, bigint, text, numeric) from public, anon, authenticated;
+revoke all on function sync_referral_community_membership(bigint, bigint, text, boolean) from public, anon, authenticated;
+revoke all on function get_referral_profiles_with_entitlements(bigint[]) from public, anon, authenticated;
 revoke all on function claim_referral_withdrawal(bigint, text, text, text) from public, anon, authenticated;
 revoke all on function save_prepared_referral_withdrawal(bigint, text, text, timestamptz) from public, anon, authenticated;
 revoke all on function mark_referral_withdrawal_submitted(bigint) from public, anon, authenticated;
@@ -81,6 +90,8 @@ grant execute on function release_success_feed_notification(bigint) to service_r
 grant execute on function request_deal_cancellation(bigint, bigint) to service_role;
 grant execute on function assign_user_referrer(bigint, bigint) to service_role;
 grant execute on function credit_referral_reward(bigint, bigint, bigint, text, numeric) to service_role;
+grant execute on function sync_referral_community_membership(bigint, bigint, text, boolean) to service_role;
+grant execute on function get_referral_profiles_with_entitlements(bigint[]) to service_role;
 grant execute on function claim_referral_withdrawal(bigint, text, text, text) to service_role;
 grant execute on function save_prepared_referral_withdrawal(bigint, text, text, timestamptz) to service_role;
 grant execute on function mark_referral_withdrawal_submitted(bigint) to service_role;

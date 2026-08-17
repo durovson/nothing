@@ -63,6 +63,8 @@ class ReferralStats(BaseModel):
     level: ReferralLevel = ReferralLevel.LEVEL_1
     ton_volume: Decimal = Decimal("0")
     commission_share: Decimal = Decimal("0.10")
+    holder_community_id: int | None = None
+    holder_community_name: str | None = None
 
     @property
     def earned_ton(self) -> Decimal:
@@ -77,12 +79,59 @@ class ReferralProfile(BaseModel):
     user_id: int
     level: ReferralLevel = ReferralLevel.LEVEL_1
     ton_volume: Decimal = Decimal("0")
+    holder_community_id: int | None = None
+    holder_community_name: str | None = None
+    holder_share: Decimal | None = None
+
+    @property
+    def effective_level(self) -> ReferralLevel:
+        if self.level is ReferralLevel.SPECIAL:
+            return ReferralLevel.SPECIAL
+        if self.holder_community_id is not None:
+            return ReferralLevel.HOLDER
+        return self.level
 
     @property
     def commission_share(self) -> Decimal:
+        if self.level is ReferralLevel.SPECIAL:
+            return Decimal("0.50")
+        if self.holder_community_id is not None:
+            return self.holder_share or Decimal("0.30")
         return {
             ReferralLevel.LEVEL_1: Decimal("0.10"),
             ReferralLevel.LEVEL_2: Decimal("0.20"),
             ReferralLevel.LEVEL_3: Decimal("0.30"),
+            ReferralLevel.HOLDER: Decimal("0.30"),
             ReferralLevel.SPECIAL: Decimal("0.50"),
         }[self.level]
+
+    @property
+    def reward_source(self) -> str:
+        if self.level is ReferralLevel.SPECIAL:
+            return "special"
+        if self.holder_community_id is not None:
+            return "holder"
+        return "level"
+
+
+class ReferralCommunity(BaseModel):
+    id: int
+    name: str
+    telegram_chat_id: int
+    collection_address: str | None = None
+    holder_share: Decimal = Decimal("0.30")
+    owner_user_id: int | None = None
+    enabled: bool = True
+
+
+class ReferralAllocation(BaseModel):
+    referred: "User"
+    amount: Decimal
+    commission_share: Decimal
+    reward_source: str
+    community_id: int | None = None
+
+
+from app.models.entities import User  # noqa: E402  (resolves the forward model)
+
+ReferralAllocation.model_rebuild()

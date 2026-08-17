@@ -26,7 +26,7 @@ class CurrentUserMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         event_user = data.get("event_from_user")
-        if event_user:
+        if event_user and not event_user.is_bot:
             started_at = perf_counter()
             try:
                 user = await self._users.ensure_user(
