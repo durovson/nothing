@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.core.enums import Currency, ReferralWithdrawalStatus
 from app.database import SupabaseDatabase
-from app.models.dto import ReferralStats
+from app.models.dto import ReferralProfile, ReferralStats
 from app.models.entities import ReferralWithdrawal
 
 
@@ -19,7 +19,7 @@ class ReferralRepository:
         return bool(response.data)
 
     async def get_stats(self, referrer_id: int) -> ReferralStats:
-        relations, balances = await asyncio.gather(
+        relations, balances, profiles = await asyncio.gather(
             self._database.read(
                 lambda: self._database.client.table("referrals")
                 .select("id")
@@ -32,13 +32,45 @@ class ReferralRepository:
                 .eq("user_id", referrer_id)
                 .execute()
             ),
+            self._database.read(
+                lambda: self._database.client.table("referral_profiles")
+                .select("user_id,level,ton_volume")
+                .eq("user_id", referrer_id)
+                .limit(1)
+                .execute()
+            ),
         )
         values = {str(row["currency"]): Decimal(str(row["balance"])) for row in balances.data or []}
+        profile = (
+            ReferralProfile(**profiles.data[0])
+            if profiles.data
+            else ReferralProfile(user_id=referrer_id)
+        )
         return ReferralStats(
             count=len(relations.data or []),
             balance_ton=values.get(Currency.TON.value, Decimal(0)),
             balance_usdt=values.get(Currency.USDT.value, Decimal(0)),
+            level=profile.level,
+            ton_volume=profile.ton_volume,
+            commission_share=profile.commission_share,
         )
+
+    async def get_profiles(self, user_ids: set[int]) -> dict[int, ReferralProfile]:
+        if not user_ids:
+            return {}
+        response = await self._database.read(
+            lambda: self._database.client.table("referral_profiles")
+            .select("user_id,level,ton_volume")
+            .in_("user_id", sorted(user_ids))
+            .execute()
+        )
+        profiles = {
+            int(row["user_id"]): ReferralProfile(**row)
+            for row in response.data or []
+        }
+        for user_id in user_ids:
+            profiles.setdefault(user_id, ReferralProfile(user_id=user_id))
+        return profiles
 
     async def add_reward(
         self,

@@ -248,7 +248,7 @@ class TonEscrowClient:
                 continue
 
             memo = decode_text_comment(incoming.body)
-            if memo != deal.public_id or info.value_coins != expected_atomic:
+            if info.value_coins != expected_atomic:
                 continue
 
             sender = info.src.to_str(is_bounceable=False) if info.src else None

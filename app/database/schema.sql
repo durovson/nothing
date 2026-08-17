@@ -471,6 +471,53 @@ create table if not exists referral_rewards (
     unique (deal_id, referrer_id, referred_id)
 );
 
+create table if not exists referral_profiles (
+    user_id bigint primary key references users(telegram_id) on delete restrict,
+    level text not null default 'level_1'
+        check (level in ('level_1', 'level_2', 'level_3', 'special')),
+    ton_volume numeric(36, 9) not null default 0 check (ton_volume >= 0),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+insert into referral_profiles(user_id)
+select distinct referrer_id from referrals
+on conflict (user_id) do nothing;
+
+create or replace function ensure_referral_profile_after_relation()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    insert into referral_profiles(user_id) values(new.referrer_id)
+    on conflict (user_id) do nothing;
+    return new;
+end;
+$$;
+drop trigger if exists referrals_ensure_profile on referrals;
+create trigger referrals_ensure_profile after insert on referrals
+for each row execute function ensure_referral_profile_after_relation();
+
+create or replace function update_referral_profile_after_reward()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_ton_volume numeric(36, 9) := 0;
+begin
+    select case when currency = 'TON' then amount else 0 end into v_ton_volume
+    from deals where id = new.deal_id;
+    insert into referral_profiles(user_id, level, ton_volume)
+    values(new.referrer_id, case when v_ton_volume >= 1000 then 'level_3'
+        when v_ton_volume >= 500 then 'level_2' else 'level_1' end, v_ton_volume)
+    on conflict (user_id) do update set
+        ton_volume = referral_profiles.ton_volume + excluded.ton_volume,
+        level = case when referral_profiles.level = 'special' then 'special'
+            when referral_profiles.ton_volume + excluded.ton_volume >= 1000 then 'level_3'
+            when referral_profiles.ton_volume + excluded.ton_volume >= 500 then 'level_2'
+            else 'level_1' end,
+        updated_at = timezone('utc', now());
+    return new;
+end;
+$$;
+drop trigger if exists referral_rewards_update_profile on referral_rewards;
+create trigger referral_rewards_update_profile after insert on referral_rewards
+for each row execute function update_referral_profile_after_reward();
+
 create table if not exists referral_balances (
     user_id bigint not null references users(telegram_id) on delete restrict,
     currency text not null check (currency in ('TON', 'USDT')),

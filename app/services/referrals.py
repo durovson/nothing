@@ -4,7 +4,6 @@ from decimal import Decimal
 
 from app.config import Settings
 from app.core.constants import (
-    REFERRAL_COMMISSION_SHARE,
     REFERRAL_MIN_WITHDRAW_TON,
     REFERRAL_MIN_WITHDRAW_USDT,
     REFERRAL_WITHDRAW_COMMENT,
@@ -45,31 +44,35 @@ class ReferralService:
     async def get_stats(self, referrer_id: int) -> ReferralStats:
         return await self._referrals.get_stats(referrer_id)
 
-    def reward_allocations(
+    async def reward_allocations(
         self, seller: User | None, buyer: User | None, deal: Deal
     ) -> list[tuple[User, Decimal]]:
         participants = [item for item in (seller, buyer) if item and item.referrer_id]
         if not participants:
             return []
-        service_fee = deal.amount * self._settings.ESCROW_FEE_RATE
-        pool = (service_fee * REFERRAL_COMMISSION_SHARE).quantize(
-            asset_quantum(deal.currency)
+        profiles = await self._referrals.get_profiles(
+            {participant.referrer_id for participant in participants if participant.referrer_id}
         )
-        if pool <= 0:
-            return []
-        share = (pool / len(participants)).quantize(asset_quantum(deal.currency))
-        allocations = [(participant, share) for participant in participants]
-        remainder = pool - share * len(participants)
-        if remainder:
-            participant, amount = allocations[0]
-            allocations[0] = (participant, amount + remainder)
+        quantum = asset_quantum(deal.currency)
+        service_fee = (deal.amount * self._settings.ESCROW_FEE_RATE).quantize(quantum)
+        remaining = service_fee
+        allocations: list[tuple[User, Decimal]] = []
+        for participant in participants:
+            profile = profiles[participant.referrer_id]
+            amount = min(
+                (service_fee * profile.commission_share).quantize(quantum),
+                remaining,
+            )
+            if amount > 0:
+                allocations.append((participant, amount))
+                remaining -= amount
         return allocations
 
-    def reward_total(
+    async def reward_total(
         self, seller: User | None, buyer: User | None, deal: Deal
     ) -> Decimal:
         return sum(
-            (amount for _, amount in self.reward_allocations(seller, buyer, deal)),
+            (amount for _, amount in await self.reward_allocations(seller, buyer, deal)),
             start=Decimal("0"),
         )
 

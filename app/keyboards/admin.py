@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.core.custom_emoji import CustomEmoji
 from app.core.enums import (
     AdminAction,
     AdminDisputeAction,
@@ -15,6 +16,7 @@ from app.keyboards.callbacks import (
     AdminFinancialCallback,
     AdminUnmatchedCallback,
 )
+from app.keyboards.buttons import premium_button
 from app.models.entities import DisputeTicket, FinancialOperation, UnmatchedPayment
 
 
@@ -70,10 +72,10 @@ def admin_operations(items: list[FinancialOperation], page: int, has_next: bool)
     )] for item in items]
     navigation: list[InlineKeyboardButton] = []
     if page > 0:
-        navigation.append(InlineKeyboardButton(text="←", callback_data=AdminFinancialCallback(action=FinancialAdminAction.OPEN, operation_id=0, page=page - 1).pack()))
+        navigation.append(premium_button(text="\u200b", icon=CustomEmoji.PREVIOUS, callback_data=AdminFinancialCallback(action=FinancialAdminAction.OPEN, operation_id=0, page=page - 1).pack()))
     navigation.append(InlineKeyboardButton(text=str(page + 1), callback_data="noop"))
     if has_next:
-        navigation.append(InlineKeyboardButton(text="→", callback_data=AdminFinancialCallback(action=FinancialAdminAction.OPEN, operation_id=0, page=page + 1).pack()))
+        navigation.append(premium_button(text="\u200b", icon=CustomEmoji.NEXT, callback_data=AdminFinancialCallback(action=FinancialAdminAction.OPEN, operation_id=0, page=page + 1).pack()))
     rows.extend([navigation, admin_back().inline_keyboard[0]])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -97,10 +99,10 @@ def admin_unmatched(items: list[UnmatchedPayment], page: int, has_next: bool) ->
     )] for item in items]
     navigation: list[InlineKeyboardButton] = []
     if page > 0:
-        navigation.append(InlineKeyboardButton(text="←", callback_data=AdminUnmatchedCallback(action=UnmatchedPaymentAction.OPEN, payment_id=0, page=page - 1).pack()))
+        navigation.append(premium_button(text="\u200b", icon=CustomEmoji.PREVIOUS, callback_data=AdminUnmatchedCallback(action=UnmatchedPaymentAction.OPEN, payment_id=0, page=page - 1).pack()))
     navigation.append(InlineKeyboardButton(text=str(page + 1), callback_data="noop"))
     if has_next:
-        navigation.append(InlineKeyboardButton(text="→", callback_data=AdminUnmatchedCallback(action=UnmatchedPaymentAction.OPEN, payment_id=0, page=page + 1).pack()))
+        navigation.append(premium_button(text="\u200b", icon=CustomEmoji.NEXT, callback_data=AdminUnmatchedCallback(action=UnmatchedPaymentAction.OPEN, payment_id=0, page=page + 1).pack()))
     rows.extend([navigation, admin_back().inline_keyboard[0]])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -117,8 +119,8 @@ def admin_unmatched_actions(payment: UnmatchedPayment, page: int, confirm: bool 
 def _dispute_navigation(page: int, has_next: bool) -> list[list[InlineKeyboardButton]]:
     row: list[InlineKeyboardButton] = []
     if page > 0:
-        row.append(InlineKeyboardButton(text="←", callback_data=AdminDisputeCallback(action=AdminDisputeAction.OPEN, ticket_id=0, page=page - 1).pack()))
+        row.append(premium_button(text="\u200b", icon=CustomEmoji.PREVIOUS, callback_data=AdminDisputeCallback(action=AdminDisputeAction.OPEN, ticket_id=0, page=page - 1).pack()))
     row.append(InlineKeyboardButton(text=str(page + 1), callback_data="noop"))
     if has_next:
-        row.append(InlineKeyboardButton(text="→", callback_data=AdminDisputeCallback(action=AdminDisputeAction.OPEN, ticket_id=0, page=page + 1).pack()))
+        row.append(premium_button(text="\u200b", icon=CustomEmoji.NEXT, callback_data=AdminDisputeCallback(action=AdminDisputeAction.OPEN, ticket_id=0, page=page + 1).pack()))
     return [row]

@@ -98,7 +98,7 @@ class UsdtDepositIndexer:
 
     async def _match(self, deposit: ObservedDeposit) -> tuple[Deal | None, str]:
         if not deposit.memo:
-            return None, "missing_or_malformed_memo"
+            return await self._match_without_memo(deposit)
         deal = await self._deals.get_by_public_id(deposit.memo)
         if deal is None:
             return None, "unknown_memo"
@@ -123,3 +123,36 @@ class UsdtDepositIndexer:
             ):
                 return None, "unexpected_or_custodial_sender"
         return deal, "matched"
+
+    async def _match_without_memo(
+        self, deposit: ObservedDeposit
+    ) -> tuple[Deal | None, str]:
+        """Match a memo-less shared-wallet payment only when it is unambiguous."""
+
+        if not deposit.sender:
+            return None, "missing_sender_and_memo"
+        normalized_sender = self._ton.normalize_address(deposit.sender)
+        candidates: list[Deal] = []
+        for deal in await self._deals.list_pending(limit=500):
+            if (
+                deal.currency is not Currency.USDT
+                or deal.buyer_id is None
+                or deal.status not in {DealStatus.PENDING, DealStatus.CANCELLED}
+            ):
+                continue
+            buyer = deal.buyer_wallet_snapshot or deal.buyer_wallet_address
+            if not buyer or self._ton.normalize_address(buyer) != normalized_sender:
+                continue
+            expected = asset_payment_amount_atomic(
+                deal.amount,
+                deal.currency,
+                self._settings.ESCROW_FEE_RATE,
+                self._settings.TON_PAYOUT_FEE_RESERVE,
+            )
+            if deposit.amount_atomic == expected:
+                candidates.append(deal)
+        if len(candidates) == 1:
+            return candidates[0], "matched"
+        if not candidates:
+            return None, "missing_memo_no_matching_deal"
+        return None, "missing_memo_ambiguous_deal"

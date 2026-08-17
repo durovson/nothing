@@ -40,13 +40,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DESK_DESCRIPTION_PREVIEW: (
             "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
             "<b>Детали сделки:</b>\n<blockquote>• Описание:\n{description}</blockquote>\n\n"
-            "Проверьте описание. Чтобы исправить его, отправьте новый текст или нажмите «Изменить описание»."
+            "Проверьте описание. Чтобы исправить его, просто отправьте новый текст."
         ),
-        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВыберите валюту для сделки в объявлении:",
-        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВведите сумму сделки или нажмите кнопку Оффер, если цена согласовывается в DM.\n\nНапример: 5 или 12.5",
-        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Создание объявления</b>\n\nВыберите валюту для оплаты публикации:",
+        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nВыберите валюту для сделки в объявлении:",
+        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nВведите сумму сделки или нажмите кнопку Оффер, если цена согласовывается в DM.\n\nНапример: 5 или 12.5",
+        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nВыберите валюту для оплаты публикации:",
         TextKey.DESK_PAYMENT_INVOICE: (
-            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Оплата объявления</b>\n\n"
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
             "Чтобы опубликовать сообщение в разделе Desk, отправьте точную сумму на адрес гаранта.\n\n"
             "<b>Адрес:</b>\n<code>{wallet}</code>\n\n<b>Сумма:</b> {fee} {currency}\n"
             "<b>Обязательный комментарий:</b> <code>{username}</code>\n\n"
@@ -122,8 +122,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Описание: {description}</blockquote>\n\n"
             "• Адрес оплаты: {wallet_address}\n"
             "• Сумма к оплате: {amount} {currency}\n"
-            "• Обязательный комментарий: {deal_id}\n\n"
-            "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Пожалуйста, убедитесь, что при оплате указываете обязательный комментарий (memo) и точную сумму!</blockquote>\n\n"
+            "• Комментарий (необязательно): {deal_id}\n\n"
+            "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Отправьте точную сумму на указанный адрес. Комментарий можно не указывать.</blockquote>\n\n"
             "После оплаты бот автоматически проверит перевод."
         ),
         TextKey.DEAL_NOT_FOUND: "Сделка не найдена.",
@@ -244,7 +244,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.SUPPORT_TEXT: "<tg-emoji emoji-id='5967411695453213733'>🛟</tg-emoji> <b>Поддержка</b>\n\nПо вопросам и спорам напишите {support_username}.",
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Рефералы</b>\n\n<b>Детали:</b>\n"
-            "<blockquote>• Реферальный процент: {rate} %\n"
+            "<blockquote>• Уровень: {level}\n"
+            "• Реферальный процент: {rate} % комиссии\n"
+            "• Накопительный объём: {volume} GRAM\n"
             "• Приглашено пользователей: {count}</blockquote>\n\n"
             "<b>Баланс:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
@@ -321,13 +323,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DESK_DESCRIPTION_PREVIEW: (
             "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
             "<b>Deal details:</b>\n<blockquote>• Description:\n{description}</blockquote>\n\n"
-            "Check the description. Send replacement text or press Edit description to change it."
+            "Check the description. To change it, simply send replacement text."
         ),
-        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nChoose the deal currency shown in the listing:",
-        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nEnter the deal amount or press Offer if the price is negotiated in DM.\n\nExample: 5 or 12.5",
-        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Create a listing</b>\n\nChoose the publication payment currency:",
+        TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nChoose the deal currency shown in the listing:",
+        TextKey.DESK_AMOUNT_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nEnter the deal amount or press Offer if the price is negotiated in DM.\n\nExample: 5 or 12.5",
+        TextKey.DESK_PAYMENT_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nChoose the publication payment currency:",
         TextKey.DESK_PAYMENT_INVOICE: (
-            "<tg-emoji emoji-id='5839116473951328489'>📌</tg-emoji> <b>Listing payment</b>\n\n"
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
             "To publish in Desk, send the exact amount to the guarant wallet.\n\n"
             "<b>Address:</b>\n<code>{wallet}</code>\n\n<b>Amount:</b> {fee} {currency}\n"
             "<b>Required comment:</b> <code>{username}</code>\n\n"
@@ -402,8 +404,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Description: {description}</blockquote>\n\n"
             "• Payment address: {wallet_address}\n"
             "• Amount due: {amount} {currency}\n"
-            "• Required comment: {deal_id}\n\n"
-            "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Make sure you include the required comment (memo) and the exact amount when paying!</blockquote>\n\n"
+            "• Comment (optional): {deal_id}\n\n"
+            "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Send the exact amount to the specified address. The comment may be omitted.</blockquote>\n\n"
             "After payment, the bot will verify the transfer automatically."
         ),
         TextKey.DEAL_NOT_FOUND: "Deal not found.",
@@ -527,7 +529,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Referrals</b>\n\n"
             "<b>Details:</b>\n"
-            "<blockquote>• Referral percentage: {rate} %\n"
+            "<blockquote>• Level: {level}\n"
+            "• Referral percentage: {rate} % of the service fee\n"
+            "• Cumulative volume: {volume} GRAM\n"
             "• Users invited: {count}</blockquote>\n\n"
             "<b>Balance:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"

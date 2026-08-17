@@ -85,10 +85,10 @@ def deals_list(locale: Language, deals: list[Deal], page: int, total_pages: int)
     ]
     pagination: list[InlineKeyboardButton] = []
     if page > 0:
-        pagination.append(InlineKeyboardButton(text="⬅️", callback_data=PageCallback(action=PageAction.OPEN, page=page - 1).pack()))
+        pagination.append(premium_button(text="\u200b", icon=CustomEmoji.PREVIOUS, callback_data=PageCallback(action=PageAction.OPEN, page=page - 1).pack()))
     pagination.append(InlineKeyboardButton(text=f"{page + 1}/{total_pages}", callback_data=PageCallback(action=PageAction.CURRENT, page=page).pack()))
     if page + 1 < total_pages:
-        pagination.append(InlineKeyboardButton(text="➡️", callback_data=PageCallback(action=PageAction.OPEN, page=page + 1).pack()))
+        pagination.append(premium_button(text="\u200b", icon=CustomEmoji.NEXT, callback_data=PageCallback(action=PageAction.OPEN, page=page + 1).pack()))
     rows.append(pagination)
     rows.append([premium_button(translate(locale, TextKey.MAIN_MENU_BUTTON), icon=CustomEmoji.HOME, callback_data=MenuCallback(action=MenuAction.BACK).pack())])
     return InlineKeyboardMarkup(inline_keyboard=rows)

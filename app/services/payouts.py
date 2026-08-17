@@ -98,7 +98,7 @@ class PayoutService:
             raise MissingPayoutWalletError(f"Seller wallet is missing for deal {deal.public_id}")
         if buyer is None and deal.buyer_id:
             buyer = await self._users.get(deal.buyer_id)
-        allocations = self._referrals.reward_allocations(seller, buyer, deal)
+        allocations = await self._referrals.reward_allocations(seller, buyer, deal)
         referral_total = sum((amount for _, amount in allocations), start=Decimal(0))
         service_fee_atomic = asset_service_fee_atomic(
             deal.amount, deal.currency, self._settings.ESCROW_FEE_RATE

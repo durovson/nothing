@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
 
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
@@ -21,7 +21,7 @@ from app.models.entities import User
 from app.services.deals import DealService
 from app.services.channels import ChannelDealService
 from app.states import ChannelDealStates, DealCreationStates
-from app.utils import currency_label, deal_type_label, format_amount, remember_menu, render_menu, render_stored_menu
+from app.utils import currency_label, deal_type_label, format_amount, parse_decimal_amount, remember_menu, render_menu, render_stored_menu
 from app.keyboards.callbacks import MenuAction
 
 router = Router(name="deal-creation")
@@ -206,9 +206,7 @@ async def handle_amount(
     state: FSMContext,
 ) -> None:
     try:
-        amount = Decimal((message.text or "").strip())
-        if not amount.is_finite() or amount <= 0:
-            raise InvalidOperation
+        amount = parse_decimal_amount(message.text or "")
     except (InvalidOperation, ValueError):
         await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), back_keyboard(db_user.language), screen="deal_create")
         return

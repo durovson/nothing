@@ -32,7 +32,7 @@ from app.models.entities import User
 from app.services.desk import DeskService
 from app.states import DeskCreationStates
 from app.ton.amounts import asset_amount_atomic
-from app.utils import currency_label, format_amount, remember_menu, render_menu, render_stored_menu
+from app.utils import currency_label, format_amount, parse_decimal_amount, remember_menu, render_menu, render_stored_menu
 
 router = Router(name="desk")
 
@@ -108,11 +108,12 @@ async def receive_description(
 async def confirm_description(
     callback: types.CallbackQuery, db_user: User, state: FSMContext
 ) -> None:
+    data = await state.get_data()
     await state.set_state(DeskCreationStates.waiting_for_deal_currency)
     if callback.message:
         await render_menu(
             callback.message,
-            translate(db_user.language, TextKey.DESK_DEAL_CURRENCY_PROMPT),
+            translate(db_user.language, TextKey.DESK_DEAL_CURRENCY_PROMPT, kind=data["kind"]),
             desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.DEAL),
             screen="desk_create",
         )
@@ -131,9 +132,10 @@ async def choose_deal_currency(
     await state.update_data(deal_currency=callback_data.currency.value)
     await state.set_state(DeskCreationStates.waiting_for_amount)
     if callback.message:
+        data = await state.get_data()
         await render_menu(
             callback.message,
-            translate(db_user.language, TextKey.DESK_AMOUNT_PROMPT),
+            translate(db_user.language, TextKey.DESK_AMOUNT_PROMPT, kind=data["kind"]),
             desk_amount_keyboard(db_user.language),
             screen="desk_create",
         )
@@ -144,9 +146,7 @@ async def receive_amount(
     message: types.Message, db_user: User, state: FSMContext
 ) -> None:
     try:
-        amount = Decimal((message.text or "").replace(",", "."))
-        if not amount.is_finite() or amount <= 0:
-            raise InvalidOperation
+        amount = parse_decimal_amount(message.text or "")
     except (InvalidOperation, ValueError):
         await message.answer(translate(db_user.language, TextKey.DESK_INVALID_AMOUNT))
         return
@@ -166,7 +166,11 @@ async def choose_offer_price(
         await state.set_state(DeskCreationStates.waiting_for_payment_currency)
         await render_menu(
             callback.message,
-            translate(db_user.language, TextKey.DESK_PAYMENT_CURRENCY_PROMPT),
+            translate(
+                db_user.language,
+                TextKey.DESK_PAYMENT_CURRENCY_PROMPT,
+                kind=(await state.get_data())["kind"],
+            ),
             desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.PAYMENT),
             screen="desk_create",
         )
@@ -179,7 +183,11 @@ async def _show_payment_currency(
     await render_stored_menu(
         message,
         state,
-        translate(db_user.language, TextKey.DESK_PAYMENT_CURRENCY_PROMPT),
+        translate(
+            db_user.language,
+            TextKey.DESK_PAYMENT_CURRENCY_PROMPT,
+            kind=(await state.get_data())["kind"],
+        ),
         desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.PAYMENT),
         screen="desk_create",
     )
@@ -230,6 +238,7 @@ async def choose_payment_currency(
             translate(
                 db_user.language,
                 TextKey.DESK_PAYMENT_INVOICE,
+                kind=listing.kind.value,
                 wallet=desk_service.guarant_address,
                 fee=format_amount(DESK_PUBLICATION_FEE),
                 currency=currency_label(listing.payment_currency),

@@ -8,6 +8,7 @@ from app.utils.formatting import (
     format_amount,
 )
 from app.utils.menu import remember_menu, render_home, render_menu, render_stored_menu
+from app.utils.amounts import parse_decimal_amount
 
 __all__ = [
     "channel_member_status_label",
@@ -17,6 +18,7 @@ __all__ = [
     "deal_status_label",
     "deal_type_label",
     "format_amount",
+    "parse_decimal_amount",
     "remember_menu",
     "render_home",
     "render_menu",

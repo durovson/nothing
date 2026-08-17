@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Literal, Protocol, TypeAlias, TypedDict, Unpack
 
 from app.core.enums import Currency, DealStatus, FinancialOperationFlow, Language, TraceStatus
-from app.models.dto import CreateDealCommand, DepositScanBatch, PaymentObservation, ReferralStats
+from app.models.dto import CreateDealCommand, DepositScanBatch, PaymentObservation, ReferralProfile, ReferralStats
 from app.models.entities import BotSettings, CollectionAttempt, Deal, DepositCursor, DisputeTicket, FinancialOperation, FinancialOperationAttempt, ObservedDeposit, ReferralWithdrawal, UnmatchedPayment, User
 from app.ton.models import PayoutMessage, PreparedPayout, TraceResult
 
@@ -164,6 +164,7 @@ class DepositRepositoryProtocol(Protocol):
 class ReferralRepositoryProtocol(Protocol):
     async def assign_referrer(self, referrer_id: TelegramId, referred_id: TelegramId) -> bool: ...
     async def get_stats(self, referrer_id: TelegramId) -> ReferralStats: ...
+    async def get_profiles(self, user_ids: set[TelegramId]) -> dict[TelegramId, ReferralProfile]: ...
     async def add_reward(
         self,
         deal_id: DealId,

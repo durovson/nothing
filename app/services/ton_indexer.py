@@ -105,8 +105,6 @@ class TonDepositIndexer:
         return self._mismatch_reason(deal, item) == "matched"
 
     def _mismatch_reason(self, deal: Deal, item: PaymentObservation) -> str:
-        if item.memo != deal.public_id:
-            return "missing_or_invalid_memo"
         expected = asset_payment_amount_atomic(
             deal.amount,
             deal.currency,

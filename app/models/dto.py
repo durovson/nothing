@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from app.core.enums import Currency, DealType, DeskKind, Language
+from app.core.enums import Currency, DealType, DeskKind, Language, ReferralLevel
 
 
 class CreateDealCommand(BaseModel):
@@ -60,6 +60,9 @@ class ReferralStats(BaseModel):
     count: int = 0
     balance_ton: Decimal = Decimal("0")
     balance_usdt: Decimal = Decimal("0")
+    level: ReferralLevel = ReferralLevel.LEVEL_1
+    ton_volume: Decimal = Decimal("0")
+    commission_share: Decimal = Decimal("0.10")
 
     @property
     def earned_ton(self) -> Decimal:
@@ -68,3 +71,18 @@ class ReferralStats(BaseModel):
     @property
     def earned_usdt(self) -> Decimal:
         return self.balance_usdt
+
+
+class ReferralProfile(BaseModel):
+    user_id: int
+    level: ReferralLevel = ReferralLevel.LEVEL_1
+    ton_volume: Decimal = Decimal("0")
+
+    @property
+    def commission_share(self) -> Decimal:
+        return {
+            ReferralLevel.LEVEL_1: Decimal("0.10"),
+            ReferralLevel.LEVEL_2: Decimal("0.20"),
+            ReferralLevel.LEVEL_3: Decimal("0.30"),
+            ReferralLevel.SPECIAL: Decimal("0.50"),
+        }[self.level]

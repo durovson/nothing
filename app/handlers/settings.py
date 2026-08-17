@@ -14,7 +14,6 @@ from app.utils import format_amount
 from app.utils import render_menu
 from app.core.exceptions import MissingLinkedWalletError, ReferralWithdrawalError
 from app.core.constants import (
-    REFERRAL_COMMISSION_SHARE,
     REFERRAL_MIN_WITHDRAW_TON,
     REFERRAL_MIN_WITHDRAW_USDT,
 )
@@ -108,7 +107,9 @@ async def referral_info(
                 count=stats.count,
                 earned_ton=format_amount(stats.earned_ton),
                 earned_usdt=format_amount(stats.earned_usdt),
-                rate=format_amount(REFERRAL_COMMISSION_SHARE * 100),
+                rate=format_amount(stats.commission_share * 100),
+                level=stats.level.value.replace("level_", "Level ").replace("special", "Special"),
+                volume=format_amount(stats.ton_volume),
             ),
             referral_keyboard(
                 db_user.language,

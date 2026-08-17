@@ -9,9 +9,13 @@ alter table refund_attempts enable row level security;
 alter table dispute_tickets enable row level security;
 alter table referrals enable row level security;
 alter table referral_rewards enable row level security;
+alter table referral_profiles enable row level security;
 alter table referral_balances enable row level security;
 alter table referral_withdrawals enable row level security;
 alter table bot_settings enable row level security;
+
+revoke all on table referral_profiles from public, anon, authenticated;
+grant select, insert, update on table referral_profiles to service_role;
 
 revoke all on function claim_deal_payment(bigint, text, numeric, numeric, text, boolean, timestamptz) from public, anon, authenticated;
 revoke all on function claim_deal_collection(bigint, text, text) from public, anon, authenticated;
