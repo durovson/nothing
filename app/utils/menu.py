@@ -7,6 +7,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     InputMediaAnimation,
     InputMediaPhoto,
+    MaybeInaccessibleMessage,
     Message,
 )
 
@@ -32,14 +33,14 @@ def _input_media(path: Path, caption: str):
 
 
 async def render_menu(
-    message: Message,
+    message: MaybeInaccessibleMessage,
     caption: str,
     keyboard: InlineKeyboardMarkup,
     screen: str = "main_menu",
 ) -> Message:
     """Edit the current bot card, falling back to one replacement card."""
     if len(caption) > 1024:
-        if message.from_user and message.from_user.is_bot:
+        if isinstance(message, Message) and message.from_user and message.from_user.is_bot:
             try:
                 if message.photo or message.animation:
                     await message.delete()
@@ -50,7 +51,7 @@ async def render_menu(
                 pass
         return await message.answer(caption, reply_markup=keyboard)
     asset = media_path(screen)
-    if message.from_user and message.from_user.is_bot:
+    if isinstance(message, Message) and message.from_user and message.from_user.is_bot:
         try:
             if message.photo or message.animation:
                 await message.edit_media(media=_input_media(asset, caption), reply_markup=keyboard)
@@ -69,9 +70,13 @@ async def render_menu(
     return await message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
 
 
-async def render_home(message: Message, caption: str, keyboard: InlineKeyboardMarkup) -> Message:
+async def render_home(
+    message: MaybeInaccessibleMessage,
+    caption: str,
+    keyboard: InlineKeyboardMarkup,
+) -> Message:
     """Home is always a fresh card, as required by the navigation contract."""
-    if message.from_user and message.from_user.is_bot:
+    if isinstance(message, Message) and message.from_user and message.from_user.is_bot:
         try:
             await message.delete()
         except TelegramBadRequest:
