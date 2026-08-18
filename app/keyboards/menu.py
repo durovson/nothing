@@ -50,5 +50,12 @@ def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineK
                     callback_data=MenuCallback(action=MenuAction.SETTINGS).pack(),
                 ),
             ],
+            [
+                premium_button(
+                    translate(locale, TextKey.SETTINGS_SUPPORT),
+                    icon=CustomEmoji.SUPPORT,
+                    url=f"https://t.me/{support}",
+                ),
+            ],
         ]
     )
