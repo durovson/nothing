@@ -115,7 +115,7 @@ async def confirm_description(
             callback.message,
             translate(db_user.language, TextKey.DESK_DEAL_CURRENCY_PROMPT, kind=data["kind"]),
             desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.DEAL),
-            screen="desk_create",
+            screen="currency",
         )
 
 
@@ -172,7 +172,7 @@ async def choose_offer_price(
                 kind=(await state.get_data())["kind"],
             ),
             desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.PAYMENT),
-            screen="desk_create",
+            screen="currency",
         )
 
 
@@ -189,7 +189,7 @@ async def _show_payment_currency(
             kind=(await state.get_data())["kind"],
         ),
         desk_currency_keyboard(db_user.language, DeskCurrencyPurpose.PAYMENT),
-        screen="desk_create",
+        screen="currency",
     )
 
 

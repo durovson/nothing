@@ -2,7 +2,7 @@ import logging
 from html import escape
 
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.config import Settings
 from app.core.constants import (
@@ -20,6 +20,7 @@ from app.models.entities import Deal, DeskListing, User
 from app.ton.amounts import asset_payment_amount
 from app.ton.links import tonviewer_transaction_url
 from app.utils import currency_label, format_amount
+from app.utils.menu import media_path
 
 logger = logging.getLogger(__name__)
 
@@ -248,16 +249,24 @@ class TelegramNotificationGateway:
     async def desk_listing_published(self, listing: DeskListing) -> None:
         language = listing.owner_language
         price = "Offer" if listing.price is None else f"{format_amount(listing.price)} {currency_label(listing.deal_currency)}"
-        await self._send_text(
-            listing.owner_id,
-            translate(
-                language,
-                TextKey.DESK_CREATED,
-                listing_id=listing.public_id,
-                description=escape(listing.description),
-                price=price,
-            ),
+        caption = translate(
+            language,
+            TextKey.DESK_CREATED,
+            listing_id=listing.public_id,
+            description=escape(listing.description),
+            price=price,
         )
+        try:
+            await self._bot.send_animation(
+                listing.owner_id,
+                animation=FSInputFile(media_path("desk_created")),
+                caption=caption,
+            )
+        except Exception:
+            logger.exception(
+                "Telegram Desk publication notification failed for user %s",
+                listing.owner_id,
+            )
 
     async def cancelled_by_seller(self, deal: Deal, buyer: User) -> None:
         await self._send(

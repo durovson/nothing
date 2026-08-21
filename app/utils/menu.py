@@ -111,9 +111,13 @@ async def render_stored_menu(
         await remember_menu(state, result)
         return result
     if isinstance(chat_id, int) and isinstance(message_id, int):
+        asset = media_path(screen)
         try:
-            result = await user_message.bot.edit_message_caption(
-                chat_id=chat_id, message_id=message_id, caption=caption, reply_markup=keyboard
+            result = await user_message.bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=message_id,
+                media=_input_media(asset, caption),
+                reply_markup=keyboard,
             )
             return result if isinstance(result, Message) else None
         except TelegramBadRequest as exc:

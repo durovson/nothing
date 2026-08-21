@@ -71,7 +71,7 @@ async def start_with_args(
                 message,
                 translate(db_user.language, TextKey.DEAL_CHANNEL_INVITE_UNAVAILABLE),
                 main_menu(db_user.language, settings.SUPPORT_USERNAME),
-                screen="deal_join",
+                screen="deal",
             )
             return
         await render_menu(
@@ -93,7 +93,7 @@ async def start_with_args(
                 deal.creator_id,
                 channel_invite,
             ),
-            screen="deal_join",
+            screen="deal",
         )
         return
 

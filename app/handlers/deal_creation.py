@@ -43,7 +43,7 @@ async def start_deal_creation(
         message,
         translate(db_user.language, TextKey.DEAL_CREATE_INTRO),
         deal_type_keyboard(db_user.language),
-        screen="deal_create",
+        screen="deal_type",
     )
     await remember_menu(state, menu_message)
 
@@ -67,7 +67,7 @@ async def start_deal_creation_callback(
                 callback.message,
                 translate(db_user.language, TextKey.DEAL_CREATE_INTRO),
                 deal_type_keyboard(db_user.language),
-                screen="deal_create",
+                screen="deal_type",
             )
     await callback.answer()
 
@@ -86,7 +86,7 @@ async def choose_deal_type(
             await render_menu(callback.message,
                 translate(db_user.language, TextKey.DEAL_CHANNEL_WARNING),
                 back_keyboard(db_user.language),
-                screen="deal_create",
+                screen="channel_admin",
             )
         else:
             await state.set_state(DealCreationStates.waiting_for_description)
@@ -120,7 +120,7 @@ async def handle_channel(
             state,
             translate(db_user.language, TextKey.DEAL_CHANNEL_INVALID, reason=reason),
             back_keyboard(db_user.language),
-            screen="deal_create",
+            screen="channel_admin",
         )
         return
     await state.update_data(
@@ -167,7 +167,7 @@ async def handle_description(
         state,
         translate(db_user.language, TextKey.DEAL_CURRENCY_PROMPT),
         currency_keyboard(db_user.language),
-        screen="deal_create",
+        screen="currency",
     )
 
 
@@ -265,6 +265,6 @@ async def handle_amount(
             deep_link=deep_link,
         ),
         created_deal_actions(db_user.language, deal.id),
-        screen="deal_create",
+        screen="deal_created",
     )
     await state.clear()
