@@ -267,6 +267,7 @@ class TelegramNotificationGateway:
                 "Telegram Desk publication notification failed for user %s",
                 listing.owner_id,
             )
+            await self._send_text(listing.owner_id, caption)
 
     async def cancelled_by_seller(self, deal: Deal, buyer: User) -> None:
         await self._send(

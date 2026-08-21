@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     FSInputFile,
@@ -58,6 +58,15 @@ async def render_menu(
             else:
                 await message.edit_text(caption, reply_markup=keyboard)
             return message
+        except TelegramRetryAfter:
+            try:
+                if message.photo or message.animation:
+                    await message.edit_caption(caption=caption, reply_markup=keyboard)
+                else:
+                    await message.edit_text(caption, reply_markup=keyboard)
+            except TelegramBadRequest:
+                pass
+            return message
         except TelegramBadRequest as exc:
             if "message is not modified" in str(exc).lower():
                 return message
@@ -66,7 +75,10 @@ async def render_menu(
             except TelegramBadRequest:
                 pass
     if asset.suffix.lower() in {".gif", ".mp4"}:
-        return await message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+        try:
+            return await message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+        except TelegramRetryAfter:
+            return await message.answer(caption, reply_markup=keyboard)
     return await message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
 
 
@@ -75,12 +87,7 @@ async def render_home(
     caption: str,
     keyboard: InlineKeyboardMarkup,
 ) -> Message:
-    """Home is always a fresh card, as required by the navigation contract."""
-    if isinstance(message, Message) and message.from_user and message.from_user.is_bot:
-        try:
-            await message.delete()
-        except TelegramBadRequest:
-            pass
+    """Render home in the current card to avoid repeated SendAnimation uploads."""
     return await render_menu(message, caption, keyboard, screen="main_menu")
 
 
@@ -120,12 +127,27 @@ async def render_stored_menu(
                 reply_markup=keyboard,
             )
             return result if isinstance(result, Message) else None
+        except TelegramRetryAfter:
+            try:
+                result = await user_message.bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    caption=caption,
+                    reply_markup=keyboard,
+                )
+                return result if isinstance(result, Message) else None
+            except TelegramBadRequest as exc:
+                if "message is not modified" in str(exc).lower():
+                    return None
         except TelegramBadRequest as exc:
             if "message is not modified" in str(exc).lower():
                 return None
     asset = media_path(screen)
     if asset.suffix.lower() in {".gif", ".mp4"}:
-        result = await user_message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+        try:
+            result = await user_message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+        except TelegramRetryAfter:
+            result = await user_message.answer(caption, reply_markup=keyboard)
     else:
         result = await user_message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
     await remember_menu(state, result)

@@ -4,19 +4,19 @@
 
 | Файл | Экран |
 | --- | --- |
-| `main_menu.gif` | Главное меню |
-| `wallet.gif` | Мой кошелёк |
-| `deals.gif` | Мои сделки |
-| `deal.gif` | Карточка и оплата сделки |
-| `deal_type.gif` | Выбор типа сделки |
-| `deal_create.gif` | Ввод описания и суммы сделки |
-| `currency.gif` | Выбор валюты |
-| `channel_admin.gif` | Проверка прав бота в канале |
-| `deal_created.gif` | Сделка успешно создана |
-| `desk_create.gif` | Создание объявления Desk |
-| `desk_created.gif` | Объявление создано, ожидается оплата |
-| `referrals.gif` | Реферальная система |
-| `settings.gif` | Настройки |
-| `language.gif` | Выбор языка |
-| `documents.gif` | Документы |
-| `faq.gif` | Вопросы и ответы |
+| `main_menu.mp4` | Главное меню |
+| `wallet.mp4` | Мой кошелёк |
+| `deals.mp4` | Мои сделки |
+| `deal.mp4` | Карточка и оплата сделки |
+| `deal_type.mp4` | Выбор типа сделки |
+| `deal_create.mp4` | Ввод описания и суммы сделки |
+| `currency.mp4` | Выбор валюты |
+| `channel_admin.mp4` | Проверка прав бота в канале |
+| `deal_created.mp4` | Сделка успешно создана |
+| `desk_create.mp4` | Создание объявления Desk |
+| `desk_created.mp4` | Объявление успешно опубликовано |
+| `referrals.mp4` | Реферальная система |
+| `settings.mp4` | Настройки |
+| `language.mp4` | Выбор языка |
+| `documents.mp4` | Документы |
+| `faq.mp4` | Вопросы и ответы |
