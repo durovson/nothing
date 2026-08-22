@@ -83,6 +83,7 @@ async def save_wallet(
             state,
             translate(db_user.language, TextKey.WALLET_INVALID),
             _wallet_keyboard(db_user),
+            screen="wallet",
         )
         return
     await render_stored_menu(

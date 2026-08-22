@@ -36,7 +36,7 @@ async def render_menu(
     message: MaybeInaccessibleMessage,
     caption: str,
     keyboard: InlineKeyboardMarkup,
-    screen: str = "main_menu",
+    screen: str = "generic",
 ) -> Message:
     """Edit the current bot card, falling back to one replacement card."""
     if len(caption) > 1024:
@@ -100,7 +100,7 @@ async def render_stored_menu(
     state: FSMContext,
     caption: str,
     keyboard: InlineKeyboardMarkup,
-    screen: str = "deal_join",
+    screen: str,
 ) -> Message | None:
     data = await state.get_data()
     chat_id = data.get("menu_chat_id")

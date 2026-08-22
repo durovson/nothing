@@ -25,9 +25,11 @@ SETTINGS_MENU_TEXTS = {translate(language, TextKey.MENU_SETTINGS) for language i
 
 @router.message(F.text.in_(SETTINGS_MENU_TEXTS))
 async def settings_menu(message: types.Message, db_user: User) -> None:
-    await message.answer(
+    await render_menu(
+        message,
         translate(db_user.language, TextKey.SETTINGS_CAPTION),
-        reply_markup=settings_keyboard(db_user.language),
+        settings_keyboard(db_user.language),
+        screen="settings",
     )
 
 
@@ -40,9 +42,11 @@ async def settings_menu_callback(callback: types.CallbackQuery, db_user: User) -
 @router.callback_query(SettingsCallback.filter(F.action == SettingsAction.BACK))
 async def settings_back(callback: types.CallbackQuery, db_user: User) -> None:
     if callback.message:
-        await render_menu(callback.message,
+        await render_menu(
+            callback.message,
             translate(db_user.language, TextKey.SETTINGS_CAPTION),
             settings_keyboard(db_user.language),
+            screen="settings",
         )
 
 
@@ -79,12 +83,15 @@ async def support_info(
     settings: Settings,
 ) -> None:
     if callback.message:
-        await render_menu(callback.message,
+        await render_menu(
+            callback.message,
             translate(
                 db_user.language,
                 TextKey.SUPPORT_TEXT,
                 support_username=settings.SUPPORT_USERNAME,
-            ), settings_keyboard(db_user.language)
+            ),
+            settings_keyboard(db_user.language),
+            screen="settings",
         )
 
 
@@ -185,9 +192,14 @@ async def withdraw_referral_reward(
                     "The linked profile address was used. The service is not responsible for exchange or third-party address crediting.")
     stats = await referral_service.get_stats(db_user.telegram_id)
     if callback.message:
-        await render_menu(callback.message, text, referral_keyboard(
-            db_user.language,
-            stats.balance_ton >= REFERRAL_MIN_WITHDRAW_TON,
-            stats.balance_usdt >= REFERRAL_MIN_WITHDRAW_USDT,
-        ))
+        await render_menu(
+            callback.message,
+            text,
+            referral_keyboard(
+                db_user.language,
+                stats.balance_ton >= REFERRAL_MIN_WITHDRAW_TON,
+                stats.balance_usdt >= REFERRAL_MIN_WITHDRAW_USDT,
+            ),
+            screen="referrals",
+        )
     await callback.answer()
