@@ -297,7 +297,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Simple deals. We handle the rest.</b>\n\n"
             "<b>Key service features:</b>\n"
-            "<blockquote>"
+            "<blockquote expandable>"
             "<tg-emoji emoji-id='5778139491810155937'>💎</tg-emoji> <b>Escrow system:</b>\n"
             "Funds are not released to the seller until the deal conditions are fulfilled.\n\n"
             "<tg-emoji emoji-id='5931415565955503486'>🤖</tg-emoji> <b>Automation:</b>\n"
