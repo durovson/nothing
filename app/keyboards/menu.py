@@ -15,38 +15,38 @@ def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineK
             [
                 premium_button(
                     translate(locale, TextKey.MENU_CREATE_DEAL),
-                    icon=CustomEmoji.CREATE_DEAL,
+                    icon=CustomEmoji.MAIN_CREATE_DEAL,
                     callback_data=MenuCallback(action=MenuAction.CREATE_DEAL).pack(),
                 ),
             ],
             [
                 premium_button(
                     translate(locale, TextKey.MENU_CREATE_DESK),
-                    icon=CustomEmoji.DESK,
+                    icon=CustomEmoji.MAIN_CREATE_DESK,
                     callback_data=MenuCallback(action=MenuAction.CREATE_DESK).pack(),
                 ),
             ],
             [
                 premium_button(
                     translate(locale, TextKey.MENU_WALLET),
-                    icon=CustomEmoji.WALLET,
+                    icon=CustomEmoji.MAIN_WALLET,
                     callback_data=MenuCallback(action=MenuAction.WALLET).pack(),
                 ),
                 premium_button(
                     translate(locale, TextKey.MENU_MY_DEALS),
-                    icon=CustomEmoji.MY_DEALS,
+                    icon=CustomEmoji.MAIN_MY_DEALS,
                     callback_data=MenuCallback(action=MenuAction.DEALS).pack(),
                 ),
             ],
             [
                 premium_button(
                     translate(locale, TextKey.SETTINGS_REFERRALS),
-                    icon=CustomEmoji.REFERRALS,
+                    icon=CustomEmoji.MAIN_REFERRALS,
                     callback_data=MenuCallback(action=MenuAction.REFERRALS).pack(),
                 ),
                 premium_button(
                     translate(locale, TextKey.MENU_SETTINGS),
-                    icon=CustomEmoji.SETTINGS,
+                    icon=CustomEmoji.MAIN_SETTINGS,
                     callback_data=MenuCallback(action=MenuAction.SETTINGS).pack(),
                 ),
             ],
