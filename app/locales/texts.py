@@ -5,18 +5,21 @@ from app.locales.keys import TextKey
 TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.RU: {
         TextKey.MAIN_MENU_CAPTION: (
-            "<b>Для тех, кто ценит скорость и безопасность.</b>\n"
-            "Проводите сделки без риска и сторонних посредников.\n\n"
-            "<b>Главное о сервисе:</b>\n\n"
+            "<b>Просто сделки. Остальное — на нас.</b>\n\n"
+            "<b>Главное о сервисе:</b>\n"
             "<blockquote>"
-            "<tg-emoji emoji-id=\'5985780596268339498\'>🤖</tg-emoji> <b>Технология:</b>\n"
-            "Прямая интеграция TON × Telegram\n\n"
-            "<tg-emoji emoji-id=\'5879895758202735862\'>🔒</tg-emoji> <b>Безопасность:</b>\n"
-            "Заморозка активов до завершения условий сделки\n\n"
-            "<tg-emoji emoji-id=\'5778139491810155937\'>📊</tg-emoji> <b>Прозрачность:</b>\n"
-            "Фиксированная комиссия — всего 1%"
+            "<tg-emoji emoji-id=\'5778139491810155937\'>💎</tg-emoji> <b>Escrow-система:</b>\n"
+            "Средства не передаются продавцу до выполнения условий сделки.\n\n"
+            "<tg-emoji emoji-id=\'5931415565955503486\'>🤖</tg-emoji> <b>Автоматизация:</b>\n"
+            "Платежи проверяются автоматически в сети TON.\n\n"
+            "<tg-emoji emoji-id=\'5778139491810155937\'>📊</tg-emoji> <b>TON / USDT:</b>\n"
+            "Одна система для двух активов."
+            "<tg-emoji emoji-id=\'5778139491810155937\'>📊</tg-emoji> <b>Контроль:</b>\n"
+            "спор, возврат и средства не освобождаются просто по таймеру — <b>есть последовательность состояний сделки.</b>"
+            "<tg-emoji emoji-id=\'5778139491810155937\'>📊</tg-emoji> <b>1%:</b>\n"
+            "Фиксированная комиссия за завершённую сделку."
             "</blockquote>\n\n"
-            "<tg-emoji emoji-id=\'5994636050033545139\'>🪧</tg-emoji> <b>Успешные сделки:</b> "
+            "<tg-emoji emoji-id=\'5994636050033545139\'>🪧</tg-emoji> <b>Публичная история:</b> "
             "<a href='https://t.me/grnthub/4'>@grnthub</a>"
         ),
         TextKey.MENU_WALLET: "Мой кошелек",
@@ -61,8 +64,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DESK_INVALID_AMOUNT: "Введите положительное число, например 5 или 12.5.",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_ACTIVE_PROMPT: (
-            "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nТекущий адрес:\n"
-            "<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
+            "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\n<b>Текущий адрес:</b>\n"
+            "<blockquote><a href=\"{wallet_url}\">{wallet_short}</a></blockquote>\n\n"
             "Хотите изменить? Отправьте новый адрес."
         ),
         TextKey.WALLET_SAVED: "Кошелек сохранен:\n<blockquote><code>{wallet}</code></blockquote>",
@@ -245,13 +248,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Рефералы</b>\n\n<b>Детали:</b>\n"
             "<blockquote>• Уровень: {level}\n"
-            "• Реферальный процент: {rate} % комиссии\n"
-            "• Накопительный объём: {volume} GRAM\n"
-            "• Приглашено пользователей: {count}</blockquote>{community_status}\n\n"
+            "• <b>Реферальный процент:</b>\n\n   {rate} % комиссии\n"
+            "• <b>Реферальный объём:</b>\n\n   {volume} GRAM\n"
+            "• <b>Приглашено пользователей:</b> {count}</blockquote>{community_status}\n\n"
             "<b>Баланс:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
-            "• USDT <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
-            "Ваша реферальная ссылка:\n<code>{link}</code>"
+            "• USDT<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
+            "<b>Ваша реферальная ссылка:</b>\n<code>{link}</code>"
         ),
         TextKey.BACK_BUTTON: "Назад",
         TextKey.MAIN_MENU_BUTTON: "Главное меню",
