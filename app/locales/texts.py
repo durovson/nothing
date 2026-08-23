@@ -7,7 +7,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Просто сделки. Остальное — на нас.</b>\n\n"
             "<b>Главное о сервисе:</b>\n"
-            "<blockquote>"
+            "<blockquote expandable>"
             "<tg-emoji emoji-id='5778139491810155937'>💎</tg-emoji> <b>Escrow-система:</b>\n"
             "Средства не передаются продавцу до выполнения условий сделки.\n\n"
             "<tg-emoji emoji-id='5931415565955503486'>🤖</tg-emoji> <b>Автоматизация:</b>\n"
