@@ -1,11 +1,23 @@
 from aiogram import Router
 
-from app.handlers import admin, deal_creation, deal_manage, desk, info, referral_communities, settings, start, wallet
+from app.handlers import (
+    admin,
+    deal_creation,
+    deal_manage,
+    desk,
+    info,
+    referral_communities,
+    settings,
+    start,
+    topic_cooldown,
+    wallet,
+)
 
 
 def create_router() -> Router:
     router = Router(name="application")
     router.include_routers(
+        topic_cooldown.router,
         start.router,
         admin.router,
         wallet.router,
