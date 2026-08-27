@@ -249,7 +249,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Рефералы</b>\n\n<b>Детали:</b>\n"
             "<blockquote>• <b>Уровень:</b> {level}\n\n"
-            "• <b>Реферальный процент:</b>\n   {rate} % комиссии\n\n"
+            "• <b>Реферальный процент:</b>\n   {rate}% комиссии\n\n"
             "• <b>Реферальный объём:</b>\n   {volume} GRAM\n\n"
             "• <b>Приглашено пользователей:</b> {count}</blockquote>{community_status}\n\n"
             "<b>Баланс:</b>\n"
@@ -538,7 +538,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Referrals</b>\n\n"
             "<b>Details:</b>\n"
             "<blockquote>• <b>Level:</b> {level}\n\n"
-            "• Referral percentage:\n  {rate} % of the service fee\n\n"
+            "• Referral percentage:\n  {rate}% of the service fee\n\n"
             "• Cumulative volume:\n {volume} GRAM\n\n"
             "• Users invited: {count}</blockquote>{community_status}\n\n"
             "<b>Balance:</b>\n"
