@@ -248,9 +248,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.SUPPORT_TEXT: "<tg-emoji emoji-id='5967411695453213733'>🛟</tg-emoji> <b>Поддержка</b>\n\nПо вопросам и спорам напишите {support_username}.",
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Рефералы</b>\n\n<b>Детали:</b>\n"
-            "<blockquote>• <b>Уровень:</b> {level}\n\n"
-            "• <b>Реферальный процент:</b>\n   {rate}% комиссии\n\n"
-            "• <b>Реферальный объём:</b>\n   {volume} GRAM\n\n"
+            "<blockquote>• <b>Уровень:</b> {level}\n"
+            "• <b>Реферальный процент:</b>\n   {rate}% комиссии\n"
+            "• <b>Реферальный объём:</b>\n   {volume} GRAM\n"
             "• <b>Приглашено пользователей:</b> {count}</blockquote>{community_status}\n\n"
             "<b>Баланс:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
@@ -537,9 +537,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Referrals</b>\n\n"
             "<b>Details:</b>\n"
-            "<blockquote>• <b>Level:</b> {level}\n\n"
-            "• Referral percentage:\n  {rate}% of the service fee\n\n"
-            "• Cumulative volume:\n {volume} GRAM\n\n"
+            "<blockquote>• <b>Level:</b> {level}\n"
+            "• Referral percentage:\n  {rate}% of the service fee\n"
+            "• Cumulative volume:\n {volume} GRAM\n"
             "• Users invited: {count}</blockquote>{community_status}\n\n"
             "<b>Balance:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
