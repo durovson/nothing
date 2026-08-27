@@ -1,6 +1,11 @@
 from aiogram import F, Router, types
 
 from app.config import Settings
+from app.core.constants import (
+    PRIVACY_POLICY_URL,
+    SERVICE_DESCRIPTION_URL,
+    TERMS_OF_USE_URL,
+)
 from app.core.custom_emoji import CustomEmoji
 from app.keyboards import MenuCallback, SettingsCallback
 from app.keyboards.buttons import premium_button
@@ -39,14 +44,29 @@ async def show_faq(callback: types.CallbackQuery, db_user: User, settings: Setti
 async def show_documents(callback: types.CallbackQuery, db_user: User, settings: Settings) -> None:
     from aiogram.types import InlineKeyboardMarkup
 
-    base_url = (settings.APP_BASE_URL or settings.RENDER_EXTERNAL_URL).rstrip("/")
-    rows = []
-    if base_url:
-        rows.extend([
-            [premium_button(translate(db_user.language, TextKey.PRIVACY_BUTTON), icon=CustomEmoji.DOCUMENTS, url=f"{base_url}/documents/privacy")],
-            [premium_button(translate(db_user.language, TextKey.TERMS_BUTTON), icon=CustomEmoji.DOCUMENTS, url=f"{base_url}/documents/terms")],
-            [premium_button(translate(db_user.language, TextKey.SERVICE_DESCRIPTION_BUTTON), icon=CustomEmoji.DOCUMENTS, url=f"{base_url}/documents/service")],
-        ])
+    rows = [
+        [
+            premium_button(
+                translate(db_user.language, TextKey.PRIVACY_BUTTON),
+                icon=CustomEmoji.DOCUMENTS,
+                url=PRIVACY_POLICY_URL,
+            )
+        ],
+        [
+            premium_button(
+                translate(db_user.language, TextKey.TERMS_BUTTON),
+                icon=CustomEmoji.DOCUMENTS,
+                url=TERMS_OF_USE_URL,
+            )
+        ],
+        [
+            premium_button(
+                translate(db_user.language, TextKey.SERVICE_DESCRIPTION_BUTTON),
+                icon=CustomEmoji.DOCUMENTS,
+                url=SERVICE_DESCRIPTION_URL,
+            )
+        ],
+    ]
     rows.extend(_settings_keyboard(db_user.language).inline_keyboard)
     if callback.message:
         await render_menu(
