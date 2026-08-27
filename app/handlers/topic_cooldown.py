@@ -54,6 +54,23 @@ async def enforce_topic_cooldown(message: Message, bot: Bot) -> None:
     if topic_id == TOPIC_COOLDOWN_UNLIMITED_TOPIC_ID:
         return
 
+    now = monotonic()
+    key = (message.chat.id, topic_id, user.id)
+    if now < _deadlines.get(key, 0):
+        try:
+            await bot.delete_message(message.chat.id, message.message_id)
+        except TelegramAPIError as exc:
+            # Repeated deletion failures can themselves be caused by a flood or
+            # a temporary Telegram outage. Keep them out of production INFO logs.
+            logger.debug(
+                "Topic cooldown deletion failed chat=%s topic=%s user=%s error=%s",
+                message.chat.id,
+                topic_id,
+                user.id,
+                type(exc).__name__,
+            )
+        return
+
     try:
         member = await bot.get_chat_member(message.chat.id, user.id)
     except TelegramAPIError as exc:
@@ -72,21 +89,6 @@ async def enforce_topic_cooldown(message: Message, bot: Bot) -> None:
         ChatMemberStatus.CREATOR,
         ChatMemberStatus.ADMINISTRATOR,
     }:
-        return
-
-    now = monotonic()
-    key = (message.chat.id, topic_id, user.id)
-    if now < _deadlines.get(key, 0):
-        try:
-            await bot.delete_message(message.chat.id, message.message_id)
-        except TelegramAPIError as exc:
-            logger.info(
-                "Topic cooldown deletion failed chat=%s topic=%s user=%s error=%s",
-                message.chat.id,
-                topic_id,
-                user.id,
-                type(exc).__name__,
-            )
         return
 
     _deadlines[key] = now + TOPIC_COOLDOWN_SECONDS

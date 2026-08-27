@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from ton_core import Address, InternalMsgInfo, SendMode
@@ -24,10 +25,17 @@ from app.ton.parsing import (
 class JettonEscrowGateway:
     """TEP-74 operations for the single allowlisted official USDT master."""
 
-    def __init__(self, client: object, settings: Settings, guarant_wallet: WalletV5R1):
+    def __init__(
+        self,
+        client: object,
+        settings: Settings,
+        guarant_wallet: WalletV5R1,
+        transaction_loader: Callable[..., Awaitable[list[object]]],
+    ):
         self._client = client
         self._settings = settings
         self._guarant_wallet = guarant_wallet
+        self._transaction_loader = transaction_loader
         self._master: JettonMasterStablecoin | None = None
         self._guarant_jetton_wallet: Address | None = None
 
@@ -56,8 +64,8 @@ class JettonEscrowGateway:
         reached_cursor = False
 
         while not reached_cursor:
-            transactions = await self._guarant_wallet.get_transactions(
-                limit=100,
+            transactions = await self._transaction_loader(
+                limit=self._settings.TON_TRANSACTION_SCAN_LIMIT,
                 from_lt=from_lt,
             )
             if not transactions:
@@ -102,7 +110,10 @@ class JettonEscrowGateway:
                         observed_at=datetime.fromtimestamp(transaction.now, tz=UTC),
                     )
                 )
-            if reached_cursor or len(transactions) < 100:
+            if (
+                reached_cursor
+                or len(transactions) < self._settings.TON_TRANSACTION_SCAN_LIMIT
+            ):
                 break
             from_lt = int(transactions[-1].lt) - 1
 

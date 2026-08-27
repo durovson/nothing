@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from functools import wraps
-from time import time
+from time import monotonic, time
 from typing import Never, ParamSpec, TypeVar
 
 from ton_core import (
@@ -26,6 +27,7 @@ from tonutils.exceptions import ProviderResponseError, ProviderTimeoutError
 
 from app.config import Settings
 from app.core.constants import (
+    GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS,
     WALLET_V4_MAX_PAYOUT_MESSAGES,
     WALLET_V5_MAX_PAYOUT_MESSAGES,
     WALLET_V5_MAX_SUBWALLET_NUMBER,
@@ -119,9 +121,90 @@ class TonEscrowClient:
             workchain=workchain,
             config=self._v5_config(0),
         )
-        self._jettons = JettonEscrowGateway(self._client, settings, self._guarant_wallet)
+        self._guarant_transactions_lock = asyncio.Lock()
+        self._guarant_transactions_cache: dict[
+            tuple[int, int | None], tuple[float, list[object]]
+        ] = {}
+        self._guarant_transactions_failures: dict[
+            tuple[int, int | None], tuple[float, BaseException]
+        ] = {}
+        self._jettons = JettonEscrowGateway(
+            self._client,
+            settings,
+            self._guarant_wallet,
+            self._get_guarant_transactions,
+        )
         self._validate_guarant_address()
         self._connected = False
+
+    async def _get_guarant_transactions(
+        self, *, limit: int, from_lt: int | None = None
+    ) -> list[object]:
+        """Coalesce identical guarant-history reads made by deposit indexers.
+
+        Desk TON and USDT notifications live in the same account history. Both
+        scanners keep independent durable cursors, but a short process-local
+        snapshot lets them share the provider response without coupling their
+        financial state or delaying detection by more than a few seconds.
+        """
+
+        key = (limit, from_lt)
+        now = monotonic()
+        cached = self._guarant_transactions_cache.get(key)
+        if (
+            cached is not None
+            and now - cached[0] <= GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS
+        ):
+            return cached[1]
+        failed = self._guarant_transactions_failures.get(key)
+        if (
+            failed is not None
+            and now - failed[0] <= GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS
+        ):
+            raise failed[1]
+
+        async with self._guarant_transactions_lock:
+            now = monotonic()
+            cached = self._guarant_transactions_cache.get(key)
+            if (
+                cached is not None
+                and now - cached[0] <= GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS
+            ):
+                return cached[1]
+            failed = self._guarant_transactions_failures.get(key)
+            if (
+                failed is not None
+                and now - failed[0] <= GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS
+            ):
+                raise failed[1]
+
+            self._prune_guarant_transaction_snapshots(now)
+            try:
+                transactions = list(
+                    await self._guarant_wallet.get_transactions(
+                        limit=limit,
+                        from_lt=from_lt,
+                    )
+                )
+            except (ProviderResponseError, ProviderTimeoutError) as exc:
+                self._guarant_transactions_failures[key] = (monotonic(), exc)
+                raise
+            self._guarant_transactions_failures.pop(key, None)
+            self._guarant_transactions_cache[key] = (monotonic(), transactions)
+            return transactions
+
+    def _prune_guarant_transaction_snapshots(self, now: float) -> None:
+        ttl = GUARANT_TRANSACTION_SNAPSHOT_TTL_SECONDS
+        self._guarant_transactions_cache = {
+            key: value
+            for key, value in self._guarant_transactions_cache.items()
+            if now - value[0] <= ttl
+        }
+        self._guarant_transactions_failures = {
+            key: value
+            for key, value in self._guarant_transactions_failures.items()
+            if now - value[0] <= ttl
+        }
 
     @property
     def is_connected(self) -> bool:
@@ -347,7 +430,7 @@ class TonEscrowClient:
     ) -> DepositScanBatch:
         """Index inbound TON transfers to the guarant wallet for paid Desk posts."""
         del last_hash
-        transactions = await self._guarant_wallet.get_transactions(
+        transactions = await self._get_guarant_transactions(
             limit=self._settings.TON_TRANSACTION_SCAN_LIMIT
         )
         observations: list[PaymentObservation] = []
