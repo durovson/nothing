@@ -14,9 +14,16 @@ from app.core.constants import (
 from app.core.custom_emoji import CustomEmoji
 from app.core.enums import DealType, Language
 from app.keyboards.buttons import premium_button
-from app.keyboards.callbacks import DealAction, DealCallback, MenuAction, MenuCallback
+from app.keyboards.callbacks import (
+    DealAction,
+    DealCallback,
+    MenuAction,
+    MenuCallback,
+    OtcOfferAction,
+    OtcOfferCallback,
+)
 from app.locales import TextKey, translate
-from app.models.entities import Deal, DeskListing, User
+from app.models.entities import Deal, DeskListing, OtcOffer, User
 from app.ton.amounts import asset_payment_amount
 from app.ton.links import tonviewer_transaction_url
 from app.utils import currency_label, format_amount
@@ -227,12 +234,19 @@ class TelegramNotificationGateway:
             f"<blockquote>• Описание:\n{escape(listing.description)}\n\n"
             f"• Цена: {price}</blockquote>"
         )
+        bot_username = self._settings.TELEGRAM_BOT_USERNAME.strip().lstrip("@")
+        offer_url = f"https://t.me/{bot_username}?start=offer_{listing.public_id}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[
             premium_button(
-                "Профиль",
+                "OFFER",
+                icon=CustomEmoji.MONEY,
+                url=offer_url,
+            ),
+            premium_button(
+                "PROFILE",
                 icon=CustomEmoji.PERSON,
                 url=f"tg://user?id={listing.owner_id}",
-            )
+            ),
         ]])
         try:
             message = await self._bot.send_message(
@@ -268,6 +282,88 @@ class TelegramNotificationGateway:
                 listing.owner_id,
             )
             await self._send_text(listing.owner_id, caption)
+
+    async def otc_offer_created(self, offer: OtcOffer) -> None:
+        buyer = (
+            f"@{escape(offer.buyer_username)}"
+            if offer.buyer_username
+            else str(offer.buyer_id)
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                premium_button(
+                    translate(
+                        offer.seller_language, TextKey.OTC_OFFER_ACCEPT_BUTTON
+                    ),
+                    icon=CustomEmoji.CONFIRM,
+                    callback_data=OtcOfferCallback(
+                        action=OtcOfferAction.ACCEPT, offer_id=offer.id
+                    ).pack(),
+                ),
+                premium_button(
+                    translate(
+                        offer.seller_language, TextKey.OTC_OFFER_DECLINE_BUTTON
+                    ),
+                    icon=CustomEmoji.CANCEL,
+                    callback_data=OtcOfferCallback(
+                        action=OtcOfferAction.DECLINE, offer_id=offer.id
+                    ).pack(),
+                ),
+            ],
+            [
+                premium_button(
+                    translate(
+                        offer.seller_language, TextKey.OTC_OFFER_PROFILE_BUTTON
+                    ),
+                    icon=CustomEmoji.PERSON,
+                    url=f"tg://user?id={offer.buyer_id}",
+                )
+            ],
+        ])
+        await self._send_text(
+            offer.seller_id,
+            translate(
+                offer.seller_language,
+                TextKey.OTC_OFFER_INCOMING,
+                item=escape(offer.listing_description),
+                amount=format_amount(offer.amount),
+                buyer=buyer,
+            ),
+            keyboard,
+        )
+
+    async def otc_offer_resolved(self, offer: OtcOffer) -> None:
+        accepted = offer.status.value == "accepted"
+        if offer.buyer_language is Language.RU:
+            status_label = "ПРИНЯТО" if accepted else "ОТКЛОНЕНО"
+        else:
+            status_label = "ACCEPTED" if accepted else "DECLINED"
+        icon = CustomEmoji.CONFIRM if accepted else CustomEmoji.CANCEL
+        fallback = "✅" if accepted else "❌"
+        status = (
+            f"{status_label} "
+            f"<tg-emoji emoji-id='{icon.value}'>{fallback}</tg-emoji>"
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+            premium_button(
+                translate(
+                    offer.buyer_language, TextKey.OTC_OFFER_PROFILE_BUTTON
+                ),
+                icon=CustomEmoji.PERSON,
+                url=f"tg://user?id={offer.seller_id}",
+            )
+        ]])
+        await self._send_text(
+            offer.buyer_id,
+            translate(
+                offer.buyer_language,
+                TextKey.OTC_OFFER_RESULT,
+                item=escape(offer.listing_description),
+                amount=format_amount(offer.amount),
+                status=status,
+            ),
+            keyboard,
+        )
 
     async def cancelled_by_seller(self, deal: Deal, buyer: User) -> None:
         await self._send(

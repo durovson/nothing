@@ -2,6 +2,7 @@ from aiogram import F, Router, types
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 
+from app.api.telegram_notifier import TelegramNotificationGateway
 from app.config import Settings
 from app.core.enums import DealStatus, DealType
 from app.core.exceptions import MissingLinkedWalletError, ServiceUnavailableError
@@ -9,12 +10,19 @@ from app.keyboards import MenuCallback, main_menu, payment_keyboard
 from app.keyboards.callbacks import MenuAction
 from app.locales import TextKey, translate
 from app.models.entities import User
-from app.services.deals import DealService
-from app.services.referrals import ReferralService
-from app.services.channels import ChannelDealService
-from app.api.telegram_notifier import TelegramNotificationGateway
 from app.handlers.deal_manage import render_deal_card
-from app.utils import currency_label, deal_type_label, format_amount, render_home, render_menu
+from app.handlers.otc_offers import begin_otc_offer
+from app.services.channels import ChannelDealService
+from app.services.deals import DealService
+from app.services.otc_offers import OtcOfferService
+from app.services.referrals import ReferralService
+from app.utils import (
+    currency_label,
+    deal_type_label,
+    format_amount,
+    render_home,
+    render_menu,
+)
 
 router = Router(name="start")
 
@@ -30,6 +38,7 @@ async def start_with_args(
     state: FSMContext,
     channel_service: ChannelDealService,
     notification_gateway: TelegramNotificationGateway,
+    otc_offer_service: OtcOfferService,
 ) -> None:
     await state.clear()
     argument = (command.args or "").strip()
@@ -39,6 +48,17 @@ async def start_with_args(
         except ValueError:
             referrer_id = 0
         await referral_service.assign_referrer(db_user.telegram_id, referrer_id)
+
+    if argument.startswith("offer_"):
+        listing_public_id = argument.removeprefix("offer_")
+        await begin_otc_offer(
+            message,
+            listing_public_id,
+            db_user,
+            state,
+            otc_offer_service,
+        )
+        return
 
     if len(argument) == 10 and argument.isalnum():
         try:

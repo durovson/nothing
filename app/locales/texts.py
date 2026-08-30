@@ -63,6 +63,52 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DESK_EXPIRED: "Время оплаты объявления истекло. Создайте его заново.",
         TextKey.DESK_USERNAME_REQUIRED: "Для публикации объявления у профиля Telegram должен быть @username.",
         TextKey.DESK_INVALID_AMOUNT: "Введите положительное число, например 5 или 12.5.",
+        TextKey.OTC_OFFER_PROMPT: (
+            "<tg-emoji emoji-id='5775887550262546277'>❗️</tg-emoji> <b>Создать OTC-предложение</b>\n\n"
+            "<b>Детали:</b>\n"
+            "<blockquote><b>Item:</b> {item}\n<b>Price:</b> {price}</blockquote>\n\n"
+            "<b>Введите сумму предложения в GRAM:</b>"
+        ),
+        TextKey.OTC_OFFER_SENT: (
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji>"
+            "Ваше предложение <b>{amount} GRAM</b> отправлено владельцу. "
+            "Ожидайте принятия решения."
+        ),
+        TextKey.OTC_OFFER_INCOMING: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>Новое OTC-предложение</b>\n\n"
+            "<b>Детали:</b>\n"
+            "<blockquote><b>Item:</b> {item}\n"
+            "<b>Amount:</b> {amount} GRAM\n"
+            "<b>Buyer:</b> {buyer}</blockquote>\n\n"
+            "Бот только связывает обе стороны.\n"
+            "Расчёт происходит напрямую между пользователями.\n\n"
+            "<b>Примите или отклоните предложение:</b>"
+        ),
+        TextKey.OTC_OFFER_RESULT: (
+            "<tg-emoji emoji-id='5879785854284599288'>ℹ️</tg-emoji> <b>Статус OTC-предложения</b>\n\n"
+            "<b>Детали:</b>\n"
+            "<blockquote><b>Название:</b> {item}\n"
+            "<b>Сумма предложения:</b> {amount} GRAM</blockquote>\n\n"
+            "<b>Статус:</b> {status}\n\n"
+            "Свяжитесь со второй стороной для совершения сделки.\n"
+            "Расчёт суммы сделки происходит напрямую между пользователями.\n\n"
+            "Бот не переводит GRAM, NFT или другие активы — он только связывает стороны."
+        ),
+        TextKey.OTC_OFFER_UNAVAILABLE: (
+            "Объявление не существует, уже не активно или принадлежит вам."
+        ),
+        TextKey.OTC_OFFER_INVALID_AMOUNT: (
+            "Введите положительную сумму с числом знаков после запятой не более 9."
+        ),
+        TextKey.OTC_OFFER_COOLDOWN: (
+            "Новое предложение можно отправить через {seconds} сек."
+        ),
+        TextKey.OTC_OFFER_ALREADY_RESOLVED: (
+            "Предложение уже обработано или недоступно."
+        ),
+        TextKey.OTC_OFFER_ACCEPT_BUTTON: "Принять",
+        TextKey.OTC_OFFER_DECLINE_BUTTON: "Отклонить",
+        TextKey.OTC_OFFER_PROFILE_BUTTON: "Профиль",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\nОтправьте TON-адрес, который нужно привязать к профилю.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>Мой кошелёк</b>\n\n<b>Текущий адрес:</b>\n"
@@ -350,6 +396,52 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.DESK_EXPIRED: "The listing payment window has expired. Create it again.",
         TextKey.DESK_USERNAME_REQUIRED: "Your Telegram profile needs an @username to publish a listing.",
         TextKey.DESK_INVALID_AMOUNT: "Enter a positive number, for example 5 or 12.5.",
+        TextKey.OTC_OFFER_PROMPT: (
+            "<tg-emoji emoji-id='5775887550262546277'>❗️</tg-emoji> <b>Create an OTC offer</b>\n\n"
+            "<b>Details:</b>\n"
+            "<blockquote><b>Item:</b> {item}\n<b>Price:</b> {price}</blockquote>\n\n"
+            "<b>Enter your offer amount in GRAM:</b>"
+        ),
+        TextKey.OTC_OFFER_SENT: (
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji>"
+            "Your offer of <b>{amount} GRAM</b> has been sent to the owner. "
+            "Wait for their decision."
+        ),
+        TextKey.OTC_OFFER_INCOMING: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>New OTC-offer</b>\n\n"
+            "<b>Details:</b>\n"
+            "<blockquote><b>Item:</b> {item}\n"
+            "<b>Amount:</b> {amount} GRAM\n"
+            "<b>Buyer:</b> {buyer}</blockquote>\n\n"
+            "The bot only connects both parties.\n"
+            "Payment is completed directly between users.\n\n"
+            "<b>Accept or decline the offer:</b>"
+        ),
+        TextKey.OTC_OFFER_RESULT: (
+            "<tg-emoji emoji-id='5879785854284599288'>ℹ️</tg-emoji> <b>OTC-offer status</b>\n\n"
+            "<b>Details:</b>\n"
+            "<blockquote><b>Item:</b> {item}\n"
+            "<b>Offer amount:</b> {amount} GRAM</blockquote>\n\n"
+            "<b>Status:</b> {status}\n\n"
+            "Contact the other party to continue the deal.\n"
+            "Payment is completed directly between users.\n\n"
+            "The bot does not transfer GRAM, NFTs, or other assets — it only connects the parties."
+        ),
+        TextKey.OTC_OFFER_UNAVAILABLE: (
+            "The listing does not exist, is no longer active, or belongs to you."
+        ),
+        TextKey.OTC_OFFER_INVALID_AMOUNT: (
+            "Enter a positive amount with no more than 9 decimal places."
+        ),
+        TextKey.OTC_OFFER_COOLDOWN: (
+            "You can send another offer in {seconds} sec."
+        ),
+        TextKey.OTC_OFFER_ALREADY_RESOLVED: (
+            "This offer has already been processed or is unavailable."
+        ),
+        TextKey.OTC_OFFER_ACCEPT_BUTTON: "Accept",
+        TextKey.OTC_OFFER_DECLINE_BUTTON: "Decline",
+        TextKey.OTC_OFFER_PROFILE_BUTTON: "Profile",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
         TextKey.WALLET_ACTIVE_PROMPT: (
             "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nCurrent address:\n"

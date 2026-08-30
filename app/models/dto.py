@@ -34,6 +34,18 @@ class CreateDeskListingCommand(BaseModel):
     payment_deadline_at: datetime
 
 
+class CreateOtcOfferCommand(BaseModel):
+    listing_public_id: str = Field(
+        min_length=10, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    buyer_id: int
+    buyer_username: str | None = Field(default=None, max_length=64)
+    buyer_language: Language
+    amount: Decimal = Field(
+        gt=Decimal("0"), max_digits=36, decimal_places=9
+    )
+
+
 class ChannelDescriptor(BaseModel):
     channel_id: int
     title: str = Field(min_length=1, max_length=255)

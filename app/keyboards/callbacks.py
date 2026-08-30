@@ -37,6 +37,11 @@ class DeskCurrencyPurpose(StrEnum):
     PAYMENT = "payment"
 
 
+class OtcOfferAction(StrEnum):
+    ACCEPT = "accept"
+    DECLINE = "decline"
+
+
 class DealAction(StrEnum):
     OPEN = "open"
     CANCEL = "cancel"
@@ -84,6 +89,11 @@ class DeskActionCallback(CallbackData, prefix="desk-action"):
 class DeskCurrencyCallback(CallbackData, prefix="desk-currency"):
     purpose: DeskCurrencyPurpose
     currency: Currency
+
+
+class OtcOfferCallback(CallbackData, prefix="otc-offer"):
+    action: OtcOfferAction
+    offer_id: int
 
 
 class DealCallback(CallbackData, prefix="deal"):

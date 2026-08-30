@@ -6,6 +6,7 @@ from app.handlers import (
     deal_manage,
     desk,
     info,
+    otc_offers,
     referral_communities,
     settings,
     start,
@@ -25,6 +26,7 @@ def create_router() -> Router:
         deal_creation.router,
         deal_manage.router,
         desk.router,
+        otc_offers.router,
         referral_communities.router,
         settings.router,
     )

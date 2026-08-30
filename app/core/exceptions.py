@@ -64,3 +64,17 @@ class ChannelConfigurationError(ApplicationError):
 
 class ServiceUnavailableError(ApplicationError):
     pass
+
+
+class OtcOfferUnavailableError(ApplicationError):
+    """The listing cannot currently receive an OTC offer."""
+
+
+class OtcOfferCooldownError(ApplicationError):
+    def __init__(self, retry_after_seconds: int):
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__("OTC offer cooldown is active")
+
+
+class OtcOfferResolutionError(ApplicationError):
+    """The offer is missing, already resolved, or belongs to another seller."""

@@ -16,6 +16,7 @@ from app.core.enums import (
     FinancialOperationStatus,
     FinancialOperationType,
     Language,
+    OtcOfferStatus,
     PayoutStatus,
     ReferralWithdrawalStatus,
     RefundStatus,
@@ -57,6 +58,23 @@ class DeskListing(BaseModel):
     topic_message_id: int | None = None
     published_at: datetime | None = None
     failure_reason: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class OtcOffer(BaseModel):
+    id: int
+    listing_id: int
+    listing_public_id: str
+    listing_description: str
+    seller_id: int
+    seller_language: Language = Language.RU
+    buyer_id: int
+    buyer_username: str | None = None
+    buyer_language: Language = Language.RU
+    amount: Decimal
+    status: OtcOfferStatus
+    responded_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

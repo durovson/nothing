@@ -105,6 +105,20 @@ class DeskRepository:
         )
         return DeskListing(**response.data[0]) if response.data else None
 
+    async def get_published_by_public_id(
+        self, public_id: str
+    ) -> DeskListing | None:
+        response = await self._database.read(
+            lambda: self._database.client.table("desk_listings")
+            .select("*")
+            .eq("public_id", public_id)
+            .eq("status", "published")
+            .limit(1)
+            .execute(),
+            name="desk:get-published-by-public-id",
+        )
+        return DeskListing(**response.data[0]) if response.data else None
+
     async def get_by_deposit(self, deposit_id: int) -> DeskListing | None:
         response = await self._database.read(
             lambda: self._database.client.table("desk_listings")

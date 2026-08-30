@@ -17,6 +17,7 @@ from app.services.usdt_indexer import UsdtDepositIndexer
 from app.services.ton_indexer import TonDepositIndexer
 from app.services.desk import DeskService
 from app.services.desk_indexer import DeskTonDepositIndexer
+from app.services.otc_offers import OtcOfferService
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +33,7 @@ class Services:
     admin: AdminService
     channels: ChannelDealService
     desk: DeskService
+    otc_offers: OtcOfferService
 
 
 __all__ = [
@@ -51,4 +53,5 @@ __all__ = [
     "TonDepositIndexer",
     "DeskService",
     "DeskTonDepositIndexer",
+    "OtcOfferService",
 ]

@@ -49,6 +49,7 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher["admin_service"] = services.admin
     dispatcher["channel_service"] = services.channels
     dispatcher["desk_service"] = services.desk
+    dispatcher["otc_offer_service"] = services.otc_offers
     dispatcher.include_router(create_router())
     return dispatcher
 

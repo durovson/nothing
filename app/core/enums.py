@@ -32,6 +32,12 @@ class DeskListingStatus(StrEnum):
     PUBLICATION_FAILED = "publication_failed"
 
 
+class OtcOfferStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+
+
 class AdminDisputeAction(StrEnum):
     OPEN = "open"
     RELEASE = "release"

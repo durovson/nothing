@@ -21,6 +21,10 @@ class DeskCreationStates(StatesGroup):
     waiting_for_payment_currency = State()
 
 
+class OtcOfferStates(StatesGroup):
+    waiting_for_amount = State()
+
+
 class ChannelDealStates(StatesGroup):
     """Input state isolated from the generic offer creation flow."""
 
