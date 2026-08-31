@@ -444,8 +444,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.OTC_OFFER_PROFILE_BUTTON: "Profile",
         TextKey.WALLET_PROMPT: "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nSend the TON address you want to link to your profile.",
         TextKey.WALLET_ACTIVE_PROMPT: (
-            "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\nCurrent address:\n"
-            "<a href=\"{wallet_url}\">{wallet_short}</a>\n\n"
+            "<tg-emoji emoji-id='5769403330761593044'>👛</tg-emoji> <b>My wallet</b>\n\n<b>Current address:</b>\n"
+            "<blockquote><a href=\"{wallet_url}\">{wallet_short}</a></blockquote>\n\n"
             "Want to change it? Send a new address."
         ),
         TextKey.WALLET_SAVED: "Wallet saved:\n<blockquote><code>{wallet}</code></blockquote>",
@@ -630,13 +630,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Referrals</b>\n\n"
             "<b>Details:</b>\n"
             "<blockquote>• <b>Level:</b> {level}\n"
-            "• Referral percentage:\n  {rate}% of the service fee\n"
-            "• Cumulative volume:\n {volume} GRAM\n"
-            "• Users invited: {count}</blockquote>{community_status}\n\n"
+            "• <b>Referral percentage:</b>\n   {rate}% of the service fee\n"
+            "• <b>Cumulative volume:</b>\n   {volume} GRAM\n"
+            "• <b>Users invited:</b> {count}</blockquote>{community_status}\n\n"
             "<b>Balance:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
-            "• USDT <tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
-            "Your referral link:\n"
+            "• USDT<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
+            "<b>Your referral link:</b>\n"
             "<code>{link}</code>"
         ),
         TextKey.BACK_BUTTON: "Back",

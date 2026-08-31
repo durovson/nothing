@@ -40,7 +40,11 @@ class TelegramNotificationGateway:
         self._settings = settings
 
     async def buyer_joined(self, deal: Deal, buyer: User, seller: User, buyer_deals: int) -> None:
-        username = f"@{escape(buyer.username)}" if buyer.username else "без username"
+        username = (
+            f"@{escape(buyer.username)}"
+            if buyer.username
+            else ("без username" if seller.language is Language.RU else "without username")
+        )
         if seller.language is Language.RU:
             text = (
                 f"Пользователь {username} ({buyer.telegram_id}) присоединился к сделке "
@@ -58,8 +62,11 @@ class TelegramNotificationGateway:
             text = (
                 f"User {username} ({buyer.telegram_id}) joined deal <code>#{deal.public_id}</code>\n\n"
                 f"• Buyer completed deals: {buyer_deals}\n\n"
-                "⚠️ Make sure this is the same person you spoke with.\n\n"
-                "Do not deliver the service until the bot confirms payment."
+                "⚠️ <b>IMPORTANT</b>\n\n"
+                "Make sure the Telegram ID and username match the user you agreed on the deal "
+                "with outside the bot.\n\n"
+                "Never deliver the service until you receive the “Payment confirmed” notification.\n\n"
+                "Wait for the bot’s payment confirmation before delivering the service!"
             )
             profile = "Buyer profile"
             open_text = "Open deal"
