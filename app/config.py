@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     USDT_JETTON_TRANSFER_TON: Decimal = Field(default=Decimal("0.05"), gt=0)
 
     DEAL_POLL_INTERVAL_SECONDS: int = Field(default=15, ge=5)
+    CHANNEL_POLL_INTERVAL_SECONDS: int = Field(default=30, ge=10)
+    MAINTENANCE_POLL_INTERVAL_SECONDS: int = Field(default=60, ge=15)
+    FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS: int = Field(default=10, ge=5)
+    FINANCIAL_IDLE_POLL_INTERVAL_SECONDS: int = Field(default=60, ge=15)
+    SYSTEM_MODE_POLL_INTERVAL_SECONDS: int = Field(default=30, ge=15)
     READ_ONLY_FAILURE_THRESHOLD_SECONDS: int = Field(default=900, ge=300, le=3600)
     MIN_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
     MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)

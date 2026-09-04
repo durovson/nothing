@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from app.core.constants import MAX_ERROR_LENGTH
 from app.core.enums import FinancialOperationFlow, FinancialOperationStatus
 from app.database import SupabaseDatabase
@@ -12,6 +14,27 @@ class FinancialOperationRepository:
 
     def __init__(self, database: SupabaseDatabase):
         self._database = database
+        self._work_events = {
+            flow: asyncio.Event() for flow in FinancialOperationFlow
+        }
+
+    def _notify_work(self, flow: FinancialOperationFlow) -> None:
+        self._work_events[flow].set()
+
+    async def wait_for_work(
+        self, flow: FinancialOperationFlow, timeout: float
+    ) -> None:
+        """Wake an idle processor immediately when its flow receives work."""
+        event = self._work_events[flow]
+        if event.is_set():
+            event.clear()
+            return
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+        except TimeoutError:
+            return
+        finally:
+            event.clear()
 
     async def plan_collection(
         self,
@@ -30,7 +53,10 @@ class FinancialOperationRepository:
                 "p_unmatched_payment_id": unmatched_payment_id,
             },
         )
-        return FinancialOperation(**response.data[0]) if response.data else None
+        operation = FinancialOperation(**response.data[0]) if response.data else None
+        if operation is not None:
+            self._notify_work(FinancialOperationFlow.COLLECTION)
+        return operation
 
     async def plan_payout(
         self,
@@ -57,7 +83,10 @@ class FinancialOperationRepository:
                 "p_referral_allocations": referral_allocations,
             },
         )
-        return [FinancialOperation(**row) for row in response.data or []]
+        operations = [FinancialOperation(**row) for row in response.data or []]
+        if operations:
+            self._notify_work(FinancialOperationFlow.PAYOUT)
+        return operations
 
     async def plan_refund(
         self,
@@ -82,7 +111,10 @@ class FinancialOperationRepository:
                 "p_service_comment": service_comment,
             },
         )
-        return [FinancialOperation(**row) for row in response.data or []]
+        operations = [FinancialOperation(**row) for row in response.data or []]
+        if operations:
+            self._notify_work(FinancialOperationFlow.REFUND)
+        return operations
 
     async def claim_referral_withdrawal(
         self, user_id: int, currency: str, destination: str, comment: str
@@ -96,7 +128,10 @@ class FinancialOperationRepository:
                 "p_comment": comment,
             },
         )
-        return FinancialOperation(**response.data[0]) if response.data else None
+        operation = FinancialOperation(**response.data[0]) if response.data else None
+        if operation is not None:
+            self._notify_work(FinancialOperationFlow.REFERRAL)
+        return operation
 
     async def plan_unmatched_refund(
         self, payment_id: int, destination: str
@@ -109,7 +144,10 @@ class FinancialOperationRepository:
                 "p_comment": "Недействительный платеж",
             },
         )
-        return FinancialOperation(**response.data[0]) if response.data else None
+        operation = FinancialOperation(**response.data[0]) if response.data else None
+        if operation is not None:
+            self._notify_work(FinancialOperationFlow.UNMATCHED_REFUND)
+        return operation
 
     async def claim_due(self, flow: FinancialOperationFlow) -> FinancialOperation | None:
         response = await self._database.rpc(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from decimal import Decimal
 
@@ -48,6 +49,10 @@ class PayoutService:
         self._ton = ton
         self._notifications = notifications
         self._system_mode = system_mode
+        self._planner_event = asyncio.Event()
+
+    def notify_work(self) -> None:
+        self._planner_event.set()
 
     async def confirm_receipt(self, deal_id: int, buyer_id: int) -> Deal:
         if self._system_mode is not None and not await self._system_mode.allows_flow(FinancialOperationFlow.PAYOUT):
@@ -60,12 +65,13 @@ class PayoutService:
         requested = await self._deals.request_release(deal.id, buyer_id)
         if requested is None:
             raise DealConfirmationForbiddenError("Deal release could not be requested")
+        self.notify_work()
         return requested
 
-    async def process_releases(self) -> None:
-        await self.publish_pending_success_feed()
+    async def process_releases(self) -> bool:
+        did_work = await self.publish_pending_success_feed()
         if self._system_mode is not None and not await self._system_mode.allows_flow(FinancialOperationFlow.PAYOUT):
-            return
+            return did_work
         deals = await self._deals.list_release_requested(limit=20)
         participant_ids = {
             participant_id
@@ -83,6 +89,18 @@ class PayoutService:
                 )
             except Exception:
                 logger.exception("Payout planning failed for deal=%s", deal.public_id)
+        return did_work or bool(deals)
+
+    async def wait_for_work(self, timeout: float) -> None:
+        if self._planner_event.is_set():
+            self._planner_event.clear()
+            return
+        try:
+            await asyncio.wait_for(self._planner_event.wait(), timeout=timeout)
+        except TimeoutError:
+            return
+        finally:
+            self._planner_event.clear()
 
     async def start_payout(
         self,
@@ -141,10 +159,12 @@ class PayoutService:
         await self._notifications.payout_confirmed(deal, buyer, seller)
         await self._publish_completed_deal(deal)
 
-    async def publish_pending_success_feed(self) -> None:
+    async def publish_pending_success_feed(self) -> bool:
         """Retry feed delivery without replaying already claimed publications."""
-        for deal in await self._deals.list_completed_without_success_feed(limit=20):
+        deals = await self._deals.list_completed_without_success_feed(limit=20)
+        for deal in deals:
             await self._publish_completed_deal(deal)
+        return bool(deals)
 
     async def _publish_completed_deal(self, deal: Deal) -> None:
         claimed = await self._deals.claim_success_feed_notification(deal.id)

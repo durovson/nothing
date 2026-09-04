@@ -8,7 +8,7 @@ from app.core.types import (
     TonGatewayProtocol,
 )
 from app.models.dto import PaymentObservation
-from app.models.entities import Deal, ObservedDeposit
+from app.models.entities import Deal, DepositCursor, ObservedDeposit
 from app.services.collections import CollectionService
 from app.ton.amounts import asset_payment_amount_atomic
 from app.services.system_mode import SystemModeService
@@ -35,19 +35,32 @@ class UsdtDepositIndexer:
         self._collections = collections
         self._system_mode = system_mode
         self._desk = desk
+        self._cursor_loaded = False
+        self._cursor: DepositCursor | None = None
 
     async def run_once(self) -> None:
         if self._system_mode is not None and not await self._system_mode.accepts_deposits():
             return
-        cursor = await self._deposits.get_cursor(SCANNER_NAME)
+        if not self._cursor_loaded:
+            self._cursor = await self._deposits.get_cursor(SCANNER_NAME)
+            self._cursor_loaded = True
+        cursor = self._cursor
         batch = await self._ton.scan_usdt_deposits(
             cursor.last_lt if cursor else None,
             cursor.last_hash if cursor else None,
         )
         for observation in batch.deposits:
             await self._process(observation)
-        if batch.newest_lt is not None and batch.newest_hash:
-            await self._deposits.save_cursor(
+        if (
+            batch.newest_lt is not None
+            and batch.newest_hash
+            and (
+                cursor is None
+                or cursor.last_lt != batch.newest_lt
+                or cursor.last_hash != batch.newest_hash
+            )
+        ):
+            self._cursor = await self._deposits.save_cursor(
                 SCANNER_NAME,
                 self._ton.guarant_address,
                 batch.newest_lt,

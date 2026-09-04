@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app.config import Settings
@@ -36,8 +37,23 @@ class RefundService:
         self._users = users
         self._ton = ton
         self._notifications = notifications
+        self._planner_event = asyncio.Event()
 
-    async def process_requested(self) -> None:
+    def notify_work(self) -> None:
+        self._planner_event.set()
+
+    async def wait_for_work(self, timeout: float) -> None:
+        if self._planner_event.is_set():
+            self._planner_event.clear()
+            return
+        try:
+            await asyncio.wait_for(self._planner_event.wait(), timeout=timeout)
+        except TimeoutError:
+            return
+        finally:
+            self._planner_event.clear()
+
+    async def process_requested(self) -> bool:
         deals = await self._deals.list_refund_requested(limit=20)
         buyer_ids = {
             deal.buyer_id
@@ -53,6 +69,7 @@ class RefundService:
                 )
             except Exception:
                 logger.exception("Refund planning failed for deal=%s", deal.public_id)
+        return bool(deals)
 
     async def start_refund(self, deal: Deal, buyer: User | None = None) -> None:
         if buyer is None and deal.buyer_id:

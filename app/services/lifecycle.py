@@ -68,8 +68,8 @@ class DealLifecycleService:
             await self._notifications.dispute_opened(deal, buyer, seller)
         return ticket
 
-    async def process_deadlines(self) -> None:
-        await self._deals.process_deadlines_batch(limit=50)
+    async def process_deadlines(self) -> dict[str, int]:
+        return await self._deals.process_deadlines_batch(limit=50)
 
     async def _notify_delivery(self, deal: Deal) -> None:
         buyer, seller = await self._participants(deal)

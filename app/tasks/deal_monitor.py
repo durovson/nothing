@@ -82,7 +82,11 @@ class DealMonitor:
 
     @property
     def worker_health(self) -> dict[str, bool]:
-        maximum_age = max(self._settings.DEAL_POLL_INTERVAL_SECONDS * 3, 60)
+        maximum_age = max(
+            self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS * 3,
+            self._settings.MAINTENANCE_POLL_INTERVAL_SECONDS * 3,
+            60,
+        )
         now = monotonic()
         task_health = {
             task.get_name(): (
@@ -108,6 +112,7 @@ class DealMonitor:
             ("usdt-deposit-indexer", self._usdt_indexer_loop),
             ("desk-ton-indexer", self._desk_ton_indexer_loop),
             ("desk-expiry", self._desk_expiry_loop),
+            ("channel-access", self._channel_loop),
             ("deal-lifecycle", self._lifecycle_loop),
             ("refund-planner", self._refund_planner_loop),
             ("payout-planner", self._payout_planner_loop),
@@ -166,35 +171,90 @@ class DealMonitor:
         await self._repeat("Desk TON indexer", self._desk_ton_indexer.run_once)
 
     async def _desk_expiry_loop(self) -> None:
-        await self._repeat("Desk expiry", self._desk.expire_due)
+        await self._repeat(
+            "Desk expiry",
+            self._desk.expire_due,
+            self._settings.MAINTENANCE_POLL_INTERVAL_SECONDS,
+        )
 
     async def _refund_planner_loop(self) -> None:
-        await self._repeat("Refund planner", self._refunds.process_requested)
+        await self._adaptive_repeat(
+            "Refund planner",
+            self._refunds.process_requested,
+            self._refunds.wait_for_work,
+        )
 
     async def _payout_planner_loop(self) -> None:
-        await self._repeat("Payout planner", self._payouts.process_releases)
+        await self._adaptive_repeat(
+            "Payout planner",
+            self._payouts.process_releases,
+            self._payouts.wait_for_work,
+        )
 
     async def _processor_loop(
         self, name: str, processor: FinancialOperationProcessor
     ) -> None:
-        await self._repeat(name, processor.run_once)
+        failures = 0
+        while not self._stop_event.is_set():
+            delay = self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS
+            trace_name = name.lower().replace("_", "-").replace(" ", "-")
+            token = bind_trace_id(f"background:{trace_name}")
+            try:
+                did_work = await processor.run_once()
+                delay = (
+                    self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                    if did_work
+                    else self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS
+                )
+                self._last_success[name] = monotonic()
+                if failures:
+                    logger.info("%s recovered after %s transient failure(s)", name, failures)
+                failures = 0
+            except TonProviderTemporaryError as exc:
+                failures += 1
+                delay = provider_retry_delay(
+                    self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS,
+                    failures,
+                )
+                logger.warning(
+                    "%s temporarily unavailable: %s endpoint=%s; retry in %ss",
+                    name,
+                    exc.reason,
+                    exc.endpoint,
+                    delay,
+                )
+            except Exception:
+                delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                logger.exception("%s iteration failed", name)
+            finally:
+                reset_trace_id(token)
+            await processor.wait_for_work(delay)
+
+    async def _channel_loop(self) -> None:
+        await self._repeat(
+            "Channel access reconciliation",
+            self._channels.process_pending,
+            self._settings.CHANNEL_POLL_INTERVAL_SECONDS,
+        )
 
     async def _lifecycle_loop(self) -> None:
         while not self._stop_event.is_set():
             token = bind_trace_id("background:deal-lifecycle")
             try:
                 try:
-                    await self._channels.process_pending()
-                except Exception:
-                    logger.exception("Channel access reconciliation iteration failed")
-                try:
-                    await self._lifecycle.process_deadlines()
+                    result = await self._lifecycle.process_deadlines()
+                    if result.get("delivery_refunds", 0) or result.get(
+                        "wallet_refunds_activated", 0
+                    ):
+                        self._refunds.notify_work()
+                    if result.get("inspection_releases", 0):
+                        self._payouts.notify_work()
                     self._last_success["deal-lifecycle"] = monotonic()
                 except Exception:
                     logger.exception("Deal deadline iteration failed")
             finally:
                 reset_trace_id(token)
-            await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
+            await self._wait(self._settings.MAINTENANCE_POLL_INTERVAL_SECONDS)
 
     async def _retention_loop(self) -> None:
         await self._repeat(
@@ -214,7 +274,34 @@ class DealMonitor:
                     logger.exception("System mode reconciliation failed")
             finally:
                 reset_trace_id(token)
-            await self._wait(self._settings.DEAL_POLL_INTERVAL_SECONDS)
+            await self._wait(self._settings.SYSTEM_MODE_POLL_INTERVAL_SECONDS)
+
+    async def _adaptive_repeat(
+        self,
+        name: str,
+        callback: Callable[[], Awaitable[bool]],
+        waiter: Callable[[float], Awaitable[None]],
+    ) -> None:
+        while not self._stop_event.is_set():
+            delay = self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS
+            trace_name = name.lower().replace("_", "-").replace(" ", "-")
+            token = bind_trace_id(f"background:{trace_name}")
+            try:
+                did_work = await callback()
+                delay = (
+                    self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                    if did_work
+                    else self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS
+                )
+                task = asyncio.current_task()
+                if task is not None:
+                    self._last_success[task.get_name()] = monotonic()
+            except Exception:
+                delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                logger.exception("%s iteration failed", name)
+            finally:
+                reset_trace_id(token)
+            await waiter(delay)
 
     async def _repeat(
         self,

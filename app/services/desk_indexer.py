@@ -1,6 +1,7 @@
 from app.core.enums import Currency
 from app.core.types import DepositRepositoryProtocol, TonGatewayProtocol
 from app.models.dto import PaymentObservation
+from app.models.entities import DepositCursor
 from app.services.desk import DeskService
 from app.services.system_mode import SystemModeService
 
@@ -19,11 +20,16 @@ class DeskTonDepositIndexer:
         self._ton = ton
         self._desk = desk
         self._system_mode = system_mode
+        self._cursor_loaded = False
+        self._cursor: DepositCursor | None = None
 
     async def run_once(self) -> None:
         if self._system_mode is not None and not await self._system_mode.accepts_deposits():
             return
-        cursor = await self._deposits.get_cursor(SCANNER_NAME)
+        if not self._cursor_loaded:
+            self._cursor = await self._deposits.get_cursor(SCANNER_NAME)
+            self._cursor_loaded = True
+        cursor = self._cursor
         batch = await self._ton.scan_guarant_ton_deposits(
             cursor.last_lt if cursor else None,
             cursor.last_hash if cursor else None,
@@ -32,7 +38,7 @@ class DeskTonDepositIndexer:
         # historical guarant-wallet transfers could misclassify old custody moves.
         if cursor is None:
             if batch.newest_lt is not None and batch.newest_hash:
-                await self._deposits.save_cursor(
+                self._cursor = await self._deposits.save_cursor(
                     SCANNER_NAME,
                     self._ton.guarant_address,
                     batch.newest_lt,
@@ -41,8 +47,16 @@ class DeskTonDepositIndexer:
             return
         for observation in batch.deposits:
             await self._process(observation)
-        if batch.newest_lt is not None and batch.newest_hash:
-            await self._deposits.save_cursor(
+        if (
+            batch.newest_lt is not None
+            and batch.newest_hash
+            and (
+                cursor is None
+                or cursor.last_lt != batch.newest_lt
+                or cursor.last_hash != batch.newest_hash
+            )
+        ):
+            self._cursor = await self._deposits.save_cursor(
                 SCANNER_NAME, self._ton.guarant_address, batch.newest_lt, batch.newest_hash
             )
 

@@ -56,26 +56,33 @@ class FinancialOperationProcessor:
         self._system_mode = system_mode
         self._logger = logging.getLogger(f"{__name__}.{flow.value}")
 
-    async def run_once(self) -> None:
+    async def run_once(self) -> bool:
         self.health.running = True
         try:
             if self._system_mode is not None and not await self._system_mode.allows_flow(self.flow):
                 self.health.iterations += 1
                 self.health.last_success_at = datetime.now(UTC)
                 self.health.last_error = None
-                return
-            for operation, attempt in await self._operations.list_submitted(self.flow):
+                return False
+            submitted = await self._operations.list_submitted(self.flow)
+            did_work = bool(submitted)
+            for operation, attempt in submitted:
                 await self._reconcile(operation, attempt)
             operation = await self._operations.claim_due(self.flow)
             if operation is not None:
+                did_work = True
                 await self._prepare_and_submit(operation)
             self.health.iterations += 1
             self.health.last_success_at = datetime.now(UTC)
             self.health.last_error = None
+            return did_work
         except Exception as exc:
             self.health.last_error_at = datetime.now(UTC)
             self.health.last_error = str(exc)[:500]
             raise
+
+    async def wait_for_work(self, timeout: float) -> None:
+        await self._operations.wait_for_work(self.flow, timeout)
 
     async def _prepare_and_submit(self, operation: FinancialOperation) -> None:
         try:

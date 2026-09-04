@@ -8,7 +8,7 @@ from app.core.types import (
     TonGatewayProtocol,
 )
 from app.models.dto import PaymentObservation
-from app.models.entities import Deal, ObservedDeposit
+from app.models.entities import Deal, DepositCursor, ObservedDeposit
 from app.services.collections import CollectionService
 from app.ton.amounts import asset_payment_amount_atomic
 from app.services.system_mode import SystemModeService
@@ -32,17 +32,25 @@ class TonDepositIndexer:
         self._ton = ton
         self._collections = collections
         self._system_mode = system_mode
+        self._cursors: dict[str, DepositCursor | None] = {}
 
     async def run_once(self) -> None:
         if not await self._system_mode.accepts_deposits():
             return
-        for deal in await self._deals.list_pending():
+        deals = await self._deals.list_pending()
+        active_scanners: set[str] = set()
+        for deal in deals:
             if deal.currency is Currency.TON:
+                active_scanners.add(f"deal-ton-v1:{deal.id}")
                 await self._scan_deal(deal)
+        for scanner in self._cursors.keys() - active_scanners:
+            self._cursors.pop(scanner, None)
 
     async def _scan_deal(self, deal: Deal) -> None:
         scanner = f"deal-ton-v1:{deal.id}"
-        cursor = await self._deposits.get_cursor(scanner)
+        if scanner not in self._cursors:
+            self._cursors[scanner] = await self._deposits.get_cursor(scanner)
+        cursor = self._cursors[scanner]
         batch = await self._ton.scan_ton_deposits(
             deal,
             cursor.last_lt if cursor else None,
@@ -89,8 +97,17 @@ class TonDepositIndexer:
         if first_unmatched_id is not None and not custody_planned:
             await self._collections.start_unmatched_collection(deal, first_unmatched_id)
 
-        if batch.newest_lt is not None and batch.newest_hash and deal.wallet_address:
-            await self._deposits.save_cursor(
+        if (
+            batch.newest_lt is not None
+            and batch.newest_hash
+            and deal.wallet_address
+            and (
+                cursor is None
+                or cursor.last_lt != batch.newest_lt
+                or cursor.last_hash != batch.newest_hash
+            )
+        ):
+            self._cursors[scanner] = await self._deposits.save_cursor(
                 scanner, deal.wallet_address, batch.newest_lt, batch.newest_hash
             )
 

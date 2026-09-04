@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class SystemModeService:
     """TON-only circuit breaker with administrator-controlled manual modes."""
 
-    _CACHE_TTL_SECONDS = 30
+    _CACHE_TTL_SECONDS = 120
     _PERSIST_RETRY_SECONDS = 60
 
     def __init__(
