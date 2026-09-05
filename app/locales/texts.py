@@ -294,9 +294,9 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.REFERRAL_CAPTION: (
             "<tg-emoji emoji-id='5942877472163892475'>👥</tg-emoji> <b>Рефералы</b>\n\n<b>Детали:</b>\n"
             "<blockquote>• <b>Уровень:</b> {level}\n"
-            "• <b>Реферальный процент:</b>\n   {rate}% комиссии\n"
-            "• <b>Реферальный объём:</b>\n   {volume} GRAM\n"
-            "• <b>Приглашено пользователей:</b> {count}</blockquote>{community_status}\n\n"
+            "• <b>Реферальный процент:</b> {rate}%\n"
+            "• <b>Реферальный объём:</b> {volume} GRAM\n"
+            "• <b>Приглашено:</b> {count}</blockquote>{community_status}\n\n"
             "<b>Баланс:</b>\n"
             "<blockquote>• GRAM: {earned_ton}\n"
             "• USDT<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji>: {earned_usdt}</blockquote>\n\n"
