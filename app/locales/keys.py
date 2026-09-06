@@ -91,6 +91,7 @@ class TextKey(StrEnum):
     BACK_BUTTON = "back_button"
     MAIN_MENU_BUTTON = "main_menu_button"
     FAQ_CAPTION = "faq_caption"
+    FAQ_CAPTION_PAGE_2 = "faq_caption_page_2"
     DOCUMENTS_CAPTION = "documents_caption"
     PRIVACY_BUTTON = "privacy_button"
     TERMS_BUTTON = "terms_button"

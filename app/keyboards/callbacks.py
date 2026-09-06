@@ -110,6 +110,10 @@ class SettingsCallback(CallbackData, prefix="settings"):
     action: SettingsAction
 
 
+class FaqPageCallback(CallbackData, prefix="faq-page"):
+    page: int
+
+
 class ReferralCallback(CallbackData, prefix="referral"):
     action: ReferralAction
     currency: Currency

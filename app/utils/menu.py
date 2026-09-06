@@ -55,18 +55,20 @@ async def render_menu(
         try:
             if message.photo or message.animation:
                 await message.edit_media(media=_input_media(asset, caption), reply_markup=keyboard)
-            else:
-                await message.edit_text(caption, reply_markup=keyboard)
-            return message
+                return message
+            # Telegram cannot turn a text message into a media message. Replace
+            # legacy/fallback text cards so navigation always restores the GIF.
+            await message.delete()
         except TelegramRetryAfter:
             try:
                 if message.photo or message.animation:
                     await message.edit_caption(caption=caption, reply_markup=keyboard)
                 else:
-                    await message.edit_text(caption, reply_markup=keyboard)
+                    await message.delete()
             except TelegramBadRequest:
                 pass
-            return message
+            if message.photo or message.animation:
+                return message
         except TelegramBadRequest as exc:
             if "message is not modified" in str(exc).lower():
                 return message

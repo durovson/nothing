@@ -317,7 +317,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "3. Обязанности сторон\n"
             "<blockquote>• Все условия сделки должны быть согласованы до её начала.\n"
             "• Участники обязаны предоставлять доказательства выполнения условий при возникновении спора.\n"
-            "• GRNT не несёт ответственности за мошенничество, внешние переписки и сделки вне сервиса.</blockquote>\n\n"
+            "• GRNT не несёт ответственности за мошенничество, внешние переписки и сделки вне сервиса.</blockquote>"
+        ),
+        TextKey.FAQ_CAPTION_PAGE_2: (
+            "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
             "4. Арбитраж и споры\n"
             "<blockquote>• При разногласиях стороны могут запросить арбитраж GRNT.\n"
             "• Решение арбитра является окончательным и обязательным для сторон.\n"
@@ -664,7 +667,10 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "3. Responsibilities of the parties\n"
             "<blockquote>• All deal terms must be agreed before the deal begins.\n"
             "• Participants must provide evidence that the terms were fulfilled if a dispute arises.\n"
-            "• GRNT is not responsible for fraud, external correspondence, or deals made outside the service.</blockquote>\n\n"
+            "• GRNT is not responsible for fraud, external correspondence, or deals made outside the service.</blockquote>"
+        ),
+        TextKey.FAQ_CAPTION_PAGE_2: (
+            "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Help & FAQ</b>\n\n"
             "4. Arbitration and disputes\n"
             "<blockquote>• If the parties disagree, they may request GRNT arbitration.\n"
             "• The arbitrator’s decision is final and binding on both parties.\n"
