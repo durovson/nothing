@@ -9,6 +9,7 @@ from app.config import Settings
 from app.core.constants import BACKGROUND_WORKER_START_STAGGER_SECONDS
 from app.core.exceptions import TonProviderTemporaryError
 from app.core.telemetry import bind_trace_id, reset_trace_id
+from app.database import is_transient_database_error
 from app.services.channels import ChannelDealService
 from app.services.deals import DealService
 from app.services.financial_processor import FinancialOperationProcessor
@@ -223,9 +224,22 @@ class DealMonitor:
                     exc.endpoint,
                     delay,
                 )
-            except Exception:
-                delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
-                logger.exception("%s iteration failed", name)
+            except Exception as exc:
+                if is_transient_database_error(exc):
+                    failures += 1
+                    delay = provider_retry_delay(
+                        self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS,
+                        failures,
+                    )
+                    logger.warning(
+                        "%s delayed by transient Supabase failure error=%s; retry in %ss",
+                        name,
+                        type(exc).__name__,
+                        delay,
+                    )
+                else:
+                    delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                    logger.exception("%s iteration failed", name)
             finally:
                 reset_trace_id(token)
             await processor.wait_for_work(delay)
@@ -282,6 +296,7 @@ class DealMonitor:
         callback: Callable[[], Awaitable[bool]],
         waiter: Callable[[float], Awaitable[None]],
     ) -> None:
+        failures = 0
         while not self._stop_event.is_set():
             delay = self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS
             trace_name = name.lower().replace("_", "-").replace(" ", "-")
@@ -296,9 +311,25 @@ class DealMonitor:
                 task = asyncio.current_task()
                 if task is not None:
                     self._last_success[task.get_name()] = monotonic()
-            except Exception:
-                delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
-                logger.exception("%s iteration failed", name)
+                if failures:
+                    logger.info("%s recovered after %s transient failure(s)", name, failures)
+                failures = 0
+            except Exception as exc:
+                if is_transient_database_error(exc):
+                    failures += 1
+                    delay = provider_retry_delay(
+                        self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS,
+                        failures,
+                    )
+                    logger.warning(
+                        "%s delayed by transient Supabase failure error=%s; retry in %ss",
+                        name,
+                        type(exc).__name__,
+                        delay,
+                    )
+                else:
+                    delay = self._settings.FINANCIAL_ACTIVE_POLL_INTERVAL_SECONDS
+                    logger.exception("%s iteration failed", name)
             finally:
                 reset_trace_id(token)
             await waiter(delay)
@@ -333,8 +364,18 @@ class DealMonitor:
                     exc.endpoint,
                     delay,
                 )
-            except Exception:
-                logger.exception("%s iteration failed", name)
+            except Exception as exc:
+                if is_transient_database_error(exc):
+                    failures += 1
+                    delay = provider_retry_delay(base_interval, failures)
+                    logger.warning(
+                        "%s delayed by transient Supabase failure error=%s; retry in %ss",
+                        name,
+                        type(exc).__name__,
+                        delay,
+                    )
+                else:
+                    logger.exception("%s iteration failed", name)
             finally:
                 reset_trace_id(token)
             await self._wait(delay)

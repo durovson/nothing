@@ -30,6 +30,10 @@ def configure_logging(level: int = logging.INFO) -> None:
     # transport line per request; warnings and errors remain visible.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # Aiogram emits one INFO record for every successfully handled update.
+    # PerformanceMiddleware already reports genuinely slow updates with their
+    # trace IDs, so retain only warnings/errors from the framework logger.
+    logging.getLogger("aiogram.event").setLevel(logging.WARNING)
 
 
 def uvicorn_log_config() -> dict[str, Any]:

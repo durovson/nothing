@@ -35,6 +35,7 @@ _FAST_EXACT_CALLBACKS = frozenset(
 )
 _FAST_CALLBACK_PREFIXES = (
     "page:",
+    "faq-page:",
     "deal:open:",
     "deal-type:",
     "currency:",

@@ -17,6 +17,7 @@ from app.core.constants import (
     SLOW_BACKGROUND_DATABASE_WAIT_SECONDS,
     SLOW_DATABASE_REQUEST_SECONDS,
     SLOW_DATABASE_WAIT_SECONDS,
+    SUPABASE_INTERACTIVE_READ_TIMEOUT_SECONDS,
     SUPABASE_POSTGREST_TIMEOUT_SECONDS,
 )
 from app.core.telemetry import current_trace_id
@@ -80,7 +81,7 @@ class SupabaseDatabase:
                     operation_name=name,
                 )
             except Exception as exc:
-                if not _is_transient_transport_error(exc) or attempt >= attempts:
+                if not is_transient_database_error(exc) or attempt >= attempts:
                     raise
                 logger.warning(
                     "Transient Supabase read failed trace=%s operation=%s error=%s retry=%s/%s",
@@ -148,7 +149,12 @@ class SupabaseDatabase:
                 wait_seconds = started_at - queued_at
                 result: ResultT | None = None
                 try:
-                    async with asyncio.timeout(SUPABASE_POSTGREST_TIMEOUT_SECONDS):
+                    timeout_seconds = (
+                        SUPABASE_INTERACTIVE_READ_TIMEOUT_SECONDS
+                        if interactive and kind == "read"
+                        else SUPABASE_POSTGREST_TIMEOUT_SECONDS
+                    )
+                    async with asyncio.timeout(timeout_seconds):
                         result = await operation()
                     return result
                 finally:
@@ -189,7 +195,8 @@ class SupabaseDatabase:
                 self._background_capacity.release()
 
 
-def _is_transient_transport_error(error: BaseException) -> bool:
+def is_transient_database_error(error: BaseException) -> bool:
+    """Return whether a failed Supabase operation can recover without intervention."""
     current: BaseException | None = error
     visited: set[int] = set()
     while current is not None and id(current) not in visited:

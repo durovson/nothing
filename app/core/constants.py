@@ -16,6 +16,7 @@ DB_READ_RETRY_BASE_DELAY_SECONDS = 0.25
 DB_MAX_CONCURRENCY = 8
 DB_BACKGROUND_MAX_CONCURRENCY = 2
 SUPABASE_POSTGREST_TIMEOUT_SECONDS = 8
+SUPABASE_INTERACTIVE_READ_TIMEOUT_SECONDS = 2
 # Media uploads can briefly exceed ten seconds while Telegram recovers from a
 # gateway/network incident.  Polling has its own shorter timeout below, so a
 # larger Bot API request timeout does not slow down update fetching or normal
