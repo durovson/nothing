@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
-from app.core.constants import ADMIN_PAGE_SIZE
+from app.core.constants import ADMIN_PAGE_SIZE, MAINTENANCE_SETTINGS_CACHE_SECONDS
 from app.core.enums import (
     AdminDisputeAction,
     FinancialAttemptStatus,
@@ -18,9 +19,13 @@ from app.core.types import (
     FinancialOperationRepositoryProtocol,
     UserRepositoryProtocol,
 )
+from app.database import is_transient_database_error
 from app.models.entities import BotSettings, Deal, DisputeTicket, FinancialOperation, UnmatchedPayment
 from app.models.entities import SystemSetting
 from app.services.system_mode import SystemModeService
+
+
+logger = logging.getLogger(__name__)
 
 
 class AdminService:
@@ -89,14 +94,21 @@ class AdminService:
     async def maintenance(self, force: bool = False) -> BotSettings:
         now = datetime.now(UTC)
         if force or self._cached_settings is None or now >= self._cache_until:
-            self._cached_settings = await self._admin.get_settings()
-            self._cache_until = now + timedelta(seconds=5)
+            try:
+                self._cached_settings = await self._admin.get_settings()
+            except Exception as exc:
+                if self._cached_settings is None or not is_transient_database_error(exc):
+                    raise
+                logger.warning("Using cached maintenance settings after a transient database error")
+            self._cache_until = now + timedelta(seconds=MAINTENANCE_SETTINGS_CACHE_SECONDS)
         return self._cached_settings
 
     async def set_maintenance(self, actor_id: int, enabled: bool, message: str | None = None) -> BotSettings:
         self.require_admin(actor_id)
         self._cached_settings = await self._admin.set_maintenance(enabled, message)
-        self._cache_until = datetime.now(UTC) + timedelta(seconds=5)
+        self._cache_until = datetime.now(UTC) + timedelta(
+            seconds=MAINTENANCE_SETTINGS_CACHE_SECONDS
+        )
         return self._cached_settings
 
     async def system_mode(self, force: bool = False) -> SystemSetting:

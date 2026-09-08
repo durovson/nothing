@@ -14,6 +14,7 @@ from aiogram.types import (
 MENU_IMAGE = Path(__file__).resolve().parent.parent / "assets" / "menu.png"
 MEDIA_DIR = MENU_IMAGE.parent / "media"
 MEDIA_EXTENSIONS = (".gif", ".mp4", ".png", ".jpg", ".jpeg")
+_MEDIA_FILE_IDS: dict[Path, str] = {}
 
 
 def media_path(screen: str) -> Path:
@@ -25,11 +26,22 @@ def media_path(screen: str) -> Path:
     return MENU_IMAGE
 
 
+def _media_source(path: Path) -> str | FSInputFile:
+    return _MEDIA_FILE_IDS.get(path) or FSInputFile(path)
+
+
 def _input_media(path: Path, caption: str):
-    source = FSInputFile(path)
+    source = _media_source(path)
     if path.suffix.lower() in {".gif", ".mp4"}:
         return InputMediaAnimation(media=source, caption=caption)
     return InputMediaPhoto(media=source, caption=caption)
+
+
+def _remember_media(path: Path, message: Message) -> None:
+    if message.animation:
+        _MEDIA_FILE_IDS[path] = message.animation.file_id
+    elif message.photo:
+        _MEDIA_FILE_IDS[path] = message.photo[-1].file_id
 
 
 async def render_menu(
@@ -54,8 +66,11 @@ async def render_menu(
     if isinstance(message, Message) and message.from_user and message.from_user.is_bot:
         try:
             if message.photo or message.animation:
-                await message.edit_media(media=_input_media(asset, caption), reply_markup=keyboard)
-                return message
+                result = await message.edit_media(
+                    media=_input_media(asset, caption), reply_markup=keyboard
+                )
+                _remember_media(asset, result)
+                return result
             # Telegram cannot turn a text message into a media message. Replace
             # legacy/fallback text cards so navigation always restores the GIF.
             await message.delete()
@@ -72,16 +87,34 @@ async def render_menu(
         except TelegramBadRequest as exc:
             if "message is not modified" in str(exc).lower():
                 return message
+            if asset in _MEDIA_FILE_IDS:
+                _MEDIA_FILE_IDS.pop(asset, None)
+                try:
+                    result = await message.edit_media(
+                        media=_input_media(asset, caption), reply_markup=keyboard
+                    )
+                    _remember_media(asset, result)
+                    return result
+                except TelegramBadRequest:
+                    pass
             try:
                 await message.delete()
             except TelegramBadRequest:
                 pass
     if asset.suffix.lower() in {".gif", ".mp4"}:
         try:
-            return await message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+            result = await message.answer_animation(
+                animation=_media_source(asset), caption=caption, reply_markup=keyboard
+            )
+            _remember_media(asset, result)
+            return result
         except TelegramRetryAfter:
             return await message.answer(caption, reply_markup=keyboard)
-    return await message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+    result = await message.answer_photo(
+        photo=_media_source(asset), caption=caption, reply_markup=keyboard
+    )
+    _remember_media(asset, result)
+    return result
 
 
 async def render_home(
@@ -128,7 +161,10 @@ async def render_stored_menu(
                 media=_input_media(asset, caption),
                 reply_markup=keyboard,
             )
-            return result if isinstance(result, Message) else None
+            if isinstance(result, Message):
+                _remember_media(asset, result)
+                return result
+            return None
         except TelegramRetryAfter:
             try:
                 result = await user_message.bot.edit_message_caption(
@@ -147,10 +183,16 @@ async def render_stored_menu(
     asset = media_path(screen)
     if asset.suffix.lower() in {".gif", ".mp4"}:
         try:
-            result = await user_message.answer_animation(animation=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+            result = await user_message.answer_animation(
+                animation=_media_source(asset), caption=caption, reply_markup=keyboard
+            )
         except TelegramRetryAfter:
             result = await user_message.answer(caption, reply_markup=keyboard)
     else:
-        result = await user_message.answer_photo(photo=FSInputFile(asset), caption=caption, reply_markup=keyboard)
+        result = await user_message.answer_photo(
+            photo=_media_source(asset), caption=caption, reply_markup=keyboard
+        )
+    if result.photo or result.animation:
+        _remember_media(asset, result)
     await remember_menu(state, result)
     return result
