@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from time import monotonic
 
@@ -25,6 +26,7 @@ from app.services.desk_indexer import DeskTonDepositIndexer
 logger = logging.getLogger(__name__)
 
 MAX_PROVIDER_RETRY_SECONDS = 300
+WEBHOOK_DEDUPLICATION_CACHE_SIZE = 10_000
 
 
 def provider_retry_delay(base_interval: int, consecutive_failures: int) -> int:
@@ -74,6 +76,10 @@ class DealMonitor:
         }
         self._system_mode = system_mode
         self._stop_event = asyncio.Event()
+        self._ton_deposit_wakeup = asyncio.Event()
+        self._usdt_deposit_wakeup = asyncio.Event()
+        self._desk_deposit_wakeup = asyncio.Event()
+        self._webhook_transactions: OrderedDict[str, None] = OrderedDict()
         self._tasks: set[asyncio.Task[None]] = set()
         self._last_success: dict[str, float] = {}
 
@@ -86,6 +92,7 @@ class DealMonitor:
         maximum_age = max(
             self._settings.FINANCIAL_IDLE_POLL_INTERVAL_SECONDS * 3,
             self._settings.MAINTENANCE_POLL_INTERVAL_SECONDS * 3,
+            self._settings.TON_RECONCILIATION_INTERVAL_SECONDS * 3,
             60,
         )
         now = monotonic()
@@ -163,13 +170,49 @@ class DealMonitor:
         self._tasks.clear()
 
     async def _ton_indexer_loop(self) -> None:
-        await self._repeat("TON deposit indexer", self._ton_indexer.run_once)
+        interval = self._deposit_reconciliation_interval()
+        await self._repeat(
+            "TON deposit indexer",
+            self._ton_indexer.run_once,
+            interval,
+            self._ton_deposit_wakeup,
+        )
 
     async def _usdt_indexer_loop(self) -> None:
-        await self._repeat("USDT deposit indexer", self._usdt_indexer.run_once)
+        interval = self._deposit_reconciliation_interval()
+        await self._repeat(
+            "USDT deposit indexer",
+            self._usdt_indexer.run_once,
+            interval,
+            self._usdt_deposit_wakeup,
+        )
 
     async def _desk_ton_indexer_loop(self) -> None:
-        await self._repeat("Desk TON indexer", self._desk_ton_indexer.run_once)
+        interval = self._deposit_reconciliation_interval()
+        await self._repeat(
+            "Desk TON indexer",
+            self._desk_ton_indexer.run_once,
+            interval,
+            self._desk_deposit_wakeup,
+        )
+
+    def notify_ton_transaction(self, tx_hash: str) -> bool:
+        """Wake deposit scanners; persisted cursors remain the source of truth."""
+        if tx_hash in self._webhook_transactions:
+            self._webhook_transactions.move_to_end(tx_hash)
+            return False
+        self._webhook_transactions[tx_hash] = None
+        if len(self._webhook_transactions) > WEBHOOK_DEDUPLICATION_CACHE_SIZE:
+            self._webhook_transactions.popitem(last=False)
+        self._ton_deposit_wakeup.set()
+        self._usdt_deposit_wakeup.set()
+        self._desk_deposit_wakeup.set()
+        return True
+
+    def _deposit_reconciliation_interval(self) -> int:
+        if self._settings.TONAPI_WEBHOOK_ENABLED:
+            return self._settings.TON_RECONCILIATION_INTERVAL_SECONDS
+        return self._settings.DEAL_POLL_INTERVAL_SECONDS
 
     async def _desk_expiry_loop(self) -> None:
         await self._repeat(
@@ -339,10 +382,13 @@ class DealMonitor:
         name: str,
         callback: Callable[[], Awaitable[object]],
         interval: int | None = None,
+        wake_event: asyncio.Event | None = None,
     ) -> None:
         failures = 0
         base_interval = interval or self._settings.DEAL_POLL_INTERVAL_SECONDS
         while not self._stop_event.is_set():
+            if wake_event is not None:
+                wake_event.clear()
             delay = base_interval
             trace_name = name.lower().replace("_", "-").replace(" ", "-")
             token = bind_trace_id(f"background:{trace_name}")
@@ -378,10 +424,13 @@ class DealMonitor:
                     logger.exception("%s iteration failed", name)
             finally:
                 reset_trace_id(token)
-            await self._wait(delay)
+            await self._wait(delay, wake_event if failures == 0 else None)
 
-    async def _wait(self, timeout: int) -> None:
+    async def _wait(
+        self, timeout: int, wake_event: asyncio.Event | None = None
+    ) -> None:
         try:
-            await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
+            waiter = wake_event.wait() if wake_event is not None else self._stop_event.wait()
+            await asyncio.wait_for(waiter, timeout=timeout)
         except TimeoutError:
             pass

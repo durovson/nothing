@@ -39,6 +39,7 @@ _TRANSIENT_ERROR_NAMES = frozenset(
     }
 )
 _TRANSIENT_ERRNOS = frozenset({11, 104, 110, 111, 113})
+_TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 
 
 class SupabaseDatabase:
@@ -204,12 +205,36 @@ def is_transient_database_error(error: BaseException) -> bool:
         module = type(current).__module__.split(".", 1)[0]
         if isinstance(current, TimeoutError):
             return True
+        status = _error_status(current)
+        if status in _TRANSIENT_HTTP_STATUSES:
+            return True
         if module in {"httpx", "httpcore"} and type(current).__name__ in _TRANSIENT_ERROR_NAMES:
             return True
         if isinstance(current, OSError) and current.errno in _TRANSIENT_ERRNOS:
             return True
         current = current.__cause__ or current.__context__
     return False
+
+
+def _error_status(error: BaseException) -> int | None:
+    """Extract an HTTP-like status from PostgREST/http client exceptions."""
+    candidates: list[object] = [
+        getattr(error, "status_code", None),
+        getattr(error, "code", None),
+    ]
+    if error.args and isinstance(error.args[0], dict):
+        candidates.append(error.args[0].get("code"))
+    response = getattr(error, "response", None)
+    if response is not None:
+        candidates.append(getattr(response, "status_code", None))
+    for value in candidates:
+        if value is None:
+            continue
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _response_row_count(response: object | None) -> int | str:

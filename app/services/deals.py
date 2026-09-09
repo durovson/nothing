@@ -28,6 +28,7 @@ from app.ton.amounts import (
     asset_payment_amount_atomic,
     asset_quantum,
 )
+from app.ton.webhooks import TonApiWebhookManager
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,14 @@ class DealService:
         users: UserRepositoryProtocol,
         ton: TonGatewayProtocol,
         system_mode: SystemModeService,
+        ton_webhooks: TonApiWebhookManager | None = None,
     ):
         self._settings = settings
         self._deals = deals
         self._users = users
         self._ton = ton
         self._system_mode = system_mode
+        self._ton_webhooks = ton_webhooks
 
     async def create_deal(
         self,
@@ -86,7 +89,10 @@ class DealService:
         deal = await self._deals.create(command)
         try:
             wallet_address = await self._ton.get_deal_address(deal)
-            return await self._deals.activate(deal.id, wallet_address)
+            activated = await self._deals.activate(deal.id, wallet_address)
+            if self._ton_webhooks is not None and activated.currency is Currency.TON:
+                self._ton_webhooks.track_account(activated.wallet_address)
+            return activated
         except Exception as exc:
             logger.exception("Failed to derive escrow wallet for deal %s", deal.public_id)
             await self._deals.mark_creation_failed(deal.id, str(exc))

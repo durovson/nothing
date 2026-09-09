@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     TON_TRANSFER_TTL_SECONDS: int = Field(default=60, ge=30)
     TON_TRACE_GRACE_SECONDS: int = Field(default=120, ge=0)
     TON_TRANSACTION_SCAN_LIMIT: int = Field(default=50, ge=1, le=1_000)
+    TONAPI_WEBHOOK_ENABLED: bool = False
+    TONAPI_WEBHOOK_PATH: str = "/tonapi/webhook"
+    TONAPI_WEBHOOK_SECRET: str = ""
+    TONAPI_WEBHOOK_ID: int | None = Field(default=None, ge=1)
+    TON_RECONCILIATION_INTERVAL_SECONDS: int = Field(default=600, ge=300, le=3_600)
     SERVICE_FEE_WALLET: str
     SERVICE_FEE_COMMENT: str = Field(default="Service fee", min_length=1, max_length=120)
     TON_PAYOUT_FEE_RESERVE: Decimal = Field(default=Decimal("0.01"), gt=0)
@@ -69,8 +74,8 @@ class Settings(BaseSettings):
     FINANCIAL_IDLE_POLL_INTERVAL_SECONDS: int = Field(default=60, ge=15)
     SYSTEM_MODE_POLL_INTERVAL_SECONDS: int = Field(default=30, ge=15)
     READ_ONLY_FAILURE_THRESHOLD_SECONDS: int = Field(default=900, ge=300, le=3600)
-    MIN_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
-    MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal(1)
+    MIN_DEAL_AMOUNT: ClassVar[Decimal] = Decimal("0.1")
+    MIN_USDT_DEAL_AMOUNT: ClassVar[Decimal] = Decimal("0.1")
     FAILED_DEAL_RETENTION_DAYS: int = Field(default=30, ge=1, le=30)
     RETENTION_CLEANUP_INTERVAL_SECONDS: int = Field(default=86_400, ge=3_600)
     ESCROW_FEE_RATE: ClassVar[Decimal] = Decimal("0.01")
@@ -90,6 +95,7 @@ class Settings(BaseSettings):
         "SUPPORT_USERNAME",
         "SUPABASE_KEY",
         "TON_API_KEY",
+        "TONAPI_WEBHOOK_SECRET",
         "TON_MNEMONIC",
         "TON_GUARANT_ADDRESS",
         "SERVICE_FEE_WALLET",

@@ -11,6 +11,7 @@ from app.models.dto import PaymentObservation
 from app.models.entities import Deal, DepositCursor, ObservedDeposit
 from app.services.collections import CollectionService
 from app.ton.amounts import asset_payment_amount_atomic
+from app.ton.webhooks import TonApiWebhookManager
 from app.services.system_mode import SystemModeService
 
 
@@ -25,6 +26,7 @@ class TonDepositIndexer:
         ton: TonGatewayProtocol,
         collections: CollectionService,
         system_mode: SystemModeService,
+        ton_webhooks: TonApiWebhookManager | None = None,
     ):
         self._settings = settings
         self._deposits = deposits
@@ -32,12 +34,24 @@ class TonDepositIndexer:
         self._ton = ton
         self._collections = collections
         self._system_mode = system_mode
+        self._ton_webhooks = ton_webhooks
         self._cursors: dict[str, DepositCursor | None] = {}
 
     async def run_once(self) -> None:
         if not await self._system_mode.accepts_deposits():
             return
         deals = await self._deals.list_pending()
+        if self._ton_webhooks is not None:
+            accounts = {
+                self._ton.guarant_address,
+                await self._ton.usdt_deposit_address(),
+            }
+            accounts.update(
+                deal.wallet_address
+                for deal in deals
+                if deal.currency is Currency.TON and deal.wallet_address
+            )
+            self._ton_webhooks.replace_accounts(accounts)
         active_scanners: set[str] = set()
         for deal in deals:
             if deal.currency is Currency.TON:

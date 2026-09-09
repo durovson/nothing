@@ -1,13 +1,20 @@
+import secrets
 from pathlib import Path
 
 from aiogram.types import Update
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app.loader import AppContainer
 
 DOCUMENTS_DIR = Path(__file__).resolve().parents[1] / "assets" / "documents"
+
+
+class TonApiTransactionNotice(BaseModel):
+    account_id: str = Field(pattern=r"^-?\d+:[0-9a-fA-F]{64}$")
+    lt: int = Field(gt=0)
+    tx_hash: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
 
 
 def _legal_document(filename: str) -> str:
@@ -72,5 +79,24 @@ def create_api_router(container: AppContainer) -> APIRouter:
             raise HTTPException(status_code=422, detail="Invalid Telegram update") from exc
         await container.dispatcher.feed_update(container.bot, update)
         return JSONResponse({"ok": True})
+
+    @router.post(settings.TONAPI_WEBHOOK_PATH, include_in_schema=False)
+    async def tonapi_webhook(request: Request) -> JSONResponse:
+        if not settings.TONAPI_WEBHOOK_ENABLED:
+            raise HTTPException(status_code=404, detail="Not found")
+        supplied = request.query_params.get("secret", "")
+        if not settings.TONAPI_WEBHOOK_SECRET or not secrets.compare_digest(
+            supplied, settings.TONAPI_WEBHOOK_SECRET
+        ):
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
+        body = await request.body()
+        if len(body) > 4_096:
+            raise HTTPException(status_code=413, detail="Webhook payload is too large")
+        try:
+            notice = TonApiTransactionNotice.model_validate_json(body)
+        except (ValidationError, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail="Invalid TonAPI event") from exc
+        accepted = container.monitor.notify_ton_transaction(notice.tx_hash.lower())
+        return JSONResponse({"ok": True, "accepted": accepted})
 
     return router

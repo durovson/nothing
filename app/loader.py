@@ -33,7 +33,7 @@ from app.services import (
     OtcOfferService,
 )
 from app.tasks import DealMonitor
-from app.ton import TonEscrowClient
+from app.ton import TonApiWebhookManager, TonEscrowClient
 from app.core.enums import FinancialOperationFlow
 from app.core.constants import TELEGRAM_REQUEST_TIMEOUT_SECONDS
 from app.services.financial_processor import FinancialOperationProcessor
@@ -50,6 +50,7 @@ class AppContainer:
     repositories: Repositories
     services: Services
     ton: TonEscrowClient
+    ton_webhooks: TonApiWebhookManager
     monitor: DealMonitor
     keepalive: RenderKeepAlive
     notifications: TelegramNotificationGateway
@@ -69,6 +70,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     database = SupabaseDatabase(app_settings)
     repositories = Repositories.build(database)
     ton = TonEscrowClient(app_settings)
+    ton_webhooks = TonApiWebhookManager(app_settings)
     notifications = TelegramNotificationGateway(bot, app_settings)
     channel_gateway = TelegramChannelGateway(bot)
 
@@ -94,7 +96,12 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     )
     otc_offers = OtcOfferService(repositories.otc_offers, repositories.desk)
     deals = DealService(
-        app_settings, repositories.deals, repositories.users, ton, system_mode
+        app_settings,
+        repositories.deals,
+        repositories.users,
+        ton,
+        system_mode,
+        ton_webhooks,
     )
     payouts = PayoutService(
         app_settings,
@@ -145,6 +152,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         ton,
         collections,
         system_mode,
+        ton_webhooks,
     )
     desk_ton_indexer = DeskTonDepositIndexer(
         repositories.deposits,
@@ -244,6 +252,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         repositories=repositories,
         services=services,
         ton=ton,
+        ton_webhooks=ton_webhooks,
         monitor=monitor,
         keepalive=keepalive,
         notifications=notifications,

@@ -9,7 +9,16 @@ class HealthCheckAccessFilter(logging.Filter):
     """Hide successful probe traffic without suppressing useful access logs."""
 
     _QUIET_PATHS = frozenset(
-        {"/healthz", "/readyz", "/ping", "/livez", "/favicon.ico"}
+        {
+            "/healthz",
+            "/readyz",
+            "/ping",
+            "/livez",
+            "/favicon.ico",
+            # The TonAPI callback URL carries a bearer secret in its query.
+            # Never include that URL in Uvicorn access logs.
+            "/tonapi/webhook",
+        }
     )
 
     def filter(self, record: logging.LogRecord) -> bool:

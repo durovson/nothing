@@ -375,6 +375,10 @@ class TonEscrowClient:
             _raise_temporary_provider_error(exc)
 
     @_translate_provider_failures
+    async def usdt_deposit_address(self) -> str:
+        return await self._jettons.deposit_account_address()
+
+    @_translate_provider_failures
     async def scan_ton_deposits(
         self,
         deal: Deal,

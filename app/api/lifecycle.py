@@ -61,6 +61,9 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
             logger.info("Startup phase completed: TON client")
             await container.database.warm_up()
             logger.info("Startup phase completed: Supabase")
+            await container.ton_webhooks.start()
+            if container.ton_webhooks.enabled:
+                logger.info("Startup phase completed: TonAPI webhook manager")
             await container.monitor.start()
             logger.info("Startup phase completed: background workers")
             if settings.TELEGRAM_USE_POLLING:
@@ -89,6 +92,7 @@ def create_lifespan(container: AppContainer) -> Callable[[FastAPI], AsyncIterato
                 with contextlib.suppress(asyncio.CancelledError):
                     await polling_task
             await container.monitor.stop()
+            await container.ton_webhooks.close()
             await container.keepalive.stop()
             if lag_task:
                 lag_task.cancel()

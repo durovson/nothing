@@ -124,6 +124,11 @@ class JettonEscrowGateway:
             newest_hash=newest_hash,
         )
 
+    async def deposit_account_address(self) -> str:
+        await self.start()
+        assert self._guarant_jetton_wallet is not None
+        return self._guarant_jetton_wallet.to_str(is_user_friendly=False)
+
     def transfer_builder(self, message: PayoutMessage) -> JettonTransferBuilder:
         self._ensure_mainnet()
         return JettonTransferBuilder(
