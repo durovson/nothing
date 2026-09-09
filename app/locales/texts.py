@@ -168,12 +168,12 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Завершённых сделок продавца: {seller_deals}\n\n"
             "Детали сделки:\n"
             "<blockquote>• Код сделки: <code>#{deal_id}</code>\n"
-            "• Описание: {description}</blockquote>\n\n"
-            "• Адрес оплаты: {wallet_address}\n"
-            "• Сумма к оплате: {amount} {currency}\n"
-            "• Комментарий (необязательно): {deal_id}\n\n"
+            "<b>• Описание:</b> {description}</blockquote>\n\n"
+            "<b>• Адрес оплаты:</b> <code>{wallet_address}</code>\n"
+            "<b>• Сумма к оплате:</b> <code>{amount}</code> {currency}\n"
+            "<b>• Комментарий (необязательно):</b> <code>{deal_id}</code>\n\n"
             "<blockquote><tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Отправьте точную сумму на указанный адрес. Комментарий можно не указывать.</blockquote>\n\n"
-            "После оплаты бот автоматически проверит перевод."
+            "<b>После оплаты бот автоматически проверит перевод.</b>"
         ),
         TextKey.DEAL_NOT_FOUND: "Сделка не найдена.",
         TextKey.DEAL_FORBIDDEN: "У вас нет доступа к этой сделке.",
@@ -193,47 +193,46 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<b>Статус:</b> {status}"
         ),
         TextKey.DEAL_PAID_BUYER: (
-            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n\n"
             "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
-            "Транзакция:\n"
+            "<b>Транзакция:</b>\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
-            "Детали сделки:\n"
-            "<blockquote>• Описание: {description}\n"
-            "• Продавец: {seller}</blockquote>\n\n"
-            "Ожидайте подтверждения оказания услуги от продавца."
+            "<b>Детали сделки:</b>\n"
+            "<blockquote><b>• Описание:</b> {description}\n"
+            "<b>• Продавец:</b> {seller}</blockquote>\n\n"
+            "<b>Ожидайте подтверждения оказания услуги от продавца.</b>"
         ),
         TextKey.DEAL_PAID_SELLER: (
-            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n"
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n\n"
             "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
-            "Транзакция:\n"
+            "<b>Транзакция:</b>\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
-            "Детали сделки:\n"
-            "<blockquote>• Описание: {description}\n"
-            "• Покупатель: {buyer}</blockquote>\n\n"
+            "<b>Детали сделки:</b>\n"
+            "<blockquote><b>• Описание:</b> {description}\n"
+            "<b>• Покупатель:</b> {buyer}</blockquote>\n\n"
             "<tg-emoji emoji-id='5985780596268339498'>🤖</tg-emoji> Средства зачислены на кошелёк бота.\n"
-            "Теперь вы можете приступить к оказанию услуги. Не забудьте нажать кнопку ниже!"
+            "<b>Теперь вы можете приступить к оказанию услуги. Не забудьте нажать кнопку ниже!</b>"
         ),
         TextKey.DEAL_CHANNEL_PAID_BUYER: (
-            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n"
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n\n"
             "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
-            "Транзакция:\n"
+            "<b>Транзакция:</b>\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вступите в канал по кнопке сделки и дождитесь, пока продавец вручную передаст вам статус владельца. Бот проверит это автоматически."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
-            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n"
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n\n"
             "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
-            "Транзакция:\n"
+            "<b>Транзакция:</b>\n"
             "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вручную передайте ему статус владельца в настройках Telegram и не удаляйте бота из администраторов. После статуса creator бот автоматически запустит выплату."
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
-            "<b>Завершение сделки и выплаты:</b>\n"
-            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> Сделка успешно завершена!\n\n"
-            "Детали сделки:\n"
-            "<blockquote>• Описание: {description}\n"
-            "• Продавец получил: {seller_amount} {currency}\n"
-            "• Покупатель оплатил: {payment_amount} {currency}</blockquote>\n\n"
+            "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Сделка успешно завершена!</b>\n\n"
+            "<b>Детали сделки:</b>\n"
+            "<blockquote><b>• Описание:</b> {description}\n"
+            "<b>• Продавец получил:</b> {seller_amount} {currency}\n"
+            "<b>• Покупатель оплатил:</b> {payment_amount} {currency}</blockquote>\n\n"
             "<tg-emoji emoji-id='5843908536467198016'>🔄</tg-emoji> Выплата продавцу обрабатывается.\n"
             "Он получит уведомление после завершения транзакции."
         ),
@@ -244,7 +243,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "Он нужен как безопасный адрес возврата."
         ),
         TextKey.DEAL_PAYOUT_BLOCKED: (
-            "Выплата остановлена до отправки: на кошельке гаранта недостаточно gas. "
+            "Выплата остановлена до отправки: на кошельке гаранта недостаточно gas."
             "Средства остаются у гаранта; обратитесь в поддержку."
         ),
         TextKey.DEAL_DELIVERED: (
@@ -254,13 +253,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DELIVERY_NOTICE: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> Продавец оказал услугу!\n\n"
-            "Продавец подтвердил, что оказал услугу по сделке:\n"
-            "<blockquote>• Код сделки: <code>#{deal_id}</code>\n"
-            "• Описание: {description}\n"
-            "• Сумма к оплате: {payment_amount} {currency}</blockquote>\n\n"
+            "<b>Продавец подтвердил, что оказал услугу по сделке:</b>\n"
+            "<blockquote><b>• Код сделки:</b> <code>#{deal_id}</code>\n"
+            "<b>• Описание:</b> {description}\n"
+            "<b>• Сумма к оплате:</b> {payment_amount} {currency}</blockquote>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Пожалуйста, проверьте качество выполненной работы.\n\n"
-            "<tg-emoji emoji-id='5881702736843511327'>ℹ️</tg-emoji> После вашего подтверждения средства будут переведены продавцу.\n"
-            "Если в течение 1 часа вы не подтвердите получение товара и не откроете спор, сделка будет завершена автоматически."
+            "<blockquote><tg-emoji emoji-id='6028435952299413210'>ℹ️</tg-emoji> После вашего подтверждения средства будут переведены продавцу.</blockquote>\n\n"
+            "Если в течение 1 часа вы не подтвердите получение товара и не откроете спор, <b>сделка будет завершена автоматически.</b>"
         ),
         TextKey.DEAL_DISPUTE_PROMPT: (
             "Опишите проблему одним сообщением (10–1000 символов). Скриншоты в боте не хранятся; "
@@ -268,18 +267,18 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DISPUTE_INVALID: "Описание должно содержать от 10 до 1000 символов.",
         TextKey.DEAL_DISPUTE_CREATED: (
-            "Спорный тикет создан. Средства заморожены у гаранта. "
-            "Для разбора напишите в службу поддержки и укажите ID сделки."
+            "Спорный тикет создан. Средства заморожены на кошельке гаранта."
+            "Для разбора напишите в службу поддержки, опишите проблему и укажите ID сделки."
         ),
         TextKey.DEAL_REFUNDED: "Возврат покупателю подтверждён сетью TON.",
-        TextKey.DEAL_CANCELLED_BY_SELLER: "Сделка отменена продавцом\nКод сделки: <code>#{deal_id}</code>",
+        TextKey.DEAL_CANCELLED_BY_SELLER: "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Сделка отменена продавцом\n\n<b>Код сделки:</b> <code>#{deal_id}</code>",
         TextKey.DEAL_PAYOUT_RECEIVED: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Сделка успешно завершена!</b>\n<tg-emoji emoji-id='5778318458802409852'>💰</tg-emoji> <b>Выплата получена!</b>\n\nДетали сделки:\n"
-            "<blockquote>• Описание: {description}\n"
-            "• Сумма: {amount} {currency}\n"
-            "• Кошелек: {wallet}</blockquote>\n\n"
-            "Транзакция:\n<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> Посмотреть в TON Viewer</a>\n\n"
-            "Спасибо за использование нашего сервиса! <tg-emoji emoji-id='5908808657700655253'>🐱</tg-emoji>"
+            "<blockquote><b>• Описание:</b> {description}\n"
+            "<b>• Сумма:</b> <code>{amount}</code> {currency}\n"
+            "<b>• Кошелек:</b> <code>{wallet}</code></blockquote>\n\n"
+            "<b>Транзакция:</b>\n<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> Посмотреть в TON Viewer</a>\n\n"
+            "<b>Спасибо за использование нашего сервиса!</b> <tg-emoji emoji-id='5908808657700655253'>🐱</tg-emoji>"
         ),
         TextKey.SETTINGS_CAPTION: "<tg-emoji emoji-id='5877260593903177342'>⚙️</tg-emoji> <b>Настройки</b>",
         TextKey.SETTINGS_REFERRALS: "Рефералы",
