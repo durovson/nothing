@@ -26,7 +26,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_CREATE_DEAL: "Создать сделку",
         TextKey.MENU_MY_DEALS: "Мои сделки",
         TextKey.MENU_SETTINGS: "Настройки",
-        TextKey.MENU_FAQ: "Вопросы",
+        TextKey.MENU_FAQ: "Помощь и FAQ",
         TextKey.MENU_DOCUMENTS: "Документы",
         TextKey.MENU_CREATE_DESK: "Создать объявление",
         TextKey.DESK_KIND_PROMPT: (
@@ -79,8 +79,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<blockquote><b>Item:</b> {item}\n"
             "<b>Amount:</b> {amount} GRAM\n"
             "<b>Buyer:</b> {buyer}</blockquote>\n\n"
-            "Бот только связывает обе стороны.\n"
-            "Расчёт происходит напрямую между пользователями.\n\n"
+            "Бот только связывает стороны.\n"
+            "Расчёты происходят напрямую между пользователями.\n\n"
             "<b>Примите или отклоните предложение:</b>"
         ),
         TextKey.OTC_OFFER_RESULT: (
@@ -114,8 +114,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<blockquote><a href=\"{wallet_url}\">{wallet_short}</a></blockquote>\n\n"
             "Хотите изменить? Отправьте новый адрес."
         ),
-        TextKey.WALLET_SAVED: "Кошелек сохранен:\n<blockquote><code>{wallet}</code></blockquote>",
-        TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте еще раз.",
+        TextKey.WALLET_SAVED: "Кошелёк сохранён:\n<blockquote><code>{wallet}</code></blockquote>",
+        TextKey.WALLET_INVALID: "Похоже, это не TON-адрес. Проверьте формат и отправьте ещё раз.",
         TextKey.DEAL_CREATE_INTRO: "<tg-emoji emoji-id='5956561916573782596'>💬</tg-emoji> <b>Создание сделки</b>\n\nВыберите тип сделки:",
         TextKey.DEAL_TYPE_OFFER: "Оффер",
         TextKey.DEAL_TYPE_CHANNEL: "Канал",
@@ -305,34 +305,34 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MAIN_MENU_BUTTON: "Главное меню",
         TextKey.FAQ_CAPTION: (
             "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
-            "1. Основное\n"
+            "<b>1. Основное</b>\n"
             "<blockquote>GRNT — это гарант-сервис (escrow), обеспечивающий безопасные сделки между пользователями. Средства блокируются до завершения сделки и выпускаются только после подтверждения обеими сторонами.</blockquote>\n\n"
-            "2. Как это работает\n"
+            "<b>2. Как это работает</b>\n"
             "<blockquote>1. Добавьте свой TON-кошелёк в разделе «Мой кошелёк».\n"
             "2. Создайте сделку — опишите условия сделки в чате с гарантом.\n"
             "3. Заблокируйте средства — покупатель переводит оплату, которую удерживает GRNT.\n"
             "4. Подтвердите выполнение — после выполнения условий обе стороны подтверждают.\n"
             "5. Разблокировка — средства автоматически отправляются получателю.</blockquote>\n\n"
-            "3. Обязанности сторон\n"
+            "<b>3. Обязанности сторон</b>\n"
             "<blockquote>• Все условия сделки должны быть согласованы до её начала.\n"
             "• Участники обязаны предоставлять доказательства выполнения условий при возникновении спора.\n"
             "• GRNT не несёт ответственности за мошенничество, внешние переписки и сделки вне сервиса.</blockquote>"
         ),
         TextKey.FAQ_CAPTION_PAGE_2: (
             "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Помощь и часто задаваемые вопросы</b>\n\n"
-            "4. Арбитраж и споры\n"
+            "<b>4. Арбитраж и споры</b>\n"
             "<blockquote>• При разногласиях стороны могут запросить арбитраж GRNT.\n"
             "• Решение арбитра является окончательным и обязательным для сторон.\n"
             "• В случае нарушений аккаунты могут быть ограничены.</blockquote>\n\n"
-            "5. Запрещённые сделки\n"
+            "<b>5. Запрещённые сделки</b>\n"
             "<blockquote>Гарант GRNT не поддерживает:\n"
             "• Продажу запрещённых товаров и услуг\n"
             "• Скам, фишинг, обман\n"
             "• Сделки, нарушающие законы или правила Telegram\n"
             "• Переводы и расчёты вне сервиса</blockquote>\n\n"
-            "6. Комиссия\n"
+            "<b>6. Комиссия</b>\n"
             "<blockquote>• Комиссия GRNT составляет 1% и удерживается автоматически при завершении сделки.</blockquote>\n\n"
-            "7. Ответственность\n"
+            "<b>7. Ответственность</b>\n"
             "<blockquote>• GRNT выступает только как нейтральный посредник.\n"
             "• Вся ответственность за достоверность информации и действий лежит на участниках сделки.</blockquote>\n\n"
             "Нужна помощь? Свяжитесь с поддержкой: {support_username}"
@@ -341,7 +341,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.PRIVACY_BUTTON: "Политика конфиденциальности",
         TextKey.TERMS_BUTTON: "Пользовательское соглашение",
         TextKey.SERVICE_DESCRIPTION_BUTTON: "Описание и условия сервиса",
-        TextKey.LANG_RU: "Русский",
+        TextKey.LANG_RU: "Russian",
         TextKey.LANG_EN: "English",
         TextKey.COMPLETED_DEAL_FEED: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji><b>Сделка</b> <code>#{deal_id}</code>\n\n"
@@ -366,7 +366,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='6028226658543082010'>🔨</tg-emoji> <b>Important:</b>\n"
             "<b>GRNT acts as a neutral guarantor and supports only deals that comply with our rules and Telegram policies.</b>\n\n"
             "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>1%:</b>\n"
-            "A fixed fee for a completed deal."
+            "A fixed 1% fee per completed deal."
             "</blockquote>\n\n"
             "<tg-emoji emoji-id='5967412305338568701'>📅</tg-emoji> <b>Public history:</b> "
             "<a href='https://t.me/grnthub/4'>@grnthub</a>"
@@ -375,7 +375,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MENU_CREATE_DEAL: "Create deal",
         TextKey.MENU_MY_DEALS: "My deals",
         TextKey.MENU_SETTINGS: "Settings",
-        TextKey.MENU_FAQ: "Questions",
+        TextKey.MENU_FAQ: "Help & FAQ",
         TextKey.MENU_DOCUMENTS: "Documents",
         TextKey.MENU_CREATE_DESK: "Create listing",
         TextKey.DESK_KIND_PROMPT: (
@@ -425,8 +425,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<blockquote><b>Item:</b> {item}\n"
             "<b>Amount:</b> {amount} GRAM\n"
             "<b>Buyer:</b> {buyer}</blockquote>\n\n"
-            "The bot only connects both parties.\n"
-            "Payment is completed directly between users.\n\n"
+            "The bot only connects the parties.\n"
+            "Payment is settled directly between the users.\n\n"
             "<b>Accept or decline the offer:</b>"
         ),
         TextKey.OTC_OFFER_RESULT: (
@@ -435,8 +435,8 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<blockquote><b>Item:</b> {item}\n"
             "<b>Offer amount:</b> {amount} GRAM</blockquote>\n\n"
             "<b>Status:</b> {status}\n\n"
-            "Contact the other party to continue the deal.\n"
-            "Payment is completed directly between users.\n\n"
+            "Contact the other party to proceed with the deal.\n"
+            "Payment is settled directly between the users.\n\n"
             "The bot does not transfer GRAM, NFTs, or other assets — it only connects the parties."
         ),
         TextKey.OTC_OFFER_UNAVAILABLE: (
@@ -583,13 +583,13 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "They will receive a notification after the transaction is complete."
         ),
         TextKey.DEAL_CONFIRMED: "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> Completed",
-        TextKey.DEAL_WAIT_WALLET: "The seller has no payout wallet linked yet.",
+        TextKey.DEAL_WAIT_WALLET: "The seller has not linked a payout wallet yet.",
         TextKey.DEAL_BUYER_WALLET_REQUIRED: (
-            "Link a TON wallet before joining. It is required as the safe refund destination."
+            "Link a TON wallet before joining. It will be used as the safe refund destination."
         ),
         TextKey.DEAL_PAYOUT_BLOCKED: (
-            "Payout was stopped before broadcast because the guarant wallet lacks gas. "
-            "Funds remain with the guarant; contact support."
+            "The payout was stopped before broadcast because the guarantor wallet lacks gas. "
+            "Funds remain with the guarantor; contact support."
         ),
         TextKey.DEAL_DELIVERED: (
             "<b>Fulfilment and delivery:</b>\n"
@@ -598,7 +598,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DELIVERY_NOTICE: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> The seller delivered the service!\n\n"
-            "The seller confirmed delivery for this deal:\n"
+            "The seller confirmed that the service was delivered:\n"
             "<blockquote>• Deal code: <code>#{deal_id}</code>\n"
             "• Description: {description}\n"
             "• Amount paid: {payment_amount} {currency}</blockquote>\n\n"
@@ -612,7 +612,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DEAL_DISPUTE_INVALID: "Description must contain 10 to 1000 characters.",
         TextKey.DEAL_DISPUTE_CREATED: (
-            "Dispute ticket created. Funds are frozen with the guarant. "
+            "Dispute ticket created. Funds are frozen with the guarantor. "
             "Contact support and include the deal ID."
         ),
         TextKey.DEAL_REFUNDED: "The TON network confirmed the buyer refund.",
@@ -655,34 +655,34 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.MAIN_MENU_BUTTON: "Main menu",
         TextKey.FAQ_CAPTION: (
             "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Help & FAQ</b>\n\n"
-            "1. Overview\n"
+            "<b>1. Overview</b>\n"
             "<blockquote>GRNT is an escrow service that enables secure deals between users. Funds are held until the deal is completed and released only after confirmation by both parties.</blockquote>\n\n"
-            "2. How it works\n"
+            "<b>2. How it works</b>\n"
             "<blockquote>1. Add your TON wallet in the “My wallet” section.\n"
             "2. Create a deal — describe its terms in the guarantor chat.\n"
             "3. Secure the funds — the buyer sends payment, which GRNT holds.\n"
             "4. Confirm completion — after the terms are fulfilled, both parties confirm.\n"
             "5. Release — the funds are automatically sent to the recipient.</blockquote>\n\n"
-            "3. Responsibilities of the parties\n"
+            "<b>3. Responsibilities of the parties</b>\n"
             "<blockquote>• All deal terms must be agreed before the deal begins.\n"
             "• Participants must provide evidence that the terms were fulfilled if a dispute arises.\n"
             "• GRNT is not responsible for fraud, external correspondence, or deals made outside the service.</blockquote>"
         ),
         TextKey.FAQ_CAPTION_PAGE_2: (
             "<tg-emoji emoji-id='5985833664884250583'>❓</tg-emoji> <b>Help & FAQ</b>\n\n"
-            "4. Arbitration and disputes\n"
+            "<b>4. Arbitration and disputes</b>\n"
             "<blockquote>• If the parties disagree, they may request GRNT arbitration.\n"
             "• The arbitrator’s decision is final and binding on both parties.\n"
             "• Accounts may be restricted in case of violations.</blockquote>\n\n"
-            "5. Prohibited deals\n"
+            "<b>5. Prohibited deals</b>\n"
             "<blockquote>GRNT does not support:\n"
             "• The sale of prohibited goods or services\n"
             "• Scams, phishing, or deception\n"
             "• Deals that violate laws or Telegram rules\n"
             "• Transfers and settlements outside the service</blockquote>\n\n"
-            "6. Fee\n"
+            "<b>6. Fee</b>\n"
             "<blockquote>• GRNT charges a 1% fee automatically when a deal is completed.</blockquote>\n\n"
-            "7. Liability\n"
+            "<b>7. Liability</b>\n"
             "<blockquote>• GRNT acts solely as a neutral intermediary.\n"
             "• Deal participants are fully responsible for the accuracy of their information and actions.</blockquote>\n\n"
             "Need help? Contact support: {support_username}"
@@ -691,7 +691,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.PRIVACY_BUTTON: "Privacy policy",
         TextKey.TERMS_BUTTON: "Terms of service",
         TextKey.SERVICE_DESCRIPTION_BUTTON: "Service description and conditions",
-        TextKey.LANG_RU: "Русский",
+        TextKey.LANG_RU: "Russian",
         TextKey.LANG_EN: "English",
         TextKey.COMPLETED_DEAL_FEED: (
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji><b>Deal</b> <code>#{deal_id}</code>\n\n"
