@@ -166,7 +166,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji> <b>Сделка</b> <code>#{deal_id}</code>\n"
             "<tg-emoji emoji-id='5942877472163892475'>👤</tg-emoji> Вы покупатель.\n\n"
             "Завершённых сделок продавца: {seller_deals}\n\n"
-            "</b>Детали сделки:</b>\n"
+            "<b>Детали сделки:</b>\n"
             "<blockquote><b>• Код сделки:</b> <code>#{deal_id}</code>\n"
             "<b>• Описание:</b> {description}</blockquote>\n\n"
             "<b>• Адрес оплаты:</b> <code>{wallet_address}</code>\n\n"

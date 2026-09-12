@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal, Protocol, TypeAlias, TypedDict, Unpack
+from typing import Protocol, TypeAlias, TypedDict, Unpack
 
 from app.core.enums import Currency, DealStatus, FinancialOperationFlow, Language, TraceStatus
 from app.models.dto import CreateDealCommand, DepositScanBatch, PaymentObservation, ReferralCommunity, ReferralProfile, ReferralStats
@@ -13,14 +13,6 @@ from app.ton.models import PayoutMessage, PreparedPayout, TraceResult
 TelegramId: TypeAlias = int
 DealId: TypeAlias = int
 AtomicAmount: TypeAlias = int
-HealthStatus: TypeAlias = Literal["ok", "starting"]
-
-
-class ReadinessPayload(TypedDict):
-    status: HealthStatus
-    checks: dict[str, bool]
-
-
 class UserChanges(TypedDict, total=False):
     username: str | None
     wallet_address: str | None

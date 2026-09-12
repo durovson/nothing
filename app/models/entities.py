@@ -17,9 +17,7 @@ from app.core.enums import (
     FinancialOperationType,
     Language,
     OtcOfferStatus,
-    PayoutStatus,
     ReferralWithdrawalStatus,
-    RefundStatus,
     SystemMode,
     UnmatchedPaymentStatus,
     WalletVersion,
@@ -132,53 +130,6 @@ class CollectionAttempt(BaseModel):
     status: CollectionStatus
     destination: str
     comment: str
-    external_message_hash: str | None = None
-    signed_boc: str | None = None
-    valid_until: datetime | None = None
-    submitted_at: datetime | None = None
-    confirmed_at: datetime | None = None
-    last_checked_at: datetime | None = None
-    error: str | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-
-class PayoutAttempt(BaseModel):
-    id: int
-    deal_id: int
-    idempotency_key: str
-    status: PayoutStatus
-    destination: str
-    amount_atomic: int
-    comment: str
-    reward_destination: str | None = None
-    reward_nominal_amount_atomic: int | None = None
-    reward_comment: str | None = None
-    currency: Currency = Currency.TON
-    external_message_hash: str | None = None
-    signed_boc: str | None = None
-    valid_until: datetime | None = None
-    submitted_at: datetime | None = None
-    confirmed_at: datetime | None = None
-    last_checked_at: datetime | None = None
-    error: str | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-
-class RefundAttempt(BaseModel):
-    id: int
-    deal_id: int
-    idempotency_key: str
-    status: RefundStatus
-    destination: str
-    amount_atomic: int
-    comment: str
-    reason: str
-    currency: Currency = Currency.TON
-    reward_destination: str | None = None
-    reward_nominal_amount_atomic: int | None = None
-    reward_comment: str | None = None
     external_message_hash: str | None = None
     signed_boc: str | None = None
     valid_until: datetime | None = None

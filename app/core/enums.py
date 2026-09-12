@@ -131,25 +131,7 @@ class DealStatus(StrEnum):
     CREATION_FAILED = "creation_failed"
 
 
-class PayoutStatus(StrEnum):
-    CREATING = "creating"
-    PREPARED = "prepared"
-    SUBMITTED = "submitted"
-    CONFIRMED = "confirmed"
-    BOUNCED = "bounced"
-    FAILED = "failed"
-
-
 class CollectionStatus(StrEnum):
-    CREATING = "creating"
-    PREPARED = "prepared"
-    SUBMITTED = "submitted"
-    CONFIRMED = "confirmed"
-    BOUNCED = "bounced"
-    FAILED = "failed"
-
-
-class RefundStatus(StrEnum):
     CREATING = "creating"
     PREPARED = "prepared"
     SUBMITTED = "submitted"

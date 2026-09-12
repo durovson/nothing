@@ -8,7 +8,7 @@ from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.constants import USDT_MAINNET_MASTER
-from app.core.enums import Currency, Language, TonNetwork
+from app.core.enums import Language, TonNetwork
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
@@ -82,11 +82,6 @@ class Settings(BaseSettings):
     DEALS_PAGE_SIZE: ClassVar[int] = 5
 
     DEFAULT_LANGUAGE: Language = Language.RU
-    DEFAULT_CURRENCY: Currency = Currency.TON
-    CHANNEL_PASSWORD_WARNING: str = (
-        "Убедитесь, что у канала включён облачный пароль, и добавьте бота "
-        "администратором перед созданием сделки."
-    )
 
     @field_validator(
         "TELEGRAM_BOT_TOKEN",

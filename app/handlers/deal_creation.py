@@ -247,7 +247,7 @@ async def handle_amount(
     except (ValidationError, KeyError, ValueError):
         await render_stored_menu(message, state, translate(db_user.language, TextKey.DEAL_AMOUNT_INVALID), back_keyboard(db_user.language), screen="deal_create")
         return
-    bot_username = settings.TELEGRAM_BOT_USERNAME or (await message.bot.get_me()).username or "YourBot"
+    bot_username = settings.TELEGRAM_BOT_USERNAME or "YourBot"
     deep_link = f"https://t.me/{bot_username}?start={deal.public_id}"
     await render_stored_menu(
         message,

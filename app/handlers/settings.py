@@ -109,7 +109,7 @@ async def referral_info(
         db_user.telegram_id,
     )
     stats = await referral_service.get_stats(db_user.telegram_id)
-    bot_username = settings.TELEGRAM_BOT_USERNAME or (await callback.bot.get_me()).username or "YourBot"
+    bot_username = settings.TELEGRAM_BOT_USERNAME or "YourBot"
     link = f"https://t.me/{bot_username}?start=ref_{db_user.telegram_id}"
     if callback.message:
         await render_menu(callback.message,

@@ -31,8 +31,7 @@ class TelegramChannelGateway:
     ) -> ChannelDescriptor:
         try:
             chat = await self._bot.get_chat(channel_reference)
-            bot_user = await self._bot.get_me()
-            bot_member = await self._bot.get_chat_member(chat.id, bot_user.id)
+            bot_member = await self._bot.get_chat_member(chat.id, self._bot.id)
             seller_member = await self._bot.get_chat_member(chat.id, seller_id)
         except (TelegramBadRequest, TelegramForbiddenError) as exc:
             raise ChannelConfigurationError(

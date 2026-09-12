@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from app.database import SupabaseDatabase
 from app.models.dto import CreateDeskListingCommand
 from app.models.entities import DeskListing, ObservedDeposit
