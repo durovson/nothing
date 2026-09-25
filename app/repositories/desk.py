@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from app.database import SupabaseDatabase
-from app.models.dto import CreateDeskListingCommand
+from app.core.enums import Language
+from app.models.dto import (
+    CreateDeskListingCommand,
+    ParsedCommunityListing,
+    ReferralCommunity,
+)
 from app.models.entities import DeskListing, ObservedDeposit
 
 
@@ -10,6 +15,57 @@ class DeskRepository:
 
     def __init__(self, database: SupabaseDatabase):
         self._database = database
+
+    async def connect_community(
+        self,
+        *,
+        chat_id: int,
+        topic_id: int,
+        name: str,
+        username: str | None,
+        owner_user_id: int,
+    ) -> ReferralCommunity:
+        response = await self._database.rpc(
+            "connect_community_desk",
+            {
+                "p_telegram_chat_id": chat_id,
+                "p_desk_topic_id": topic_id,
+                "p_name": name,
+                "p_telegram_username": username,
+                "p_owner_user_id": owner_user_id,
+            },
+        )
+        if not response.data:
+            raise RuntimeError("Community Desk connection was not saved")
+        return ReferralCommunity(**response.data[0])
+
+    async def create_community_listing(
+        self,
+        *,
+        public_id: str,
+        chat_id: int,
+        topic_id: int,
+        source_message_id: int,
+        owner_language: Language,
+        parsed: ParsedCommunityListing,
+    ) -> DeskListing | None:
+        response = await self._database.rpc(
+            "create_community_desk_listing",
+            {
+                "p_public_id": public_id,
+                "p_telegram_chat_id": chat_id,
+                "p_desk_topic_id": topic_id,
+                "p_source_message_id": source_message_id,
+                "p_owner_language": owner_language.value,
+                "p_kind": parsed.kind.value,
+                "p_description": parsed.description,
+                "p_description_html": parsed.description_html,
+                "p_deal_currency": parsed.deal_currency.value,
+                "p_price": str(parsed.price) if parsed.price is not None else None,
+                "p_item_fingerprint": parsed.item_fingerprint,
+            },
+        )
+        return DeskListing(**response.data[0]) if response.data else None
 
     async def create(self, command: CreateDeskListingCommand) -> DeskListing:
         response = await self._database.rpc(

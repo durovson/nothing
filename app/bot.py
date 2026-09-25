@@ -50,6 +50,7 @@ def create_dispatcher(settings: Settings, services: Services) -> Dispatcher:
     dispatcher["channel_service"] = services.channels
     dispatcher["desk_service"] = services.desk
     dispatcher["otc_offer_service"] = services.otc_offers
+    dispatcher["community_desk_service"] = services.community_desk
     dispatcher.include_router(create_router())
     return dispatcher
 

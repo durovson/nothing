@@ -6,7 +6,7 @@ from app.api.telegram_notifier import TelegramNotificationGateway
 from app.config import Settings
 from app.core.enums import DealStatus, DealType
 from app.core.exceptions import MissingLinkedWalletError, ServiceUnavailableError
-from app.keyboards import MenuCallback, main_menu, payment_keyboard
+from app.keyboards import MenuCallback, main_menu, payment_keyboard, welcome_keyboard
 from app.keyboards.callbacks import MenuAction
 from app.locales import TextKey, translate
 from app.models.entities import User
@@ -117,7 +117,7 @@ async def start_with_args(
         )
         return
 
-    await show_main_menu(message, db_user, settings)
+    await show_welcome(message, db_user)
 
 
 @router.message(CommandStart())
@@ -125,7 +125,21 @@ async def command_start(
     message: types.Message, db_user: User, settings: Settings, state: FSMContext
 ) -> None:
     await state.clear()
-    await show_main_menu(message, db_user, settings)
+    await show_welcome(message, db_user)
+
+
+@router.callback_query(
+    MenuCallback.filter(F.action == MenuAction.WELCOME_CONTINUE)
+)
+async def welcome_continue(
+    callback: types.CallbackQuery,
+    db_user: User,
+    settings: Settings,
+    state: FSMContext,
+) -> None:
+    await state.clear()
+    if callback.message:
+        await show_main_menu(callback.message, db_user, settings)
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.BACK))
@@ -149,4 +163,13 @@ async def show_main_menu(message: types.Message, user: User, settings: Settings)
             support_username=settings.SUPPORT_USERNAME,
         ),
         main_menu(user.language, settings.SUPPORT_USERNAME),
+    )
+
+
+async def show_welcome(message: types.Message, user: User) -> None:
+    await render_menu(
+        message,
+        translate(user.language, TextKey.WELCOME_CAPTION),
+        welcome_keyboard(user.language),
+        screen="main_menu",
     )

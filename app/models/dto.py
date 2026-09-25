@@ -134,6 +134,18 @@ class ReferralCommunity(BaseModel):
     holder_share: Decimal = Decimal("0.30")
     owner_user_id: int | None = None
     enabled: bool = True
+    telegram_username: str | None = None
+    desk_topic_id: int | None = None
+    desk_enabled: bool = False
+
+
+class ParsedCommunityListing(BaseModel):
+    kind: DeskKind
+    description: str = Field(min_length=1, max_length=2_000)
+    description_html: str = Field(min_length=1, max_length=8_000)
+    deal_currency: Currency
+    price: Decimal | None = Field(default=None, gt=Decimal("0"))
+    item_fingerprint: str = Field(min_length=64, max_length=64)
 
 
 class ReferralAllocation(BaseModel):

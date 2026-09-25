@@ -56,6 +56,15 @@ class DeskListing(BaseModel):
     topic_message_id: int | None = None
     published_at: datetime | None = None
     failure_reason: str | None = None
+    source_type: str = "paid"
+    description_html: str | None = None
+    community_id: int | None = None
+    source_chat_id: int | None = None
+    source_topic_id: int | None = None
+    source_message_id: int | None = None
+    item_fingerprint: str | None = None
+    community_name: str | None = None
+    community_username: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

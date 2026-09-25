@@ -4,6 +4,14 @@ from app.locales.keys import TextKey
 
 TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.RU: {
+        TextKey.WELCOME_CAPTION: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> "
+            "<b>Добро пожаловать в GRNT</b>\n\n"
+            "Подпишитесь на сообщество <a href='https://t.me/grnthub'>@grnthub</a>, "
+            "чтобы следить за обновлениями сервиса, сделками и объявлениями."
+        ),
+        TextKey.WELCOME_SUBSCRIBE: "Подписаться на сообщество",
+        TextKey.WELCOME_CONTINUE: "Продолжить",
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Просто сделки. Остальное — на нас.</b>\n\n"
             "<b>Главное о сервисе:</b>\n"
@@ -42,7 +50,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DESK_DESCRIPTION_PREVIEW: (
             "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
-            "<b>Детали сделки:</b>\n<blockquote>• Описание:\n{description}</blockquote>\n\n"
+            "<b>Детали сделки:</b>\n<blockquote>• Описание: {description}</blockquote>\n\n"
             "Проверьте описание. Чтобы исправить его, просто отправьте новый текст."
         ),
         TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nВыберите валюту для сделки в объявлении:",
@@ -57,7 +65,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DESK_CREATED: (
             "<tg-emoji emoji-id='5875206779196935950'>📅</tg-emoji> <b>Объявление</b> <code>#{listing_id}</code> <b>создано</b>\n\n"
-            "<b>Детали объявления:</b>\n<blockquote>• Описание:\n{description}\n\n• Цена: {price}</blockquote>"
+            "<b>Детали объявления:</b>\n<blockquote>• Описание: {description}\n\n• Цена: {price}</blockquote>"
         ),
         TextKey.DESK_EXPIRED: "Время оплаты объявления истекло. Создайте его заново.",
         TextKey.DESK_USERNAME_REQUIRED: "Для публикации объявления у профиля Telegram должен быть @username.",
@@ -196,7 +204,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n\n"
             "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
             "<b>Транзакция:</b>\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в Tonscan</a>\n\n"
             "<b>Детали сделки:</b>\n"
             "<blockquote><b>• Описание:</b> {description}\n"
             "<b>• Продавец:</b> {seller}</blockquote>\n\n"
@@ -206,7 +214,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n\n"
             "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
             "<b>Транзакция:</b>\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в Tonscan</a>\n\n"
             "<b>Детали сделки:</b>\n"
             "<blockquote><b>• Описание:</b> {description}\n"
             "<b>• Покупатель:</b> {buyer}</blockquote>\n\n"
@@ -217,14 +225,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата найдена и подтверждена!</b>\n\n"
             "Ваш платеж по сделке <code>#{deal_id}</code> успешно обработан.\n\n"
             "<b>Транзакция:</b>\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в Tonscan</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вступите в канал по кнопке сделки и дождитесь, пока продавец вручную передаст вам статус владельца. Бот проверит это автоматически."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Оплата подтверждена!</b>\n\n"
             "Покупатель оплатил сделку <code>#{deal_id}</code>\n\n"
             "<b>Транзакция:</b>\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">Посмотреть в Tonscan</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Вручную передайте ему статус владельца в настройках Telegram и не удаляйте бота из администраторов. После статуса creator бот автоматически запустит выплату."
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
@@ -277,7 +285,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<blockquote><b>• Описание:</b> {description}\n"
             "<b>• Сумма:</b> <code>{amount}</code> {currency}\n"
             "<b>• Кошелек:</b> <code>{wallet}</code></blockquote>\n\n"
-            "<b>Транзакция:</b>\n<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> Посмотреть в TON Viewer</a>\n\n"
+            "<b>Транзакция:</b>\n<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> Посмотреть в Tonscan</a>\n\n"
             "<b>Спасибо за использование нашего сервиса!</b> <tg-emoji emoji-id='5908808657700655253'>🐱</tg-emoji>"
         ),
         TextKey.SETTINGS_CAPTION: "<tg-emoji emoji-id='5877260593903177342'>⚙️</tg-emoji> <b>Настройки</b>",
@@ -353,6 +361,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
     },
     Language.EN: {
+        TextKey.WELCOME_CAPTION: (
+            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> "
+            "<b>Welcome to GRNT</b>\n\n"
+            "Join <a href='https://t.me/grnthub'>@grnthub</a> to follow service updates, "
+            "deals, and listings."
+        ),
+        TextKey.WELCOME_SUBSCRIBE: "Join the community",
+        TextKey.WELCOME_CONTINUE: "Continue",
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Simple deals. We handle the rest.</b>\n\n"
             "<b>Key service features:</b>\n"
@@ -388,7 +404,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DESK_DESCRIPTION_PREVIEW: (
             "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\n"
-            "<b>Deal details:</b>\n<blockquote>• Description:\n{description}</blockquote>\n\n"
+            "<b>Deal details:</b>\n<blockquote>• Description: {description}</blockquote>\n\n"
             "Check the description. To change it, simply send replacement text."
         ),
         TextKey.DESK_DEAL_CURRENCY_PROMPT: "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> <b>{kind}</b>\n\nChoose the deal currency shown in the listing:",
@@ -403,7 +419,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         ),
         TextKey.DESK_CREATED: (
             "<tg-emoji emoji-id='5875206779196935950'>📅</tg-emoji> <b>Listing</b> <code>#{listing_id}</code> <b>created</b>\n\n"
-            "<b>Listing details:</b>\n<blockquote>• Description:\n{description}\n\n• Price: {price}</blockquote>"
+            "<b>Listing details:</b>\n<blockquote>• Description: {description}\n\n• Price: {price}</blockquote>"
         ),
         TextKey.DESK_EXPIRED: "The listing payment window has expired. Create it again.",
         TextKey.DESK_USERNAME_REQUIRED: "Your Telegram profile needs an @username to publish a listing.",
@@ -541,7 +557,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"
             "Your payment for deal <code>#{deal_id}</code> was processed successfully.\n\n"
             "Transaction:\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in Tonscan</a>\n\n"
             "Deal details:\n"
             "<blockquote>• Description: {description}\n"
             "• Seller: {seller}</blockquote>\n\n"
@@ -551,7 +567,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment confirmed!</b>\n"
             "The buyer paid for deal <code>#{deal_id}</code>.\n\n"
             "Transaction:\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in Tonscan</a>\n\n"
             "Deal details:\n"
             "<blockquote>• Description: {description}\n"
             "• Buyer: {buyer}</blockquote>\n\n"
@@ -562,14 +578,14 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment found and confirmed!</b>\n"
             "Your payment for deal <code>#{deal_id}</code> was processed successfully.\n\n"
             "Transaction:\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in Tonscan</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Join the channel using the deal button and wait for the seller to transfer ownership manually. The bot will verify it automatically."
         ),
         TextKey.DEAL_CHANNEL_PAID_SELLER: (
             "<tg-emoji emoji-id='5776375003280838798'>✅</tg-emoji> <b>Payment confirmed!</b>\n"
             "The buyer paid for deal <code>#{deal_id}</code>.\n\n"
             "Transaction:\n"
-            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in TON Viewer</a>\n\n"
+            "<tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> <a href=\"{transaction_url}\">View in Tonscan</a>\n\n"
             "<tg-emoji emoji-id='5881702736843511327'>⚠️</tg-emoji> Transfer ownership manually in Telegram settings and do not remove the bot from the administrators. Once the buyer has creator status, the bot will start the payout automatically."
         ),
         TextKey.DEAL_RELEASE_ACCEPTED: (
@@ -625,7 +641,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
             "• Amount: {amount} {currency}\n"
             "• Wallet: {wallet}</blockquote>\n\n"
             "Transaction:\n"
-            "<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> View in TON Viewer</a>\n\n"
+            "<a href=\"{transaction_url}\"><tg-emoji emoji-id='5778546023349621090'>💎</tg-emoji> View in Tonscan</a>\n\n"
             "Thank you for using our service! <tg-emoji emoji-id='5908808657700655253'>🐱</tg-emoji>"
         ),
         TextKey.SETTINGS_CAPTION: "<tg-emoji emoji-id='5877260593903177342'>⚙️</tg-emoji> <b>Settings</b>",

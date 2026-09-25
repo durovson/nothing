@@ -7,6 +7,29 @@ from app.keyboards.callbacks import MenuAction, MenuCallback
 from app.locales import TextKey, translate
 
 
+def welcome_keyboard(locale: Language) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                premium_button(
+                    translate(locale, TextKey.WELCOME_SUBSCRIBE),
+                    icon=CustomEmoji.CHANNEL,
+                    url="https://t.me/grnthub",
+                )
+            ],
+            [
+                premium_button(
+                    translate(locale, TextKey.WELCOME_CONTINUE),
+                    icon=CustomEmoji.NEXT,
+                    callback_data=MenuCallback(
+                        action=MenuAction.WELCOME_CONTINUE
+                    ).pack(),
+                )
+            ],
+        ]
+    )
+
+
 def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineKeyboardMarkup:
     support = support_username.strip().lstrip("@") or "not_jammm"
 

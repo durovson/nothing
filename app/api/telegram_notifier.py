@@ -25,7 +25,7 @@ from app.keyboards.callbacks import (
 from app.locales import TextKey, translate
 from app.models.entities import Deal, DeskListing, OtcOffer, User
 from app.ton.amounts import asset_payment_amount
-from app.ton.links import tonviewer_transaction_url
+from app.ton.links import tonscan_transaction_url
 from app.utils import currency_label, format_amount
 from app.utils.menu import media_path
 
@@ -230,17 +230,7 @@ class TelegramNotificationGateway:
 
     async def publish_desk_listing(self, listing: DeskListing) -> int | None:
         """Publish one paid listing in the dedicated Desk forum topic."""
-        price = (
-            "Offer"
-            if listing.price is None
-            else f"{format_amount(listing.price)} {currency_label(listing.deal_currency)}"
-        )
-        text = (
-            f"<tg-emoji emoji-id='{CustomEmoji.MESSAGE.value}'>💬</tg-emoji> <b>{listing.kind.value}</b>\n\n"
-            "<b>Детали сделки:</b>\n"
-            f"<blockquote>• Описание:\n{escape(listing.description)}\n\n"
-            f"• Цена: {price}</blockquote>"
-        )
+        text = self._desk_listing_text(listing)
         bot_username = self._settings.TELEGRAM_BOT_USERNAME.strip().lstrip("@")
         offer_url = f"https://t.me/{bot_username}?start=offer_{listing.public_id}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[
@@ -266,6 +256,65 @@ class TelegramNotificationGateway:
             logger.exception("Desk publication failed listing=%s", listing.public_id)
             return None
         return message.message_id
+
+    async def publish_community_desk_listing(
+        self, listing: DeskListing
+    ) -> int | None:
+        """Mirror one moderated community listing without paid-listing actions."""
+        try:
+            message = await self._bot.send_message(
+                DESK_CHANNEL,
+                self._desk_listing_text(listing, include_community=True),
+                message_thread_id=DESK_TOPIC_ID,
+            )
+        except Exception:
+            logger.exception(
+                "Community Desk publication failed listing=%s community=%s",
+                listing.public_id,
+                listing.community_id,
+            )
+            return None
+        return message.message_id
+
+    @staticmethod
+    def _desk_listing_text(
+        listing: DeskListing,
+        *,
+        include_community: bool = False,
+    ) -> str:
+        description = (
+            listing.description_html
+            if listing.description_html
+            else escape(listing.description)
+        )
+        price = (
+            "Offer"
+            if listing.price is None
+            else format_amount(listing.price)
+        )
+        currency = "" if listing.price is None else (
+            f" <b>{currency_label(listing.deal_currency)}</b>"
+        )
+        text = (
+            f"<tg-emoji emoji-id='{CustomEmoji.MESSAGE.value}'>💬</tg-emoji>"
+            f"<b>{listing.kind.value}</b>\n\n"
+            f"<tg-emoji emoji-id='{CustomEmoji.DESK_DETAILS.value}'>🗒</tg-emoji>"
+            "<b>Детали сделки:</b>\n"
+            f"<blockquote><b>• Описание:</b> {description}\n\n"
+            f"<b>• Цена:</b> {price}{currency}</blockquote>"
+        )
+        if include_community:
+            username = (listing.community_username or "").strip().lstrip("@")
+            if username:
+                safe_username = escape(username, quote=True)
+                community = (
+                    f"<b>by <a href='https://t.me/{safe_username}'>"
+                    f"@{safe_username}</a></b>"
+                )
+            else:
+                community = f"<b>by {escape(listing.community_name or 'community')}</b>"
+            text = f"{text}\n\n{community}"
+        return text
 
     async def desk_listing_published(self, listing: DeskListing) -> None:
         language = listing.owner_language
@@ -404,8 +453,8 @@ class TelegramNotificationGateway:
         transaction_hash = deal.payout_tx_hash if payout else deal.paid_tx_hash
         if not transaction_hash:
             logger.error("Deal %s has no %s transaction hash", deal.public_id, "payout" if payout else "payment")
-            return "https://tonviewer.com/"
-        return tonviewer_transaction_url(transaction_hash, self._settings.TON_NETWORK)
+            return "https://tonscan.org/"
+        return tonscan_transaction_url(transaction_hash, self._settings.TON_NETWORK)
 
     async def _send(self, user: User, key: TextKey, **kwargs: object) -> None:
         reply_markup = kwargs.pop("reply_markup", None)

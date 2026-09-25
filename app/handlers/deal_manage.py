@@ -21,7 +21,7 @@ from app.services.deals import DealService
 from app.services.lifecycle import DealLifecycleService
 from app.services.payouts import PayoutService
 from app.states.forms import DisputeStates
-from app.ton.links import tonviewer_transaction_url
+from app.ton.links import tonscan_transaction_url
 from app.utils import (
     channel_member_status_label,
     currency_label,
@@ -93,7 +93,7 @@ async def render_deal_card(
     )
     payout_url = None
     if completed and deal.payout_tx_hash:
-        payout_url = tonviewer_transaction_url(deal.payout_tx_hash, settings.TON_NETWORK)
+        payout_url = tonscan_transaction_url(deal.payout_tx_hash, settings.TON_NETWORK)
     caption = (
         caption.replace(
             status_marker,

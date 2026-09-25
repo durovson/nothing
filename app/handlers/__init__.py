@@ -2,6 +2,7 @@ from aiogram import Router
 
 from app.handlers import (
     admin,
+    community_desk,
     deal_creation,
     deal_manage,
     desk,
@@ -18,6 +19,7 @@ from app.handlers import (
 def create_router() -> Router:
     router = Router(name="application")
     router.include_routers(
+        community_desk.router,
         topic_cooldown.router,
         start.router,
         admin.router,

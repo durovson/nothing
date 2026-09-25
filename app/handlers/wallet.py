@@ -20,7 +20,7 @@ def _short_wallet(address: str) -> str:
 
 
 def _wallet_url(address: str) -> str:
-    return f"https://tonviewer.com/{address}"
+    return f"https://tonscan.org/address/{address}"
 
 
 def _wallet_keyboard(user: User):

@@ -31,6 +31,7 @@ from app.services import (
     DeskService,
     DeskTonDepositIndexer,
     OtcOfferService,
+    CommunityDeskService,
 )
 from app.tasks import DealMonitor
 from app.ton import TonApiWebhookManager, TonEscrowClient
@@ -95,6 +96,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         system_mode,
     )
     otc_offers = OtcOfferService(repositories.otc_offers, repositories.desk)
+    community_desk = CommunityDeskService(repositories.desk, notifications)
     deals = DealService(
         app_settings,
         repositories.deals,
@@ -221,6 +223,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         channels=channels,
         desk=desk,
         otc_offers=otc_offers,
+        community_desk=community_desk,
     )
     dispatcher = create_dispatcher(app_settings, services)
     dispatcher["notification_gateway"] = notifications

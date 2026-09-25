@@ -2,6 +2,9 @@ from enum import StrEnum
 
 
 class TextKey(StrEnum):
+    WELCOME_CAPTION = "welcome_caption"
+    WELCOME_SUBSCRIBE = "welcome_subscribe"
+    WELCOME_CONTINUE = "welcome_continue"
     MAIN_MENU_CAPTION = "main_menu_caption"
     MENU_WALLET = "menu_wallet"
     MENU_CREATE_DEAL = "menu_create_deal"

@@ -6,7 +6,7 @@ from app.ton.amounts import (
     payout_amount_atomic,
 )
 from app.ton.client import TonEscrowClient
-from app.ton.links import tonviewer_transaction_url
+from app.ton.links import tonscan_transaction_url
 from app.ton.models import PayoutMessage, PreparedPayout
 from app.ton.webhooks import TonApiWebhookManager
 
@@ -20,5 +20,5 @@ __all__ = [
     "asset_payment_amount_atomic",
     "asset_service_fee_atomic",
     "payout_amount_atomic",
-    "tonviewer_transaction_url",
+    "tonscan_transaction_url",
 ]
