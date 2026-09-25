@@ -12,7 +12,8 @@ router = Router(name="referral_communities")
 
 
 def _membership_state(member: ChatMember) -> tuple[str, bool]:
-    status = member.status.value
+    raw_status = member.status
+    status = getattr(raw_status, "value", raw_status)
     active = status in {"creator", "administrator", "member"}
     if status == "restricted":
         active = bool(getattr(member, "is_member", False))

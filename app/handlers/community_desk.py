@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 router = Router(name="community_desk")
 
 
+def _chat_member_status(member: types.ChatMember) -> str:
+    """Normalize aiogram versions that expose status as either str or enum."""
+    status = member.status
+    return getattr(status, "value", status)
+
+
 @router.message(Command("connect"))
 async def connect_community_desk(
     message: types.Message,
@@ -40,7 +46,7 @@ async def connect_community_desk(
         )
         await message.answer("Не удалось проверить права администратора.")
         return
-    if member.status.value not in {"creator", "administrator"}:
+    if _chat_member_status(member) not in {"creator", "administrator"}:
         await message.answer("Подключить ветку может только администратор сообщества.")
         return
     try:
@@ -48,7 +54,7 @@ async def connect_community_desk(
     except Exception:
         await message.answer("Не удалось проверить права бота в сообществе.")
         return
-    if bot_member.status.value not in {"creator", "administrator"}:
+    if _chat_member_status(bot_member) not in {"creator", "administrator"}:
         await message.answer(
             "Сначала назначьте бота администратором сообщества, затем повторите /connect."
         )
