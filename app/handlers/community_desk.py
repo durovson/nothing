@@ -54,20 +54,42 @@ async def connect_community_desk(
         )
         return
 
+    replied_user = (
+        message.reply_to_message.from_user
+        if message.reply_to_message is not None
+        else None
+    )
+    source_bot = (
+        replied_user if replied_user is not None and replied_user.is_bot else None
+    )
     community = await community_desk_service.connect(
         chat_id=message.chat.id,
         topic_id=topic_id,
         name=message.chat.title or "Community",
         username=message.chat.username,
         owner_user_id=db_user.telegram_id,
+        source_bot_id=source_bot.id if source_bot is not None else None,
+        source_bot_username=source_bot.username if source_bot is not None else None,
     )
     moderation = "включена" if community.desk_enabled else "ожидает ручного включения"
+    if community.desk_source_bot_id is not None:
+        source_label = (
+            f"@{escape(community.desk_source_bot_username)}"
+            if community.desk_source_bot_username
+            else f"<code>{community.desk_source_bot_id}</code>"
+        )
+    else:
+        source_label = (
+            "будет зафиксирован по первой подходящей публикации; можно сразу "
+            "привязать его, отправив /connect ответом на сообщение исходного бота"
+        )
     await message.answer(
         f"<tg-emoji emoji-id='{CustomEmoji.CONFIRM.value}'>✅</tg-emoji> "
         "<b>Ветка Community Desk сохранена.</b>\n\n"
         f"<b>Chat ID:</b> <code>{message.chat.id}</code>\n"
         f"<b>Topic ID:</b> <code>{topic_id}</code>\n"
         f"<b>Сообщество:</b> {escape(community.name)}\n"
+        f"<b>Бот-источник:</b> {source_label}\n"
         f"<b>Публикация:</b> {moderation}",
     )
 
@@ -82,10 +104,13 @@ async def mirror_visible_community_listing(
     community_desk_service: CommunityDeskService,
 ) -> None:
     topic_id = message.message_thread_id
+    sender = message.from_user
     if (
         message.chat.type not in {"group", "supergroup"}
         or not message.is_topic_message
         or topic_id is None
+        or sender is None
+        or not sender.is_bot
         or not looks_like_community_listing(message.text)
     ):
         return
@@ -94,6 +119,8 @@ async def mirror_visible_community_listing(
             chat_id=message.chat.id,
             topic_id=topic_id,
             message_id=message.message_id,
+            source_bot_id=sender.id,
+            source_bot_username=sender.username,
             text=message.text or "",
             entities=message.entities,
             owner_language=Language.RU,

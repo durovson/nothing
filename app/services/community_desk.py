@@ -161,6 +161,8 @@ class CommunityDeskService:
         name: str,
         username: str | None,
         owner_user_id: int,
+        source_bot_id: int | None = None,
+        source_bot_username: str | None = None,
     ) -> ReferralCommunity:
         return await self._repository.connect_community(
             chat_id=chat_id,
@@ -168,6 +170,8 @@ class CommunityDeskService:
             name=name,
             username=username,
             owner_user_id=owner_user_id,
+            source_bot_id=source_bot_id,
+            source_bot_username=source_bot_username,
         )
 
     async def ingest(
@@ -176,12 +180,22 @@ class CommunityDeskService:
         chat_id: int,
         topic_id: int,
         message_id: int,
+        source_bot_id: int,
+        source_bot_username: str | None,
         text: str,
         entities: list[MessageEntity] | None,
         owner_language: Language,
     ) -> DeskListing | None:
         parsed = parse_community_listing(text, entities)
         if parsed is None:
+            return None
+        community = await self._repository.authorize_community_source(
+            chat_id=chat_id,
+            topic_id=topic_id,
+            source_bot_id=source_bot_id,
+            source_bot_username=source_bot_username,
+        )
+        if community is None:
             return None
         listing = await self._repository.create_community_listing(
             public_id=secrets.token_hex(5),

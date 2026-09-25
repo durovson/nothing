@@ -24,6 +24,8 @@ class DeskRepository:
         name: str,
         username: str | None,
         owner_user_id: int,
+        source_bot_id: int | None = None,
+        source_bot_username: str | None = None,
     ) -> ReferralCommunity:
         response = await self._database.rpc(
             "connect_community_desk",
@@ -37,7 +39,82 @@ class DeskRepository:
         )
         if not response.data:
             raise RuntimeError("Community Desk connection was not saved")
-        return ReferralCommunity(**response.data[0])
+        community = ReferralCommunity(**response.data[0])
+        if source_bot_id is None:
+            return community
+
+        updated = await self._database.run(
+            lambda: self._database.client.table("referral_communities")
+            .update(
+                {
+                    "desk_source_bot_id": source_bot_id,
+                    "desk_source_bot_username": source_bot_username,
+                }
+            )
+            .eq("id", community.id)
+            .execute(),
+            name="community-desk:set-source-bot",
+        )
+        if not updated.data:
+            raise RuntimeError("Community Desk source bot was not saved")
+        return ReferralCommunity(**updated.data[0])
+
+    async def authorize_community_source(
+        self,
+        *,
+        chat_id: int,
+        topic_id: int,
+        source_bot_id: int,
+        source_bot_username: str | None,
+    ) -> ReferralCommunity | None:
+        response = await self._database.read(
+            lambda: self._database.client.table("referral_communities")
+            .select("*")
+            .eq("telegram_chat_id", chat_id)
+            .eq("desk_topic_id", topic_id)
+            .eq("desk_enabled", True)
+            .limit(1)
+            .execute(),
+            name="community-desk:find-source",
+        )
+        if not response.data:
+            return None
+        community = ReferralCommunity(**response.data[0])
+        if community.desk_source_bot_id is not None:
+            return community if community.desk_source_bot_id == source_bot_id else None
+
+        # Backward-compatible auto-binding: the first matching bot post in a
+        # moderated/enabled topic becomes its source. An admin can bind it
+        # explicitly and earlier by replying /connect to that bot's post.
+        updated = await self._database.run(
+            lambda: self._database.client.table("referral_communities")
+            .update(
+                {
+                    "desk_source_bot_id": source_bot_id,
+                    "desk_source_bot_username": source_bot_username,
+                }
+            )
+            .eq("id", community.id)
+            .is_("desk_source_bot_id", None)
+            .execute(),
+            name="community-desk:claim-source-bot",
+        )
+        if updated.data:
+            return ReferralCommunity(**updated.data[0])
+
+        # Another worker may have won the one-time claim; re-read and compare.
+        response = await self._database.read(
+            lambda: self._database.client.table("referral_communities")
+            .select("*")
+            .eq("id", community.id)
+            .limit(1)
+            .execute(),
+            name="community-desk:verify-source",
+        )
+        if not response.data:
+            return None
+        community = ReferralCommunity(**response.data[0])
+        return community if community.desk_source_bot_id == source_bot_id else None
 
     async def create_community_listing(
         self,

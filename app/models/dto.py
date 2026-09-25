@@ -137,6 +137,8 @@ class ReferralCommunity(BaseModel):
     telegram_username: str | None = None
     desk_topic_id: int | None = None
     desk_enabled: bool = False
+    desk_source_bot_id: int | None = None
+    desk_source_bot_username: str | None = None
 
 
 class ParsedCommunityListing(BaseModel):
