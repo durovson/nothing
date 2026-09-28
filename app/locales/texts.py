@@ -5,13 +5,19 @@ from app.locales.keys import TextKey
 TEXTS: dict[Language, dict[TextKey, str]] = {
     Language.RU: {
         TextKey.WELCOME_CAPTION: (
-            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> "
-            "<b>Добро пожаловать в GRNT</b>\n\n"
-            "Подпишитесь на сообщество <a href='https://t.me/grnthub'>@grnthub</a>, "
-            "чтобы следить за обновлениями сервиса, сделками и объявлениями."
+            "<tg-emoji emoji-id='5253868738251335638'>🤚</tg-emoji>"
+            "Для использования бота выполните условия ниже:\n\n"
+            "Затем нажмите кнопку проверки."
         ),
-        TextKey.WELCOME_SUBSCRIBE: "Подписаться на сообщество",
-        TextKey.WELCOME_CONTINUE: "Продолжить",
+        TextKey.WELCOME_SUBSCRIBE: "Вступить в сообщество",
+        TextKey.WELCOME_CONTINUE: "Я подписался",
+        TextKey.WELCOME_NOT_SUBSCRIBED: (
+            "Сначала вступите в @grnthub, затем нажмите «Я подписался»."
+        ),
+        TextKey.WELCOME_CHECK_FAILED: (
+            "Не удалось проверить подписку. Убедитесь, что @grntrobot является "
+            "администратором @grnthub, и попробуйте ещё раз."
+        ),
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Просто сделки. Остальное — на нас.</b>\n\n"
             "<b>Главное о сервисе:</b>\n"
@@ -362,13 +368,19 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
     },
     Language.EN: {
         TextKey.WELCOME_CAPTION: (
-            "<tg-emoji emoji-id='5985630530111020079'>💬</tg-emoji> "
-            "<b>Welcome to GRNT</b>\n\n"
-            "Join <a href='https://t.me/grnthub'>@grnthub</a> to follow service updates, "
-            "deals, and listings."
+            "<tg-emoji emoji-id='5253868738251335638'>🤚</tg-emoji>"
+            "To use the bot, complete the requirement below:\n\n"
+            "Then press the verification button."
         ),
         TextKey.WELCOME_SUBSCRIBE: "Join the community",
-        TextKey.WELCOME_CONTINUE: "Continue",
+        TextKey.WELCOME_CONTINUE: "I subscribed",
+        TextKey.WELCOME_NOT_SUBSCRIBED: (
+            "Join @grnthub first, then press “I subscribed”."
+        ),
+        TextKey.WELCOME_CHECK_FAILED: (
+            "Could not verify the subscription. Make sure @grntrobot is an "
+            "administrator of @grnthub and try again."
+        ),
         TextKey.MAIN_MENU_CAPTION: (
             "<b>Simple deals. We handle the rest.</b>\n\n"
             "<b>Key service features:</b>\n"
