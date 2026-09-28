@@ -4,6 +4,7 @@ import logging
 from html import escape
 
 from aiogram import Bot, F, Router, types
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
 
 from app.core.custom_emoji import CustomEmoji
@@ -77,7 +78,7 @@ async def connect_community_desk(
         source_bot_id=source_bot.id if source_bot is not None else None,
         source_bot_username=source_bot.username if source_bot is not None else None,
     )
-    moderation = "включена" if community.desk_enabled else "ожидает ручного включения"
+    moderation = "включена" if community.desk_enabled else "выключена"
     if community.desk_source_bot_id is not None:
         source_label = (
             f"@{escape(community.desk_source_bot_username)}"
@@ -86,18 +87,31 @@ async def connect_community_desk(
         )
     else:
         source_label = (
-            "будет зафиксирован по первой подходящей публикации; можно сразу "
-            "привязать его, отправив /connect ответом на сообщение исходного бота"
+            "будет привязан по первой подходящей публикации. Для bot-to-bot "
+            "включите Bot-to-Bot Communication Mode у @grntrobot через @BotFather."
         )
-    await message.answer(
+
+    private_text = (
         f"<tg-emoji emoji-id='{CustomEmoji.CONFIRM.value}'>✅</tg-emoji> "
-        "<b>Ветка Community Desk сохранена.</b>\n\n"
+        "<b>Ветка Community Desk подключена.</b>\n\n"
         f"<b>Chat ID:</b> <code>{message.chat.id}</code>\n"
         f"<b>Topic ID:</b> <code>{topic_id}</code>\n"
         f"<b>Сообщество:</b> {escape(community.name)}\n"
         f"<b>Бот-источник:</b> {source_label}\n"
-        f"<b>Публикация:</b> {moderation}",
+        f"<b>Публикация:</b> {moderation}"
     )
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
+
+    try:
+        await bot.send_message(db_user.telegram_id, private_text)
+    except TelegramForbiddenError:
+        logger.warning(
+            "Could not send private Community Desk confirmation user=%s",
+            db_user.telegram_id,
+        )
 
 
 @router.message(
