@@ -13,14 +13,14 @@ def welcome_keyboard(locale: Language) -> InlineKeyboardMarkup:
             [
                 premium_button(
                     translate(locale, TextKey.WELCOME_SUBSCRIBE),
-                    icon=CustomEmoji.CHANNEL,
+                    icon=CustomEmoji.WELCOME_JOIN,
                     url="https://t.me/grnthub",
                 )
             ],
             [
                 premium_button(
                     translate(locale, TextKey.WELCOME_CONTINUE),
-                    icon=CustomEmoji.NEXT,
+                    icon=CustomEmoji.WELCOME_CHECK,
                     callback_data=MenuCallback(
                         action=MenuAction.WELCOME_CONTINUE
                     ).pack(),
