@@ -40,23 +40,24 @@ class DeskRepository:
         if not response.data:
             raise RuntimeError("Community Desk connection was not saved")
         community = ReferralCommunity(**response.data[0])
-        if source_bot_id is None:
-            return community
-
-        updated = await self._database.run(
-            lambda: self._database.client.table("referral_communities")
-            .update(
+        update_values: dict[str, object] = {"desk_enabled": True}
+        if source_bot_id is not None:
+            update_values.update(
                 {
                     "desk_source_bot_id": source_bot_id,
                     "desk_source_bot_username": source_bot_username,
                 }
             )
+
+        updated = await self._database.run(
+            lambda: self._database.client.table("referral_communities")
+            .update(update_values)
             .eq("id", community.id)
             .execute(),
-            name="community-desk:set-source-bot",
+            name="community-desk:enable-connection",
         )
         if not updated.data:
-            raise RuntimeError("Community Desk source bot was not saved")
+            raise RuntimeError("Community Desk connection was not enabled")
         return ReferralCommunity(**updated.data[0])
 
     async def authorize_community_source(
