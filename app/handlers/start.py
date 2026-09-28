@@ -1,4 +1,4 @@
-from aiogram import F, Router, types
+from aiogram import Bot, F, Router, types
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 
@@ -133,11 +133,33 @@ async def command_start(
 )
 async def welcome_continue(
     callback: types.CallbackQuery,
+    bot: Bot,
     db_user: User,
     settings: Settings,
     state: FSMContext,
 ) -> None:
     await state.clear()
+    try:
+        member = await bot.get_chat_member("@grnthub", db_user.telegram_id)
+        status = getattr(member.status, "value", member.status)
+        subscribed = status in {"creator", "administrator", "member"} or (
+            status == "restricted" and bool(getattr(member, "is_member", False))
+        )
+    except Exception:
+        await callback.answer(
+            translate(db_user.language, TextKey.WELCOME_CHECK_FAILED),
+            show_alert=True,
+        )
+        return
+
+    if not subscribed:
+        await callback.answer(
+            translate(db_user.language, TextKey.WELCOME_NOT_SUBSCRIBED),
+            show_alert=True,
+        )
+        return
+
+    await callback.answer()
     if callback.message:
         await show_main_menu(callback.message, db_user, settings)
 
@@ -167,9 +189,15 @@ async def show_main_menu(message: types.Message, user: User, settings: Settings)
 
 
 async def show_welcome(message: types.Message, user: User) -> None:
-    await render_menu(
-        message,
-        translate(user.language, TextKey.WELCOME_CAPTION),
-        welcome_keyboard(user.language),
-        screen="main_menu",
-    )
+    caption = translate(user.language, TextKey.WELCOME_CAPTION)
+    keyboard = welcome_keyboard(user.language)
+    if message.from_user and message.from_user.is_bot:
+        try:
+            await message.edit_text(caption, reply_markup=keyboard)
+            return
+        except Exception:
+            try:
+                await message.delete()
+            except Exception:
+                pass
+    await message.answer(caption, reply_markup=keyboard)
