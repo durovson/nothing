@@ -4,6 +4,9 @@ from enum import StrEnum
 class CustomEmoji(StrEnum):
     """Telegram custom emoji identifiers approved for the bot UI."""
 
+    WELCOME_HAND = "5253868738251335638"
+    WELCOME_JOIN = "5255999175174137421"
+    WELCOME_CHECK = "5255813619702049821"
     DOCUMENTS = "6028226658543082010"
     DETAILS = "5875206779196935950"
     DESK_DETAILS = "5877597667231534929"
