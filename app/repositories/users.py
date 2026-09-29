@@ -2,6 +2,8 @@ from collections import OrderedDict
 from time import monotonic
 from typing import Unpack
 
+from postgrest.exceptions import APIError
+
 from app.core.constants import USER_CACHE_MAX_ENTRIES, USER_CACHE_TTL_SECONDS
 from app.core.enums import Language
 from app.core.types import UserChanges
@@ -44,17 +46,34 @@ class UserRepository:
                 return await self.update(telegram_id, username=username)
             return user
 
-        response = await self._database.run(
-            lambda: self._database.client.table("users")
-            .insert(
-                {
-                    "telegram_id": telegram_id,
-                    "username": username,
-                    "language": default_language.value,
-                }
+        try:
+            response = await self._database.run(
+                lambda: self._database.client.table("users")
+                .insert(
+                    {
+                        "telegram_id": telegram_id,
+                        "username": username,
+                        "language": default_language.value,
+                    }
+                )
+                .execute(),
+                name="users:create",
             )
-            .execute()
-        )
+        except APIError as exc:
+            # Two Telegram updates for a brand-new user can arrive concurrently.
+            # Both may observe an empty row, but only one insert can win the
+            # primary-key race. Treat that specific conflict as an idempotent
+            # ensure operation and load the row created by the other update.
+            if str(getattr(exc, "code", "")) != "23505":
+                raise
+            user = await self.get(telegram_id)
+            if user is None:
+                # A different unique constraint (or an unexpected database
+                # state) may also surface as 23505. Do not hide that failure.
+                raise
+            if username and user.username != username:
+                return await self.update(telegram_id, username=username)
+            return user
         return self._remember(User(**response.data[0]))
 
     async def get(self, telegram_id: int) -> User | None:
