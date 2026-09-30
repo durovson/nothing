@@ -32,6 +32,7 @@ async def start_with_args(
     message: types.Message,
     command: CommandObject,
     db_user: User,
+    db_user_is_new: bool,
     deal_service: DealService,
     referral_service: ReferralService,
     settings: Settings,
@@ -117,15 +118,25 @@ async def start_with_args(
         )
         return
 
-    await show_welcome(message, db_user)
+    if db_user_is_new:
+        await show_welcome(message, db_user)
+    else:
+        await show_main_menu(message, db_user, settings)
 
 
 @router.message(CommandStart())
 async def command_start(
-    message: types.Message, db_user: User, settings: Settings, state: FSMContext
+    message: types.Message,
+    db_user: User,
+    db_user_is_new: bool,
+    settings: Settings,
+    state: FSMContext,
 ) -> None:
     await state.clear()
-    await show_welcome(message, db_user)
+    if db_user_is_new:
+        await show_welcome(message, db_user)
+    else:
+        await show_main_menu(message, db_user, settings)
 
 
 @router.callback_query(

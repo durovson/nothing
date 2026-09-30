@@ -15,6 +15,18 @@ class UserService:
     ) -> User:
         return await self._users.ensure_user(telegram_id, username, default_language)
 
+    async def ensure_user_with_status(
+        self,
+        telegram_id: int,
+        username: str | None,
+        default_language: Language,
+    ) -> tuple[User, bool]:
+        return await self._users.ensure_user_with_status(
+            telegram_id,
+            username,
+            default_language,
+        )
+
     async def change_language(self, telegram_id: int, language: Language) -> User:
         return await self._users.update(telegram_id, language=language)
 

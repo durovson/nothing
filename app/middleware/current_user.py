@@ -42,7 +42,7 @@ class CurrentUserMiddleware(BaseMiddleware):
             started_at = perf_counter()
             try:
                 try:
-                    user = await self._users.ensure_user(
+                    user, user_created = await self._users.ensure_user_with_status(
                         telegram_id=event_user.id,
                         username=event_user.username,
                         default_language=self._default_language,
@@ -58,6 +58,7 @@ class CurrentUserMiddleware(BaseMiddleware):
                     ):
                         raise
                     user = cached_user
+                    user_created = False
                     self._last_known_users.move_to_end(event_user.id)
                     logger.warning(
                         "Using cached user for navigation after transient Supabase failure "
@@ -77,6 +78,7 @@ class CurrentUserMiddleware(BaseMiddleware):
                         duration * 1_000,
                     )
             data["db_user"] = user
+            data["db_user_is_new"] = user_created
             data["locale"] = user.language
         else:
             data["locale"] = self._default_language

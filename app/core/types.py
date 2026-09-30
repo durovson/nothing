@@ -28,6 +28,13 @@ class UserRepositoryProtocol(Protocol):
         default_language: Language,
     ) -> User: ...
 
+    async def ensure_user_with_status(
+        self,
+        telegram_id: TelegramId,
+        username: str | None,
+        default_language: Language,
+    ) -> tuple[User, bool]: ...
+
     async def get(self, telegram_id: TelegramId) -> User | None: ...
     async def get_many(self, telegram_ids: set[TelegramId]) -> dict[TelegramId, User]: ...
 
