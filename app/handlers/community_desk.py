@@ -22,6 +22,30 @@ def _chat_member_status(member: types.ChatMember) -> str:
     return getattr(status, "value", status)
 
 
+def _message_source_bot(message: types.Message) -> types.User | None:
+    """Return the verifiable bot that authored a direct or forwarded message."""
+    sender = message.from_user
+    if sender is not None and sender.is_bot:
+        return sender
+
+    # A human forwarding a bot message becomes Message.from, while Telegram
+    # preserves the original bot in Message.forward_origin.sender_user.
+    origin = getattr(message, "forward_origin", None)
+    origin_user = getattr(origin, "sender_user", None)
+    if origin_user is not None and origin_user.is_bot:
+        return origin_user
+    return None
+
+
+def _listing_payload(
+    message: types.Message,
+) -> tuple[str | None, list[types.MessageEntity] | None]:
+    """Read listings from both plain-text messages and media captions."""
+    if message.text is not None:
+        return message.text, message.entities
+    return message.caption, message.caption_entities
+
+
 @router.message(Command("connect"))
 async def connect_community_desk(
     message: types.Message,
@@ -61,13 +85,10 @@ async def connect_community_desk(
         )
         return
 
-    replied_user = (
-        message.reply_to_message.from_user
+    source_bot = (
+        _message_source_bot(message.reply_to_message)
         if message.reply_to_message is not None
         else None
-    )
-    source_bot = (
-        replied_user if replied_user is not None and replied_user.is_bot else None
     )
     community = await community_desk_service.connect(
         chat_id=message.chat.id,
@@ -87,8 +108,8 @@ async def connect_community_desk(
         )
     else:
         source_label = (
-            "будет привязан по первой подходящей публикации. Для bot-to-bot "
-            "включите Bot-to-Bot Communication Mode у @grntrobot через @BotFather."
+            "будет привязан по первой подходящей публикации. Поддерживаются "
+            "как прямые bot-to-bot сообщения, так и пересланные сообщения бота."
         )
 
     private_text = (
@@ -117,21 +138,24 @@ async def connect_community_desk(
 @router.message(
     F.chat.type.in_({"group", "supergroup"}),
     F.is_topic_message,
-    F.text.func(looks_like_community_listing),
+    (
+        F.text.func(looks_like_community_listing)
+        | F.caption.func(looks_like_community_listing)
+    ),
 )
 async def mirror_visible_community_listing(
     message: types.Message,
     community_desk_service: CommunityDeskService,
 ) -> None:
     topic_id = message.message_thread_id
-    sender = message.from_user
+    source_bot = _message_source_bot(message)
+    text, entities = _listing_payload(message)
     if (
         message.chat.type not in {"group", "supergroup"}
         or not message.is_topic_message
         or topic_id is None
-        or sender is None
-        or not sender.is_bot
-        or not looks_like_community_listing(message.text)
+        or source_bot is None
+        or not looks_like_community_listing(text)
     ):
         return
     try:
@@ -139,10 +163,10 @@ async def mirror_visible_community_listing(
             chat_id=message.chat.id,
             topic_id=topic_id,
             message_id=message.message_id,
-            source_bot_id=sender.id,
-            source_bot_username=sender.username,
-            text=message.text or "",
-            entities=message.entities,
+            source_bot_id=source_bot.id,
+            source_bot_username=source_bot.username,
+            text=text or "",
+            entities=entities,
             owner_language=Language.RU,
         )
     except Exception:
