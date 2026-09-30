@@ -40,11 +40,24 @@ class UserRepository:
         username: str | None,
         default_language: Language,
     ) -> User:
+        user, _created = await self.ensure_user_with_status(
+            telegram_id,
+            username,
+            default_language,
+        )
+        return user
+
+    async def ensure_user_with_status(
+        self,
+        telegram_id: int,
+        username: str | None,
+        default_language: Language,
+    ) -> tuple[User, bool]:
         user = await self.get(telegram_id)
         if user:
             if username and user.username != username:
-                return await self.update(telegram_id, username=username)
-            return user
+                user = await self.update(telegram_id, username=username)
+            return user, False
 
         try:
             response = await self._database.run(
@@ -61,9 +74,8 @@ class UserRepository:
             )
         except APIError as exc:
             # Two Telegram updates for a brand-new user can arrive concurrently.
-            # Both may observe an empty row, but only one insert can win the
-            # primary-key race. Treat that specific conflict as an idempotent
-            # ensure operation and load the row created by the other update.
+            # Only the request that actually inserted the row is considered new;
+            # the loser of the primary-key race must not replay first-run UI.
             if str(getattr(exc, "code", "")) != "23505":
                 raise
             user = await self.get(telegram_id)
@@ -72,9 +84,9 @@ class UserRepository:
                 # state) may also surface as 23505. Do not hide that failure.
                 raise
             if username and user.username != username:
-                return await self.update(telegram_id, username=username)
-            return user
-        return self._remember(User(**response.data[0]))
+                user = await self.update(telegram_id, username=username)
+            return user, False
+        return self._remember(User(**response.data[0])), True
 
     async def get(self, telegram_id: int) -> User | None:
         cached = self._cached(telegram_id)
