@@ -358,7 +358,7 @@ TEXTS: dict[Language, dict[TextKey, str]] = {
         TextKey.LANG_RU: "Russian",
         TextKey.LANG_EN: "English",
         TextKey.COMPLETED_DEAL_FEED: (
-            "<tg-emoji emoji-id='6028226658543082010'>📋</tg-emoji><b>Сделка</b> <code>#{deal_id}</code>\n\n"
+            "<tg-emoji emoji-id='5330384826170123820'>📄</tg-emoji><b>Сделка</b> <code>#{deal_id}</code>\n\n"
             "<tg-emoji emoji-id='5875206779196935950'>📁</tg-emoji><b>Детали:</b>\n"
             "<blockquote>• Описание: {description}\n"
             "• Продавец получил: {amount} {currency}\n"
