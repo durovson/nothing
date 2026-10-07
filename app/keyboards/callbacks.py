@@ -15,7 +15,6 @@ from app.core.enums import (
 
 
 class MenuAction(StrEnum):
-    WELCOME_CONTINUE = "welcome_continue"
     BACK = "back"
     WALLET = "wallet"
     CREATE_DEAL = "create"
