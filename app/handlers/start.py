@@ -1,4 +1,4 @@
-from aiogram import Bot, F, Router, types
+from aiogram import F, Router, types
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 
@@ -6,7 +6,7 @@ from app.api.telegram_notifier import TelegramNotificationGateway
 from app.config import Settings
 from app.core.enums import DealStatus, DealType
 from app.core.exceptions import MissingLinkedWalletError, ServiceUnavailableError
-from app.keyboards import MenuCallback, main_menu, payment_keyboard, welcome_keyboard
+from app.keyboards import MenuCallback, main_menu, payment_keyboard
 from app.keyboards.callbacks import MenuAction
 from app.locales import TextKey, translate
 from app.models.entities import User
@@ -32,7 +32,6 @@ async def start_with_args(
     message: types.Message,
     command: CommandObject,
     db_user: User,
-    db_user_is_new: bool,
     deal_service: DealService,
     referral_service: ReferralService,
     settings: Settings,
@@ -118,61 +117,18 @@ async def start_with_args(
         )
         return
 
-    if db_user_is_new:
-        await show_welcome(message, db_user)
-    else:
-        await show_main_menu(message, db_user, settings)
+    await show_main_menu(message, db_user, settings)
 
 
 @router.message(CommandStart())
 async def command_start(
     message: types.Message,
     db_user: User,
-    db_user_is_new: bool,
     settings: Settings,
     state: FSMContext,
 ) -> None:
     await state.clear()
-    if db_user_is_new:
-        await show_welcome(message, db_user)
-    else:
-        await show_main_menu(message, db_user, settings)
-
-
-@router.callback_query(
-    MenuCallback.filter(F.action == MenuAction.WELCOME_CONTINUE)
-)
-async def welcome_continue(
-    callback: types.CallbackQuery,
-    bot: Bot,
-    db_user: User,
-    settings: Settings,
-    state: FSMContext,
-) -> None:
-    await state.clear()
-    try:
-        member = await bot.get_chat_member("@grnthub", db_user.telegram_id)
-        status = getattr(member.status, "value", member.status)
-        subscribed = status in {"creator", "administrator", "member"} or (
-            status == "restricted" and bool(getattr(member, "is_member", False))
-        )
-    except Exception:
-        await callback.answer(
-            translate(db_user.language, TextKey.WELCOME_CHECK_FAILED),
-            show_alert=True,
-        )
-        return
-
-    if not subscribed:
-        await callback.answer(
-            translate(db_user.language, TextKey.WELCOME_NOT_SUBSCRIBED),
-            show_alert=True,
-        )
-        return
-
-    await callback.answer()
-    if callback.message:
-        await show_main_menu(callback.message, db_user, settings)
+    await show_main_menu(message, db_user, settings)
 
 
 @router.callback_query(MenuCallback.filter(F.action == MenuAction.BACK))
@@ -197,18 +153,3 @@ async def show_main_menu(message: types.Message, user: User, settings: Settings)
         ),
         main_menu(user.language, settings.SUPPORT_USERNAME),
     )
-
-
-async def show_welcome(message: types.Message, user: User) -> None:
-    caption = translate(user.language, TextKey.WELCOME_CAPTION)
-    keyboard = welcome_keyboard(user.language)
-    if message.from_user and message.from_user.is_bot:
-        try:
-            await message.edit_text(caption, reply_markup=keyboard)
-            return
-        except Exception:
-            try:
-                await message.delete()
-            except Exception:
-                pass
-    await message.answer(caption, reply_markup=keyboard)
