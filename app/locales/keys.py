@@ -2,11 +2,6 @@ from enum import StrEnum
 
 
 class TextKey(StrEnum):
-    WELCOME_CAPTION = "welcome_caption"
-    WELCOME_SUBSCRIBE = "welcome_subscribe"
-    WELCOME_CONTINUE = "welcome_continue"
-    WELCOME_NOT_SUBSCRIBED = "welcome_not_subscribed"
-    WELCOME_CHECK_FAILED = "welcome_check_failed"
     MAIN_MENU_CAPTION = "main_menu_caption"
     MENU_WALLET = "menu_wallet"
     MENU_CREATE_DEAL = "menu_create_deal"
@@ -15,6 +10,7 @@ class TextKey(StrEnum):
     MENU_FAQ = "menu_faq"
     MENU_DOCUMENTS = "menu_documents"
     MENU_CREATE_DESK = "menu_create_desk"
+    MENU_CHANNEL = "menu_channel"
     DESK_KIND_PROMPT = "desk_kind_prompt"
     DESK_DESCRIPTION_PROMPT = "desk_description_prompt"
     DESK_DESCRIPTION_PREVIEW = "desk_description_preview"
