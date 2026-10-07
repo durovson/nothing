@@ -7,29 +7,6 @@ from app.keyboards.callbacks import MenuAction, MenuCallback
 from app.locales import TextKey, translate
 
 
-def welcome_keyboard(locale: Language) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                premium_button(
-                    translate(locale, TextKey.WELCOME_SUBSCRIBE),
-                    icon=CustomEmoji.WELCOME_JOIN,
-                    url="https://t.me/grnthub",
-                )
-            ],
-            [
-                premium_button(
-                    translate(locale, TextKey.WELCOME_CONTINUE),
-                    icon=CustomEmoji.WELCOME_CHECK,
-                    callback_data=MenuCallback(
-                        action=MenuAction.WELCOME_CONTINUE
-                    ).pack(),
-                )
-            ],
-        ]
-    )
-
-
 def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineKeyboardMarkup:
     support = support_username.strip().lstrip("@") or "not_jammm"
 
@@ -78,6 +55,11 @@ def main_menu(locale: Language, support_username: str = "@not_jammm") -> InlineK
                     translate(locale, TextKey.SETTINGS_SUPPORT),
                     icon=CustomEmoji.SUPPORT,
                     url=f"https://t.me/{support}",
+                ),
+                premium_button(
+                    "Наш канал",
+                    icon=CustomEmoji.COMMUNITY,
+                    url="https://t.me/+A5F8tq7dYrA1NTBi",
                 ),
             ],
         ]
